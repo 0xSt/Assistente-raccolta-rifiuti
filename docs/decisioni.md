@@ -1,0 +1,30 @@
+# Decisioni di progetto
+
+Formato: decisione, motivazione, stato. Le decisioni si aggiornano, non si cancellano: una decisione superata resta con lo stato "superata da Dn".
+
+| # | Decisione | Motivazione | Stato |
+|---|---|---|---|
+| D1 | Web app locale in Python, Docker multi-container: frontend Streamlit, backend FastAPI, modello su Ollama | Privacy, esecuzione offline, requisito del progetto | Accettata |
+| D2 | Modello base `gemma4:e2b`, `gemma4:e4b` come confronto in valutazione | Laptop con 16 GB di RAM, CPU Ryzen, nessuna GPU dedicata | Accettata |
+| D3 | Input: foto di **un solo oggetto**, comune obbligatorio, testo facoltativo | Perimetro dell'agente definito da Stef | Accettata |
+| D4 | Domande solo testuali: indicazione provvisoria e richiesta di una foto prima di una risposta sicura | La foto verifica materiale, componenti e stato | Accettata |
+| D5 | Comuni: Napoli e Torino | Formati complementari (HTML e PDF); Rifiutologo 2025 granulare e recente | Accettata |
+| D6 | Tre livelli di evidenza: 1 voce di dizionario, 2 regola di categoria, 3 nessuna regola del comune | La certezza della risposta dipende da chi ha classificato l'oggetto | Accettata |
+| D7 | Mai usare regole di un altro comune | Le regole cambiano tra comuni (es. metalli con vetro a Torino, con plastica a Napoli) | Accettata |
+| D8 | Retrieval ibrido: FTS5 a trigrammi + embedding, fusione RRF, filtro per comune prima della ricerca | Il solo semantico confonde oggetti simili con destinazioni diverse (bottiglia/bicchiere di vetro) | Accettata |
+| D9 | Il modello sceglie tra candidati reali o risponde "nessuno"; la regola finale arriva sempre da SQL | Contenere le allucinazioni, rendere la valutazione misurabile | Accettata |
+| D10 | Ricerca a cascata: voci → regole di categoria → livello 3 | Il livello di evidenza diventa un risultato del flusso, non una stima del modello | Accettata |
+| D11 | Nessun catalogo canonico degli oggetti per ora (`oggetto_canonico_id` facoltativo) | Evitare l'entity resolution nel prototipo senza chiudere la porta | Accettata |
+| D12 | Un solo file SQLite: FTS5 + vettori | Nessun container database aggiuntivo sul laptop | Accettata |
+| D13 | Schema a tre livelli: grezzo, normalizzato, serving | Tracciabilità di ogni dato fino alla fonte | Accettata |
+| D14 | Più destinazioni per una voce sono **alternative** (OR), non componenti | Verificato su entrambe le fonti (es. Divani, Armadio) | Accettata |
+| D15 | Destinazioni classificate per **canale** e collegate a **flussi** canonici molti-a-molti | Confrontare comuni con raggruppamenti diversi | Accettata |
+| D16 | Estrazione Torino deterministica dai marcatori vettoriali, senza LLM | Riproducibile e verificabile; LLM riservato ai casi ambigui | Accettata |
+| D17 | Estrattore Napoli senza classi CSS; lista "Puoi inoltre conferire" non usata per l'appartenenza al contenitore | Elementor rigenera le classi; la lista è quasi identica su voci con destinazioni diverse | Accettata |
+
+## Questioni aperte
+
+- Napoli: esistenza della sitemap e meccanismo di paginazione dell'indice (serve `--recon`).
+- Torino: Transform delle condizioni non tra parentesi ("con residui", "unta", "pulito/sporco") e degli alias.
+- Estrazione delle regole di categoria: Torino pagine 8-12, Napoli sei pagine frazione e opuscolo PDF.
+- Set di test con foto etichettate e metriche (riconoscimento, destinazione per comune, latenza).

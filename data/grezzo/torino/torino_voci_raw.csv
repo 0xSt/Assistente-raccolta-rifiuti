@@ -1,0 +1,325 @@
+pagina,voce_originale,destinazioni_alternative
+16,"Abiti (cappelli, cinture, cravatte, indumenti in pile, scarpe, borse)",abiti|centro_di_raccolta
+16,"Accendini, Accendisigari e Accendigas",rifiuto_non_recuperabile
+16,Accessori auto,rifiuto_non_recuperabile
+16,Adesivi,rifiuto_non_recuperabile
+16,Aghi,rifiuto_non_recuperabile
+16,Alberi di Natale naturali,centro_di_raccolta
+16,Alberi di Natale sintetici,centro_di_raccolta
+16,Alimenti avanzati o scaduti,organico
+16,"Arredi in legno, ferro o plastica",centro_di_raccolta
+16,Aspirapolvere,centro_di_raccolta
+16,Assi da stiro,rifiuti_ingombranti|centro_di_raccolta
+16,Assorbenti,rifiuto_non_recuperabile
+16,Bacinelle e altri oggetti in plastica dura,rifiuto_non_recuperabile
+16,Bacinelle in plastica di grandi dimensioni,centro_di_raccolta
+16,Bancali in legno,centro_di_raccolta
+16,Barattoli per alimenti in vetro,vetro_e_imballaggi_metallo
+16,Barattoli per alimenti in alluminio,vetro_e_imballaggi_metallo
+16,Batterie auto,centro_di_raccolta
+16,Batterie telefonini,centro_di_raccolta
+16,Bicchieri e coppette di carta,carta_e_cartone
+16,Bicchieri di cristallo,rifiuto_non_recuperabile
+16,Bicchieri di vetro,vetro_e_imballaggi_metallo
+16,Bicchieri in materiale compostabile,organico
+16,Bicchieri in plastica dura riutilizzabili,rifiuto_non_recuperabile
+16,Bicchieri in plastica usa e getta,imballaggi_plastica
+16,Biciclette,centro_di_raccolta
+16,Bilance,centro_di_raccolta
+16,Blister per pastiglie vuoti,vetro_e_imballaggi_metallo
+16,Bombolette spray in alluminio (non infiammabili),vetro_e_imballaggi_metallo
+16,Bombolette spray in plastica (non infiammabili),imballaggi_plastica
+16,Bombolette spray infiammabili,centro_di_raccolta
+16,Bombolette spray per alimenti,vetro_e_imballaggi_metallo
+16,Bombolette spray per l’igiene (non infiammabili),vetro_e_imballaggi_metallo
+16,Borsine in bioplastica,organico
+16,Borsine di plastica,imballaggi_plastica
+16,Borsine in tessuto,abiti
+16,Bottiglie in bioplastica,organico
+16,Bottiglie di plastica per bevande e/o olio,imballaggi_plastica
+16,Bottiglie di vetro,vetro_e_imballaggi_metallo
+16,Bottoni,rifiuto_non_recuperabile
+16,Bucce di frutta o verdura,organico
+16,Bulloneria,centro_di_raccolta
+16,Buste di carta,carta_e_cartone
+16,Buste di nylon e plastica,imballaggi_plastica
+16,Bustine del tè,organico
+16,Bustine di campioni cosmetici,rifiuto_non_recuperabile
+16,Calcinacci (in piccole quantità),centro_di_raccolta
+16,Calcolatrici,centro_di_raccolta
+16,Calendari (solo componenti in carta),carta_e_cartone
+16,Cancelleria,rifiuto_non_recuperabile
+16,Capelli non trattati con tinture,organico
+17,Capelli tinti,rifiuto_non_recuperabile
+17,Capsule di caffè in alluminio senza residui,vetro_e_imballaggi_metallo
+17,Capsule del caffè in plastica con residui di caffè,rifiuto_non_recuperabile
+17,Capsule del caffè in plastica senza residui,imballaggi_plastica
+17,Capsule di caffè compostabili,organico
+17,Caraffe di ceramica o terracotta,rifiuto_non_recuperabile
+17,Caraffe di vetro,vetro_e_imballaggi_metallo
+17,Caricabatterie,centro_di_raccolta
+17,Carta accoppiata con alluminio,rifiuto_non_recuperabile
+17,Carta accoppiata con plastica,rifiuto_non_recuperabile
+17,Carta assorbente da cucina non unta,carta_e_cartone
+17,Carta assorbente da cucina unta,organico
+17,Carta da forno,rifiuto_non_recuperabile
+17,Carta da pacco,carta_e_cartone
+17,Carta lucida da disegno,rifiuto_non_recuperabile
+17,Carta oleata per alimenti,rifiuto_non_recuperabile
+17,Carta plastificata,rifiuto_non_recuperabile
+17,Carta sporca di prodotti detergenti o altre sostanze,rifiuto_non_recuperabile
+17,Carta stagnola da cucina,vetro_e_imballaggi_metallo
+17,Carta velina da cucina pulita,carta_e_cartone
+17,Carta vetrata,rifiuto_non_recuperabile
+17,Cartone da pizza pulito,carta_e_cartone
+17,Cartone da pizza sporco (solo se certificato compostabile),organico
+17,Cartone ondulato,carta_e_cartone
+17,Cartucce filtranti per acqua,rifiuto_non_recuperabile
+17,Cartucce per stampanti,centro_di_raccolta
+17,Casco per moto,centro_di_raccolta
+17,Casse di legno,centro_di_raccolta
+17,Cassette da frutta di cartone,carta_e_cartone
+17,Cassette da frutta in legno,centro_di_raccolta
+17,Cassette e altri oggetti in plastica dura,centro_di_raccolta
+17,Cavi elettrici,centro_di_raccolta
+17,"CD, DVD, Blue-ray e relative custodie",rifiuto_non_recuperabile
+17,"Cellulare, smartphone e tablet",centro_di_raccolta
+17,Cenere di sigaretta (senza mozzicone),organico
+17,Ceneri spente di caminetti,organico
+17,Ceramiche,rifiuto_non_recuperabile
+17,Cerchioni,centro_di_raccolta
+17,Cerotti,rifiuto_non_recuperabile
+17,Cestini portarifiuti in metallo e plastica,centro_di_raccolta
+17,Chewing-gum,rifiuto_non_recuperabile
+17,Chiavette usb,centro_di_raccolta
+17,Chiusura in carta stagnola dello yogurt,vetro_e_imballaggi_metallo
+17,Chiusure metalliche per vasetti di vetro,vetro_e_imballaggi_metallo
+17,Cialde del caffè in stoffa o carta,organico
+17,Colla,centro_di_raccolta
+17,Collant,rifiuto_non_recuperabile
+17,"Colori (tempera, acrilico ecc.)",centro_di_raccolta
+17,Computer,centro_di_raccolta
+18,Condizionatore,centro_di_raccolta
+18,Confezioni in plastica,imballaggi_plastica
+18,Confezioni in cartone per alimenti,carta_e_cartone
+18,Consolle videogiochi,centro_di_raccolta
+18,Contenitori vuoti di yogurt e dessert,imballaggi_plastica
+18,Contenitori in plastica di prodotti liquidi per la pulizia della casa,imballaggi_plastica
+18,Contenitori in plastica di prodotti liquidi per l’igiene personale,imballaggi_plastica
+18,Contenitori in Tetra Pak,carta_e_cartone
+18,Coperchi in plastica,imballaggi_plastica
+18,"Coperte, plaid e trapunte",centro_di_raccolta|abiti
+18,Cosmetici,rifiuto_non_recuperabile
+18,Cotone idrofilo,rifiuto_non_recuperabile
+18,Cotton fioc,rifiuto_non_recuperabile
+18,Cristalli,rifiuto_non_recuperabile
+18,Cuoio,rifiuto_non_recuperabile
+18,Cuscini,centro_di_raccolta
+18,Damigiane,centro_di_raccolta
+18,Depliant e volantini pubblicitari,carta_e_cartone
+18,Divani,rifiuti_ingombranti|centro_di_raccolta
+18,Doghe,rifiuti_ingombranti|centro_di_raccolta
+18,Elastici,rifiuto_non_recuperabile
+18,Elettrodomestici di piccole dimensioni,centro_di_raccolta
+18,Escrementi animali,rifiuto_non_recuperabile
+18,Etichette adesive,rifiuto_non_recuperabile
+18,Farmaci scaduti,centro_di_raccolta|farmaci
+18,Fazzoletti di carta usati,organico
+18,Feltrini,rifiuto_non_recuperabile
+18,Ferri da stiro,centro_di_raccolta
+18,Fiale (non adibite a contenere i farmaci),vetro_e_imballaggi_metallo
+18,Fiammiferi e cerini,organico
+18,Filo da cucire,rifiuto_non_recuperabile
+18,Filtri del the,organico
+18,Filtri per acqua potabile,centro_di_raccolta
+18,Finestre in legno o alluminio,rifiuti_ingombranti|centro_di_raccolta
+18,Fiori,organico
+18,Fiori finti (plastica o tessuto),rifiuto_non_recuperabile
+18,Foglie e fiori secchi,organico
+18,Foglie secche (grandi quantitativi),centro_di_raccolta
+18,Fondi di caffè,organico
+18,Forni elettrici,rifiuti_ingombranti|centro_di_raccolta
+18,Fotografie,rifiuto_non_recuperabile
+18,Frigoriferi,rifiuti_ingombranti|centro_di_raccolta
+18,Garze,rifiuto_non_recuperabile
+18,Generatori elettrici,centro_di_raccolta
+18,Giocattoli,rifiuto_non_recuperabile
+18,Giocattoli elettrici ed elettronici,centro_di_raccolta
+18,Giornali e riviste,carta_e_cartone
+18,Gomma da cancellare,rifiuto_non_recuperabile
+18,Gommapiuma,rifiuto_non_recuperabile
+18,Graffatrice,centro_di_raccolta
+18,Granaglie,organico
+18,Grattugia (in metallo o plastica),rifiuto_non_recuperabile
+19,Grucce appendiabiti in metallo,vetro_e_imballaggi_metallo
+19,Grucce appendiabiti in plastica,imballaggi_plastica
+19,Guanti in gomma,rifiuto_non_recuperabile
+19,Guarnizioni auto,rifiuto_non_recuperabile
+19,"Gusci di alimenti (frutta secca, uovo, molluschi…)",organico
+19,Imballaggi di carta o cartone,carta_e_cartone
+19,"Imballaggi fabbricati con più materiali (es. buste del cibo per gatti, buste sottovuoto del caffè, ecc.)",rifiuto_non_recuperabile
+19,Imballaggi millebolle (pluriball),imballaggi_plastica
+19,Imballaggi poliaccoppiati,rifiuto_non_recuperabile
+19,Incenso,organico
+19,Inerti in piccole quantità provenienti da lavori domestici,centro_di_raccolta
+19,"Infissi in alluminio, legno o plastica",centro_di_raccolta
+19,Insetti morti,organico
+19,Involucro cioccolatini (alluminio),vetro_e_imballaggi_metallo
+19,Involucro cioccolatini (plastica argentata),imballaggi_plastica
+19,Involucri uova di Pasqua,imballaggi_plastica
+19,Lacci di gomma,rifiuto_non_recuperabile
+19,Lamette,rifiuto_non_recuperabile
+19,Lampadari,centro_di_raccolta
+19,Lampadine a basso consumo,centro_di_raccolta
+19,Lampadine a incandescenza,centro_di_raccolta
+19,Lastre di vetro,centro_di_raccolta
+19,Lastre radiografiche,rifiuto_non_recuperabile
+19,Laterizi (in piccole quantità prevenienti da lavori domestici),centro_di_raccolta
+19,Latte e lattine per alimenti,vetro_e_imballaggi_metallo
+19,Lavastoviglie,rifiuti_ingombranti|centro_di_raccolta
+19,Lavatrici,rifiuti_ingombranti|centro_di_raccolta
+19,Legno da potatura,centro_di_raccolta
+19,Legno verniciato,centro_di_raccolta
+19,Lenti a contatto,rifiuto_non_recuperabile
+19,Lenti di occhiali,rifiuto_non_recuperabile
+19,Lettiere chimiche per animali domestici,rifiuto_non_recuperabile
+19,Lettiere naturali per animali (sabbia/segatura),organico
+19,"Lettori CD, DVD, Blue-ray e mp3",centro_di_raccolta
+19,Libri (senza copertina plastificata),carta_e_cartone
+19,Lische di pesce,organico
+19,Mascherine,rifiuto_non_recuperabile
+19,Materassi,rifiuti_ingombranti|centro_di_raccolta
+19,Matite colorate,rifiuto_non_recuperabile
+19,Mattoni e mattonelle,centro_di_raccolta
+19,Medicinali scaduti,centro_di_raccolta|farmaci
+19,"Mensole in legno, vetro o plastica",centro_di_raccolta
+19,Monitor,centro_di_raccolta
+19,Mozziconi di sigarette e sigari,rifiuto_non_recuperabile
+19,Nastro abrasivo,rifiuto_non_recuperabile
+19,Nastro adesivo,rifiuto_non_recuperabile
+19,Nastro da pacco,rifiuto_non_recuperabile
+19,Neon,centro_di_raccolta
+19,Noccioli,organico
+19,Occhiali,rifiuto_non_recuperabile
+19,Oggetti in gomma,rifiuto_non_recuperabile
+19,Oggetti in peluche o ovatta,rifiuto_non_recuperabile
+20,Oli minerali esausti (olio motore),centro_di_raccolta
+20,Oli vegetali esausti* (olio da cucina),olio_esausto|centro_di_raccolta
+20,Ombrelli,rifiuto_non_recuperabile
+20,Ombrelloni,centro_di_raccolta
+20,Ossi,organico
+20,Pallets,centro_di_raccolta
+20,Pannolini e pannoloni,rifiuto_non_recuperabile
+20,Parabrezza e paraurti (solo da utenze domestiche),centro_di_raccolta
+20,Pastelli a cera,rifiuto_non_recuperabile
+20,PC,centro_di_raccolta
+20,Pedane in legno o plastica,centro_di_raccolta
+20,Pelle conciata,rifiuto_non_recuperabile
+20,Pellets,centro_di_raccolta
+20,Pellicola millebolle (pluriball),imballaggi_plastica
+20,Pellicole di cellophane,imballaggi_plastica
+20,Pellicole per alimenti in alluminio,vetro_e_imballaggi_metallo
+20,Pellicole per alimenti in plastica,imballaggi_plastica
+20,Peluches,rifiuto_non_recuperabile
+20,Penne a sfera,rifiuto_non_recuperabile
+20,Pennarelli,rifiuto_non_recuperabile
+20,Pennelli da pittura,rifiuto_non_recuperabile
+20,Pentole e padelle,centro_di_raccolta
+20,Pettini e spazzole,rifiuto_non_recuperabile
+20,Phon,centro_di_raccolta
+20,Piatti di carta,carta_e_cartone
+20,Piatti in ceramica,rifiuto_non_recuperabile
+20,Piatti in materiale compostabile,organico
+20,Piatti in plastica dura riutilizzabili,rifiuto_non_recuperabile
+20,Piatti in plastica usa e getta,imballaggi_plastica
+20,Pile e batterie,centro_di_raccolta|pile
+20,Pirofile,rifiuto_non_recuperabile
+20,Piume di pollame,organico
+20,Plastica espansa per imballaggio,centro_di_raccolta
+20,Pneumatici senza cerchione,centro_di_raccolta
+20,Polistirolo per alimenti e piccoli imballaggi,imballaggi_plastica
+20,Polistirolo per grandi imballaggi,centro_di_raccolta
+20,Poltrone,rifiuti_ingombranti|centro_di_raccolta
+20,Porcellane,rifiuto_non_recuperabile
+20,"Porte in legno, ferro o plastica",rifiuti_ingombranti|centro_di_raccolta
+20,Posate in acciaio,vetro_e_imballaggi_metallo
+20,Posate in plastica,rifiuto_non_recuperabile
+20,Profilattici,rifiuto_non_recuperabile
+20,"Quaderni, agende, block notes",carta_e_cartone
+20,Radio,centro_di_raccolta
+20,Rami da potature,centro_di_raccolta
+20,Rasoi (non elettrici),rifiuto_non_recuperabile
+20,Rasoi elettrici,centro_di_raccolta
+20,Refill,centro_di_raccolta
+20,Refrigeratori,rifiuti_ingombranti|centro_di_raccolta
+20,Reggette per legature pacchi,imballaggi_plastica
+20,Reti in ferro per letti,rifiuti_ingombranti|centro_di_raccolta
+20,Retine in plastica per frutta e verdura,imballaggi_plastica
+21,"Ringhiere in ferro, legno o plastica",centro_di_raccolta
+21,Rubinetteria,centro_di_raccolta
+21,"Sacchetti in plastica (surgelati, caffè, merendine, patatine, salatini)",imballaggi_plastica
+21,Sacchetti dell’aspirapolvere usati,rifiuto_non_recuperabile
+21,Sacchetti di carta,carta_e_cartone
+21,Sacchi per materiale edile,centro_di_raccolta
+21,Sanitari,rifiuti_ingombranti|centro_di_raccolta
+21,Sapone e saponette,rifiuto_non_recuperabile
+21,Scaffali e strutture in ferro,rifiuti_ingombranti|centro_di_raccolta
+21,Scaldabagno,rifiuti_ingombranti|centro_di_raccolta
+21,Scatole in cartone o cartoncino,carta_e_cartone
+21,Sci e scarponi da sci,centro_di_raccolta
+21,Scontrini fiscali (carta chimica o termica),rifiuto_non_recuperabile
+21,Scope,rifiuto_non_recuperabile
+21,Secchielli di plastica,rifiuto_non_recuperabile
+21,Segatura pulita,organico
+21,Segatura sporca di prodotti detergenti o altro,rifiuto_non_recuperabile
+21,Seggioloni per bambini,centro_di_raccolta
+21,Semi,organico
+21,Sfalci d’erba,centro_di_raccolta
+21,Siringhe,rifiuto_non_recuperabile
+21,Smalti,centro_di_raccolta
+21,Spazzolini da denti,rifiuto_non_recuperabile
+21,Specchi,centro_di_raccolta
+21,Specchi di piccole dimensioni,rifiuto_non_recuperabile
+21,Spugne,rifiuto_non_recuperabile
+21,Stampanti,centro_di_raccolta
+21,Stecchi dei gelati in legno,organico
+21,Stereo,centro_di_raccolta
+21,Stracci e strofinacci,rifiuto_non_recuperabile
+21,Stuzzicadenti,organico
+21,Taglieri in legno,centro_di_raccolta
+21,Taglieri in plastica,rifiuto_non_recuperabile
+21,Tapparelle,centro_di_raccolta
+21,Tappetini,rifiuto_non_recuperabile
+21,Tappeti,centro_di_raccolta
+21,Tappi a corona in metallo,vetro_e_imballaggi_metallo
+21,Tappi di sughero,centro_di_raccolta|organico
+21,Tappi in alluminio,vetro_e_imballaggi_metallo
+21,Tastiere per computer,centro_di_raccolta
+21,Telecomandi e telefoni,centro_di_raccolta
+21,Televisori,rifiuti_ingombranti|centro_di_raccolta
+21,Termometri digitali e a mercurio,centro_di_raccolta
+21,Terrecotte,rifiuto_non_recuperabile
+21,Torsoli,organico
+21,Tovaglioli di carta bagnati o unti di cibo,organico
+21,Tovaglioli di carta puliti,carta_e_cartone
+21,Truciolato,centro_di_raccolta
+21,Truciolato (piccole quantità),organico
+21,Tubetti vuoti del dentifricio,imballaggi_plastica
+21,Tubi in gomma,rifiuto_non_recuperabile
+22,Valigie,centro_di_raccolta|abiti
+22,Vaschette alimentari in plastica vuote,imballaggi_plastica
+22,Vaschette in alluminio,vetro_e_imballaggi_metallo
+22,Vaschette in ovtene,imballaggi_plastica
+22,Vaschette per il gelato,imballaggi_plastica
+22,Vasetti e altri imballaggi in vetro,vetro_e_imballaggi_metallo
+22,Vasi per fiori in plastica,imballaggi_plastica
+22,Vasi in terracotta,rifiuto_non_recuperabile
+22,Vassoi in polistirolo per alimenti,imballaggi_plastica
+22,Vernici,centro_di_raccolta
+22,Vetri infrangibili,rifiuto_non_recuperabile
+22,Vetri rotti,vetro_e_imballaggi_metallo
+22,Vetro opale (boccette di profumo),rifiuto_non_recuperabile
+22,Vetro retinato (di finestre e porte),rifiuto_non_recuperabile
+22,Zaini,abiti
+22,Zanzariere,rifiuto_non_recuperabile
+22,Zerbini,rifiuto_non_recuperabile
