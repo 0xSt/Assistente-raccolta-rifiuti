@@ -28,10 +28,17 @@ Formato: decisione, motivazione, stato. Le decisioni si aggiornano, non si cance
 | D22 | Le descrizioni delle destinazioni non si estraggono dalle pagine voce | Sono identiche su tutte le voci che usano quella destinazione: proprietà della destinazione, da estrarre una volta sola | Accettata |
 | D23 | Il campo avvertenza ha priorità sul testo ricavato dallo slug | L'avvertenza conserva accenti e apostrofi, lo slug li perde | Accettata |
 | D24 | Le parentesi nei nomi vanno classificate (alias vs condizione), non trattate in modo uniforme | A Napoli indicano sinonimi, esempi o condizioni; a Torino quasi sempre condizioni | Accettata |
+| D25 | Le parentesi hanno 4 significati (condizione, sinonimo, esempi, codice materiale) e vengono classificate, non trattate uniformemente | Dai dati: "(40)" è un codice CER-like, "(tetrapak)" un sinonimo, "(in Grandi Quantità)" una condizione | Accettata |
+| D26 | Le condizioni si estraggono anche fuori dalle parentesi, ovunque nel nome | "Cartone **pulito** per pizze" (carta) vs "Cartone **unto** per pizze" (organico) | Accettata |
+| D27 | Le voci composte si separano solo con criteri prudenti; ogni separazione è marcata `da_revisionare` | La virgola indica composizione, condizione o elenco di contesti: separare sempre produrrebbe alias falsi | Accettata |
+| D28 | Deduplicazione insensibile a singolare/plurale; destinazioni diverse = conflitto segnalato, mai risolto in automatico | "Assorbente"/"Assorbenti" sono la stessa voce; una contraddizione della fonte non va nascosta | Accettata |
+| D29 | Le voci non reali si scartano per nome | Il dizionario pubblico contiene "Test di esempio" con tre destinazioni | Accettata |
 
 ## Questioni aperte
 
-- Napoli: Transform (classificazione delle parentesi, voci composte, refusi, deduplicazione).
+- **Pagine frazione: le regole di esclusione non vengono estratte.** Tutte le regole risultano `ammesso`; la nota "NO" isolata nella pagina del Vetro mostra che la sezione "cosa non differenziare" esiste ma non viene associata agli oggetti. Serve per il livello di evidenza 2.
+- Le pagine "Non riciclabile" e "Altri servizi" non producono regole: da verificare se sono davvero prive di elenchi.
+- Revisione manuale delle voci marcate `da_revisionare` dal Transform.
 - Descrizioni e indirizzi delle destinazioni: 363 voci su 584 richiedono di andare da qualche parte (isole ecologiche, ecopunti), quindi prima o poi serve dire dove.
 - Torino: Transform delle condizioni non tra parentesi ("con residui", "unta", "pulito/sporco") e degli alias.
 - Estrazione delle regole di categoria: Torino pagine 8-12, Napoli sei pagine frazione e opuscolo PDF.

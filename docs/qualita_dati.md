@@ -31,6 +31,11 @@ Ogni problema diventa una riga della tabella `problema_qualita` durante il caric
 | Dettaglio separato dal testo | "Bombolette spray non pericolose" + "(non etichettate T e F)" dopo un `<br>` | Campo `dettaglio` della regola |
 | Lista non affidabile | "Puoi inoltre conferire in questo contenitore" quasi identica su voci diverse | Usata solo per le avvertenze |
 
+### Correzioni al registro dopo il Transform
+
+- I 21 `slug_duplicato` erano **falsi positivi**: quasi tutti sono voci "Simbolo" il cui slug finisce con il codice del materiale (`simbolo-fe-40`), non con il contatore di WordPress.
+- Il dizionario pubblico contiene una voce di prova: `test-di-esempio`, "Test di esempio", con tre destinazioni reali. Scartata dal Transform.
+
 ### Numeri dell'estrazione completa (12/09/2026, 584 voci)
 
 - 21 `slug_duplicato`, 15 `info_nello_slug` (di cui la gran parte coperta da avvertenza), 1 `placeholder`.

@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.3.0] - 2026-09-12
+
+### Aggiunto
+- Transform di Napoli (`ecoscan/etl/transform_napoli.py`) e comando `ecoscan-transform`: normalizzazione dei nomi, classificazione delle parentesi (condizione, sinonimo, esempi, codice materiale), estrazione delle condizioni anche fuori dalle parentesi, separazione prudente delle voci composte, deduplicazione con segnalazione dei conflitti.
+- 37 test nuovi, tutti su casi reali delle 584 voci.
+
+### Corretto
+- La voce di prova `test-di-esempio` presente nel dizionario pubblico viene scartata.
+- Il controllo `slug_duplicato` produceva falsi positivi sulle voci "Simbolo" (lo slug finisce con il codice materiale).
+- Bug nella separazione delle voci composte: il controllo su "ecc" faceva match dentro "apparecchi".
+
+### Da fare
+- Le pagine frazione non producono regole con polarità `escluso`: la sezione "cosa non differenziare" non viene estratta.
+
 ## [0.2.2] - 2026-09-12
 
 ### Corretto

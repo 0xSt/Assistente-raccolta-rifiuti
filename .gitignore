@@ -1,5 +1,7 @@
 # Documenti sorgente di terzi: si scaricano dai link in docs/fonti.md, non si versionano
 data/sorgenti/
+# Livello normalizzato: si rigenera con ecoscan-transform
+data/normalizzato/
 # Cache HTML dell'estrattore
 data/cache/
 __pycache__/
