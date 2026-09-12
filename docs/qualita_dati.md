@@ -36,6 +36,13 @@ Ogni problema diventa una riga della tabella `problema_qualita` durante il caric
 - I 21 `slug_duplicato` erano **falsi positivi**: quasi tutti sono voci "Simbolo" il cui slug finisce con il codice del materiale (`simbolo-fe-40`), non con il contatore di WordPress.
 - Il dizionario pubblico contiene una voce di prova: `test-di-esempio`, "Test di esempio", con tre destinazioni reali. Scartata dal Transform.
 
+### Esito del Transform (574 voci normalizzate)
+
+- **0 conflitti**: nessuna contraddizione reale nella fonte. I 5 conflitti della prima esecuzione erano difetti del Transform, non dei dati.
+- 77 voci con almeno una condizione, 27 alias, 16 codici materiale.
+- 15 voci da revisionare a mano: 9 separazioni di voci composte da verificare, 6 asterischi che rimandano a una nota non estratta.
+- Refuso della fonte gestito: "biodegratabile" per "biodegradabile".
+
 ### Numeri dell'estrazione completa (12/09/2026, 584 voci)
 
 - 21 `slug_duplicato`, 15 `info_nello_slug` (di cui la gran parte coperta da avvertenza), 1 `placeholder`.

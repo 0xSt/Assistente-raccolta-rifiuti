@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.3.1] - 2026-09-12
+
+### Corretto
+Cinque difetti emersi eseguendo il Transform sulle 574 voci reali; producevano conflitti falsi, ora azzerati.
+- Separazione su " o ": indica materiali alternativi dello stesso oggetto, non due oggetti.
+- Separazione quando la qualificazione sta solo a destra ("Pentola e padella in acciaio").
+- Locuzione fissa "usa e getta" separata per errore.
+- "(grosse Quantità)" senza "in" non era riconosciuta come condizione.
+- "(contenitori vuoti in Vetro)" classificata come sinonimo invece che come condizione.
+- Il codice materiale non entrava nella chiave di deduplicazione.
+- Refuso della fonte "biodegratabile" non riconosciuto.
+
+### Aggiunto
+- 12 test di regressione sui falsi composti reali.
+
 ## [0.3.0] - 2026-09-12
 
 ### Aggiunto

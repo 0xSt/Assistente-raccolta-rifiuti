@@ -4,14 +4,14 @@ Assistente per la raccolta differenziata che gira interamente in locale. L'utent
 
 Progetto universitario. Comuni del prototipo: **Napoli** (ASIA) e **Torino** (AMIAT).
 
-## Stato attuale (v0.3.0)
+## Stato attuale (v0.3.1)
 
 | Componente | Stato |
 |---|---|
 | Estrattore Torino (PDF) | Funzionante: 324 voci, verificato sul PDF reale |
 | Estrattore Napoli (HTML) | **Completato**: 584 voci estratte, tutte con destinazione |
 | Schema dati normalizzato (SQLite) | Definito e verificato con Torino completo + campione Napoli |
-| Transform Napoli (condizioni, alias, dedup) | Fatto, da eseguire sulle 584 voci |
+| Transform Napoli (condizioni, alias, dedup) | Eseguito su 574 voci: 0 conflitti, 15 da revisionare |
 | Transform Torino | Da fare |
 | Retrieval ibrido, backend, frontend, modello | Da fare |
 

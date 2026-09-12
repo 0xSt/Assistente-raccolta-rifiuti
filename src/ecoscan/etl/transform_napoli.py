@@ -69,7 +69,7 @@ CONDIZIONI_INLINE = {
     "scaduto": r"scadut[oaie]",
     "utilizzabile": r"utilizzabil[ei]",
     "compostabile": r"compostabil[ei]",
-    "biodegradabile": r"biodegradabil[ei]",
+    "biodegradabile": r"biodegra[dt]abil[ei]",  # la fonte scrive anche "biodegratabile"
     "rotto": r"rott[oaie]",
     "spento": r"spent[oaie]",
     "monouso": r"monouso",
@@ -77,8 +77,8 @@ CONDIZIONI_INLINE = {
 
 # Condizioni espresse come locuzione (di solito tra parentesi, a volte no)
 CONDIZIONI_LOCUZIONE = [
-    (r"in (grandi|grosse) quantit[aà]", "grandi quantità"),
-    (r"in piccole quantit[aà]", "piccole quantità"),
+    (r"(in )?(grandi|grosse) quantit[aà]", "grandi quantità"),
+    (r"(in )?piccole quantit[aà]", "piccole quantità"),
     (r"(di )?(grandi|grosse) dimensioni", "grandi dimensioni"),
     (r"(di )?piccole dimensioni", "piccole dimensioni"),
     (r"contenitore vuot[oaie]", "contenitore vuoto"),
@@ -135,6 +135,9 @@ def classifica_parentesi(contenuto: str) -> tuple[str, str]:
         return "codice", c
     if re.fullmatch(r"in \w+", piatto):  # '(in Plastica)', '(in Vetro)': specificano il materiale
         return "condizione", c.lower()
+    if re.search(r"\bvuot[oaie]\b|\bpien[oaie]\b", piatto):
+        # '(flacone o sacchetto vuoto)', '(contenitori vuoti in Vetro)': stato e materiale del contenitore
+        return "condizione", c.lower()
     if "," in c or re.search(r"\becc\b|\.\.\.", piatto):
         return "esempi", c
     if SIGLA_O_SINONIMO.fullmatch(c) and len(c.split()) <= 3:
@@ -172,14 +175,26 @@ def separa_voce_composta(nome: str) -> list[str]:
         if len(pezzi) >= 3 and all(len(p.split()) >= 2 for p in pezzi) and not elenco_aperto:
             return pezzi
         return []
-    if (m := re.search(r"^(.*?)\s+[eEoO]\s+(.*)$", nome)):
+    if re.search(r"\busa e getta\b", nome, re.IGNORECASE):
+        return []  # locuzione fissa: "Lametta usa e getta" è un oggetto solo
+    # solo " e ": la " o " indica quasi sempre materiali alternativi dello stesso oggetto
+    # ("Guanti in pelle o lana", "Stendino in metallo o plastica")
+    if (m := re.search(r"^(.*?)\s+e\s+(.*)$", nome, re.IGNORECASE)):
         sinistra, destra = normalizza_spazi(m.group(1)), normalizza_spazi(m.group(2))
         prima_destra = senza_accenti(destra.split()[0]).lower() if destra.split() else ""
-        # il lato sinistro corto indica due oggetti affiancati; uno lungo indica un elenco di attributi
-        # ('Contenitori creme per viso corpo e abbronzanti' è un oggetto solo)
         if prima_destra in PAROLE_NON_SEPARABILI or not sinistra or len(destra.split()) > 4:
             return []
         if len(sinistra.split()) > 3:
+            # un lato sinistro lungo indica un elenco di attributi, non due oggetti
+            return []
+        preposizioni = {"in", "di", "da", "per", "con"}
+        qualif_destra = preposizioni & {w.lower() for w in destra.split()}
+        qualif_sinistra = preposizioni & {w.lower() for w in sinistra.split()}
+        if qualif_destra and not qualif_sinistra:
+            # "Pentola e padella in acciaio": il materiale vale per entrambi, non è una voce composta
+            return []
+        if qualif_sinistra and len(destra.split()) == 1:
+            # "Olio per automobili e macchinari": la destra continua l'elenco degli usi
             return []
         return [sinistra, destra]
     return []
@@ -204,7 +219,8 @@ class VoceNormalizzata:
     @property
     def chiave(self) -> str:
         """Chiave di deduplicazione insensibile al numero: 'Assorbente' e 'Assorbenti' coincidono."""
-        return chiave_confronto(self.nome) + "|" + "|".join(sorted(self.condizioni))
+        return "|".join([chiave_confronto(self.nome), self.codice_materiale or "",
+                         *sorted(self.condizioni)])
 
 
 def trasforma_voce(record: dict) -> VoceNormalizzata | None:

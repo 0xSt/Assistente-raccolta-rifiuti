@@ -106,3 +106,39 @@ def test_condizioni_diverse_non_si_fondono():
     b = voce("Cartone unto per pizze", ["Organico"], slug="unto")
     unite, conflitti = deduplica([a, b])
     assert not conflitti and len(unite) == 2
+
+
+@pytest.mark.parametrize("nome", [
+    "Pentola e padella in acciao",        # il materiale qualifica entrambi
+    "Batuffolo e bastoncino di cotone",   # idem
+    "Guanti in pelle o lana",             # materiali alternativi dello stesso oggetto
+    "Stendino in metallo o plastica",
+    "Rubinetto in bronzo o metallico",
+    "Tintura per abiti o scarpe",
+    "Lametta usa e getta",                # locuzione fissa
+    "Olio per automobili e macchinari",   # la destra continua l'elenco degli usi
+])
+def test_non_separare_falsi_composti(nome):
+    assert separa_voce_composta(nome) == []
+
+
+def test_quantita_condizione_anche_senza_in():
+    v = voce("Scatoloni (grosse Quantità)")
+    assert v.nome == "Scatoloni" and v.condizioni == ["grandi quantità"]
+
+
+def test_contenitore_vuoto_e_materiale_sono_condizione():
+    v = voce("Profumi (contenitori vuoti in Vetro)")
+    assert v.nome == "Profumi" and v.condizioni == ["contenitori vuoti in vetro"] and not v.alias
+
+
+def test_refuso_biodegratabile_riconosciuto():
+    v = voce("Batuffolo e bastoncino di cotone biodegratabile")
+    assert "biodegradabile" in v.condizioni
+
+
+def test_codice_materiale_distingue_le_voci():
+    a = voce("Simbolo FOR (50)", ["Isola Ecologica Estesa"], slug="for-50")
+    b = voce("Simbolo FOR (51)", ["Organico"], slug="for-51")
+    unite, conflitti = deduplica([a, b])
+    assert not conflitti and len(unite) == 2
