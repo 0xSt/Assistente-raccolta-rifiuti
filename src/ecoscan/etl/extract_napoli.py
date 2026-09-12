@@ -254,6 +254,9 @@ INTESTAZIONE_SEZIONE = re.compile(r"cosa (non )?differenziare", re.IGNORECASE)
 # Le intestazioni "SI"/"NO" sono etichette grafiche della sezione, non note di conferimento
 ETICHETTA_GRAFICA = re.compile(r"^(si|no)$", re.IGNORECASE)
 NOTE_DI_NAVIGAZIONE = re.compile(r"(devi buttare|utilizza la nostra|consentono ai cittadini)", re.IGNORECASE)
+# Su Umido, Plastica e Carta le esclusioni NON esistono come testo: sono disegnate dentro
+# un'immagine "info-<frazione>.png". Solo il Vetro ha l'elenco puntato. Vedi docs/diario.md.
+IMMAGINE_INFORMATIVA = re.compile(r"/info[-_][^/]*\.(png|jpe?g|webp)$", re.IGNORECASE)
 
 
 def _dettaglio_dopo(elemento) -> str | None:
@@ -311,12 +314,16 @@ def parse_pagina_frazione(html: str, url: str) -> dict:
             continue
         regole.extend(_voci_escluse(h3) if m.group(1) else _voci_ammesse(h3))
 
+    informative = [img["src"] for img in soup.find_all("img", src=True)
+                   if IMMAGINE_INFORMATIVA.search(img["src"])]
+
     note = []
     for h4 in soup.find_all("h4"):
         t = normalizza_spazi(h4.get_text(" ", strip=True))
         if t and not NOTE_DI_NAVIGAZIONE.match(t) and not ETICHETTA_GRAFICA.match(t):
             note.append(t)
-    return {"url": url, "nome_frazione": nome, "colore": colore, "regole": regole, "note": note}
+    return {"url": url, "nome_frazione": nome, "colore": colore, "regole": regole, "note": note,
+            "immagini_informative": informative}
 
 
 # ----------------------------------------------------------------------------- orchestrazione
@@ -386,12 +393,16 @@ def estrai(out: Path, f: Fetcher, limite: int | None = None) -> None:
         esclusi = sum(1 for r in fr["regole"] if r["polarita"] == "escluso")
         print(f"  {fr['nome_frazione']}: {ammessi} ammessi, {esclusi} esclusi, colore {fr['colore']}")
     # una frazione con ammessi ma senza esclusi indica un markup non gestito, non una fonte muta
-    mute = [f["nome_frazione"] for f in frazioni
-            if any(r["polarita"] == "ammesso" for r in f["regole"])
+    mute = [f for f in frazioni if any(r["polarita"] == "ammesso" for r in f["regole"])
             and not any(r["polarita"] == "escluso" for r in f["regole"])]
-    if mute:
-        print(f"ATTENZIONE: frazioni con ammessi ma senza esclusi: {mute}. "
-              "Controlla il markup della sezione 'Cosa non differenziare'.")
+    con_immagine = [f["nome_frazione"] for f in mute if f["immagini_informative"]]
+    senza_spiegazione = [f["nome_frazione"] for f in mute if not f["immagini_informative"]]
+    if con_immagine:
+        print(f"NOTA: {con_immagine} non hanno esclusioni testuali, ma hanno un'immagine informativa: "
+              "le esclusioni sono disegnate dentro l'immagine, non estraibili come testo.")
+    if senza_spiegazione:
+        print(f"ATTENZIONE: {senza_spiegazione} hanno ammessi ma nessun escluso e nessuna immagine "
+              "informativa: probabile markup non gestito.")
     if strategia == "indice" and len(urls) <= len(indice):
         print("ATTENZIONE: trovata solo la prima pagina dell'indice. La paginazione è probabilmente AJAX: "
               "controlla nella scheda Rete del browser quale richiesta carica le pagine successive.")

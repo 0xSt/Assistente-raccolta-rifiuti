@@ -53,6 +53,34 @@ def test_menu_di_navigazione_escluso():
     assert all("Servizi" not in r["testo"] for r in frazione()["regole"])
 
 
+PAGINA_PLASTICA = """
+<html><body>
+<h1>Plastica e Metalli</h1>
+<h2>Il contenitore per la raccolta della Plastica è contraddistinto dal colore <b>GIALLO</b></h2>
+<h4>SI</h4>
+<h3>Cosa differenziare nel contenitore della Plastica</h3>
+<div><img src="/uploads/2024/09/Bottiglie.png"><strong>Bottiglie e flaconi in plastica</strong></div>
+<h4>Piatti e bicchieri in plastica possono essere anche sporchi ma svuotati di ogni residuo</h4>
+<img src="https://www.asianapoli.it/wp-content/uploads/2024/09/info-plastica.png">
+<h4>Devi buttare qualcosa ma non sai dove?</h4>
+</body></html>
+"""
+
+
+def test_frazione_senza_sezione_esclusi():
+    # su Plastica, Umido e Carta la sezione "NO" non esiste: le esclusioni sono
+    # disegnate dentro un'immagine informativa, quindi non estraibili come testo
+    fr = parse_pagina_frazione(PAGINA_PLASTICA, "")
+    assert [r["polarita"] for r in fr["regole"]] == ["ammesso"]
+    assert fr["immagini_informative"] == [
+        "https://www.asianapoli.it/wp-content/uploads/2024/09/info-plastica.png"]
+
+
+def test_immagini_di_contenuto_non_sono_informative():
+    # le immagini degli oggetti ammessi non vanno confuse con l'immagine delle esclusioni
+    assert frazione()["immagini_informative"] == []
+
+
 def test_note_senza_etichette_grafiche():
     note = frazione()["note"]
     assert any("Svuotare gli imballaggi" in n for n in note)

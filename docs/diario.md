@@ -28,7 +28,7 @@ Va aggiornato **a ogni cambiamento sostanziale**, non a ogni riga di codice. In 
 | Transform Napoli | Eseguito: 574 voci normalizzate, 0 conflitti, 15 da revisionare |
 | Transform Torino | Eseguito: 324 voci normalizzate, 0 conflitti, 16 da revisionare |
 | Schema dati (SQLite) | Definito e verificato con Torino completo e un campione di Napoli |
-| Regole di categoria — Napoli | Estrattore corretto: ammessi ed esclusi. Da rieseguire per aggiornare il grezzo |
+| Regole di categoria — Napoli | Ammessi: 38 su 4 frazioni. Esclusi: solo Vetro (5). Sulle altre le esclusioni sono dentro un'immagine |
 | Regole di categoria — Torino | **Da fare**: pagine 8-12 del PDF mai estratte |
 | Revisione manuale | **Da fare**: 31 voci segnalate |
 | Serving (FTS5, embedding, ricerca ibrida) | Da fare |
@@ -87,7 +87,7 @@ Formato: decisione, motivazione, stato.
 | D22 | Le descrizioni delle destinazioni non si estraggono dalle pagine voce | Sono identiche su tutte le voci che usano quella destinazione: proprietà della destinazione | Accettata |
 | D23 | Il campo avvertenza ha priorità sul testo ricavato dallo slug | L'avvertenza conserva accenti e apostrofi, lo slug li perde ("l'ago" → "lago") | Accettata |
 | D32 | Nelle pagine frazione la raccolta dipende dalla polarità: ammessi dai `<strong>`, esclusi dagli `<li>` | Il markup delle due sezioni è diverso; cercare solo i `<strong>` restituiva zero esclusioni in silenzio | Accettata |
-| D33 | Un controllo fallisce se una frazione ha ammessi ma nessun escluso | Una fonte muta è quasi sempre un markup non gestito, non una fonte davvero priva di esclusioni | Accettata |
+| D33 | Un controllo segnala le frazioni con ammessi ma nessun escluso, distinguendo se esiste un'immagine informativa | Una fonte muta può essere un markup non gestito o un limite reale della fonte: vanno distinti | Accettata |
 
 ### Transform
 
@@ -111,16 +111,17 @@ Formato: decisione, motivazione, stato.
 Ordinate per priorità.
 
 1. **Regole di categoria.**
-   - *Napoli*: **risolto in v0.5.0**. Resta da rieseguire `ecoscan-napoli` (la cache HTML rende l'operazione immediata) e verificare i conteggi per frazione.
+   - *Napoli*: estrattore corretto, ma **la fonte web dà le esclusioni solo per il Vetro** (5 voci). Su Umido, Plastica e Carta la sezione "NO" non esiste: le esclusioni sono disegnate dentro `info-<frazione>.png`. Da decidere come recuperarle (vedi punto 3).
    - *Torino*: pagine 8-12 del PDF, mai estratte. Gli esclusi sono **una frase in prosa** nel riquadro "I RIFIUTATI" ("Medicinali, pile, oli... NON vanno gettati nel..."), da spezzare su virgole e congiunzioni. Due frazioni per pagina: serve la divisione per colonna già usata per l'elenco A-Z. Il riquadro va identificato dalla frase ("NON vanno", "NON sono", "NON rientrano"), non dall'etichetta, che cambia.
 2. **Revisione manuale di 31 voci** (15 Napoli, 16 Torino). Serve prima un meccanismo: le decisioni vanno in file CSV versionati (`data/revisioni/<comune>.csv`) che il Transform applica in coda, altrimenti si perdono a ogni riesecuzione.
-3. **Asterischi.** 6 voci a Napoli (insetticida, trielina, smalto, solventi, spray, sostanze chimiche etichettate T e/o F: sono rifiuti pericolosi) e 1 a Torino rimandano a note non estratte. Per Torino la nota è nel PDF a pagina 21; per Napoli va cercata sul sito.
-4. **Caricamento del normalizzato nello schema SQLite.** Finora provato solo con un campione.
-5. **Pagine "Non riciclabile" e "Altre raccolte" di Napoli**: zero regole anche fra gli ammessi. Con il nuovo estrattore si saprà se erano un problema di markup o se sono davvero prive di elenchi.
-6. **Serving**: indici FTS5 a trigrammi, embedding, ricerca ibrida con RRF.
-7. **Valutazione**: set di foto etichettate e metriche (riconoscimento, destinazione per comune, latenza su CPU). Mai iniziata, ed è ciò che distingue un prototipo da un lavoro difendibile.
-8. **Dove conferire**: 363 voci su 584 a Napoli rimandano a isole ecologiche o ecopunti. Prima o poi l'agente deve dire *dove* si trovano.
-9. **Opuscolo PDF di Napoli** (`Asia_Opuscolo_A5_new-1.pdf`): mai consultato, potrebbe contenere regole assenti dal sito.
+3. **Esclusioni mancanti per Umido, Plastica e Carta (Napoli).** Due strade: (a) l'opuscolo PDF `Asia_Opuscolo_A5_new-1.pdf`, mai consultato, che probabilmente contiene gli stessi elenchi come testo; (b) far leggere le immagini `info-*.png` a Gemma 4 offline, poche immagini, una volta sola. La prima è preferibile perché resta testuale e verificabile.
+4. **Asterischi.** 6 voci a Napoli (insetticida, trielina, smalto, solventi, spray, sostanze chimiche etichettate T e/o F: sono rifiuti pericolosi) e 1 a Torino rimandano a note non estratte. Per Torino la nota è nel PDF a pagina 21; per Napoli va cercata sul sito.
+5. **Caricamento del normalizzato nello schema SQLite.** Finora provato solo con un campione.
+6. ~~Pagine "Non riciclabile" e "Altre raccolte" di Napoli~~ **Chiuso**: sono davvero prive di elenchi, hanno solo una frase di invito. Non è un difetto dell'estrattore.
+7. **Serving**: indici FTS5 a trigrammi, embedding, ricerca ibrida con RRF.
+8. **Valutazione**: set di foto etichettate e metriche (riconoscimento, destinazione per comune, latenza su CPU). Mai iniziata, ed è ciò che distingue un prototipo da un lavoro difendibile.
+9. **Dove conferire**: 363 voci su 584 a Napoli rimandano a isole ecologiche o ecopunti. Prima o poi l'agente deve dire *dove* si trovano.
+10. **Opuscolo PDF di Napoli** (`Asia_Opuscolo_A5_new-1.pdf`): mai consultato, potrebbe contenere regole assenti dal sito.
 
 ---
 
@@ -130,6 +131,7 @@ Cose imparate che non sono decisioni, ma che conviene ricordare.
 
 - **I conflitti sono una diagnosi del Transform, non dei dati.** Su 898 voci, tutti e 6 i conflitti iniziali erano difetti delle regole: separazioni sbagliate, materiale letto come sinonimo, codice escluso dalla chiave. Corretti quelli, restano zero. Le due fonti, dove si sovrappongono, sono internamente coerenti.
 - **Le due fonti hanno difficoltà speculari.** A Torino l'ostacolo è l'estrazione (destinazione codificata in colori e icone), ma i dati sono puliti. A Napoli l'estrazione è facile e i dati sono sporchi. La scelta di due formati complementari ha dato il contrasto giusto.
+- **ASIA scrive le esclusioni come testo solo per il Vetro.** Sulle altre frazioni sono grafica dentro `info-<frazione>.png`. Una fonte può essere incompleta *per come è pubblicata*, non per come la leggiamo: il controllo che distingue i due casi è ciò che ha permesso di capirlo in un giro solo.
 - **Le esclusioni spiegano il dizionario.** La pagina del vetro di Napoli esclude bicchieri, piatti, pirofile e lastre: esattamente le voci che nel dizionario finiscono nel non riciclabile. Ciò che sembrava incoerenza è una regola dichiarata.
 - **Divergenze fra comuni utili da citare**: bicchiere di vetro (Napoli non riciclabile, Torino vetro); tappo di sughero (Napoli organico, Torino centro di raccolta o organico); pentole e padelle (Napoli plastica e metalli, Torino centro di raccolta). Una convergenza: il vetro dei profumi non è riciclabile in entrambi.
 - **Trappole già incontrate, da non ripetere**: i nodi di testo frammentati di Elementor; il match di "ecc" dentro "appare**cc**hi"; gli slug che finiscono con un numero che è un codice materiale e non un contatore; un test che passava solo perché la fixture era più semplice della realtà.
@@ -137,6 +139,12 @@ Cose imparate che non sono decisioni, ma che conviene ricordare.
 ---
 
 ## Cronologia
+
+### v0.5.1 — 12/09/2026
+
+**Scoperto.** L'estrazione delle esclusioni funziona, ma la fonte le pubblica come testo solo per il Vetro: su Umido, Plastica e Carta non esiste alcuna sezione "NO" e le esclusioni sono disegnate dentro un'immagine. Le pagine "Non riciclabile" e "Altre raccolte" sono davvero prive di elenchi.
+
+**Aggiunto.** Rilevamento delle immagini informative (`info-*.png`) nel livello grezzo e messaggio che distingue "fonte senza esclusioni testuali" da "markup non gestito". 2 test.
 
 ### v0.5.0 — 12/09/2026
 
