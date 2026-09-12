@@ -21,6 +21,16 @@ Ogni problema diventa una riga della tabella `problema_qualita` durante il caric
 - 16 voci da revisionare: 15 separazioni di voci composte (la maggior parte corrette, es. "Giornali e riviste") e 1 asterisco.
 - Le condizioni di Torino stanno quasi sempre tra parentesi, al contrario di Napoli.
 
+### Regole di categoria di Torino (pagine 8-12)
+
+| Problema | Esempio | Trattamento |
+|---|---|---|
+| Due schede affiancate per pagina | p8: "Rifiuto non recuperabile" e "Carta e cartone" | Divisione per colonna a x=310 |
+| Esclusioni in prosa, non in elenco | "Scontrini, carta forno... NON vanno conferiti nella carta!" | Separazione del soggetto prima di "NON" |
+| Riquadri con etichette diverse | "I RIFIUTATI", "METTITI NEI NOSTRI PANNI", "È ORA DI ESPORSI" | Riconoscimento dal font, non dall'etichetta |
+| Frasi imperative senza elenco | "Non gettare l'olio negli scarichi" | Classificate come nota, non come esclusioni |
+| Schede senza griglia di oggetti | Farmaci, Oli esausti, Rifiuti ingombranti | Nessun ammesso; il testo va in `descrizione` |
+
 ## Napoli (sito ASIA)
 
 | Problema | Esempio | Trattamento |

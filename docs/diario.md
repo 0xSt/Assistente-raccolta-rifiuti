@@ -29,7 +29,7 @@ Va aggiornato **a ogni cambiamento sostanziale**, non a ogni riga di codice. In 
 | Transform Torino | Eseguito: 324 voci normalizzate, 0 conflitti, 16 da revisionare |
 | Schema dati (SQLite) | Definito e verificato con Torino completo e un campione di Napoli |
 | Regole di categoria — Napoli | Ammessi: 38 su 4 frazioni. Esclusi: solo Vetro (5). Sulle altre le esclusioni sono dentro un'immagine |
-| Regole di categoria — Torino | **Da fare**: pagine 8-12 del PDF mai estratte |
+| Regole di categoria — Torino | Estratte: 10 schede, 30 ammessi, 27 esclusi |
 | Revisione manuale | **Da fare**: 31 voci segnalate |
 | Serving (FTS5, embedding, ricerca ibrida) | Da fare |
 | Backend, frontend, modello | Da fare |
@@ -87,6 +87,9 @@ Formato: decisione, motivazione, stato.
 | D22 | Le descrizioni delle destinazioni non si estraggono dalle pagine voce | Sono identiche su tutte le voci che usano quella destinazione: proprietà della destinazione | Accettata |
 | D23 | Il campo avvertenza ha priorità sul testo ricavato dallo slug | L'avvertenza conserva accenti e apostrofi, lo slug li perde ("l'ago" → "lago") | Accettata |
 | D32 | Nelle pagine frazione la raccolta dipende dalla polarità: ammessi dai `<strong>`, esclusi dagli `<li>` | Il markup delle due sezioni è diverso; cercare solo i `<strong>` restituiva zero esclusioni in silenzio | Accettata |
+| D38 | A Torino il ruolo di ogni riga è dato dal **font**, non dalla posizione (Bold 12 titolo, Light 8 celle, Medium 8 frase delle esclusioni) | Più robusto delle coordinate: regge le schede con impaginato diverso | Accettata |
+| D39 | Le frasi del riquadro si classificano in *elenco* ("X, Y e Z NON vanno...") e *avvertenza* ("Non gettare l'olio negli scarichi"); una forma non riconosciuta fa fallire l'estrazione | Solo la prima elenca oggetti esclusi; separare anche la seconda produrrebbe esclusioni inventate | Accettata |
+| D40 | Una cella più lunga di 120 caratteri rivela un paragrafo, non una griglia: la scheda non produce ammessi | Farmaci, Oli esausti e Ingombranti sono schede descrittive senza elenco di oggetti | Accettata |
 | D33 | Un controllo segnala le frazioni con ammessi ma nessun escluso, distinguendo se esiste un'immagine informativa | Una fonte muta può essere un markup non gestito o un limite reale della fonte: vanno distinti | Accettata |
 
 ### Transform
@@ -112,7 +115,7 @@ Ordinate per priorità.
 
 1. **Regole di categoria.**
    - *Napoli*: estrattore corretto, ma **la fonte web dà le esclusioni solo per il Vetro** (5 voci). Su Umido, Plastica e Carta la sezione "NO" non esiste: le esclusioni sono disegnate dentro `info-<frazione>.png`. Da decidere come recuperarle (vedi punto 3).
-   - *Torino*: pagine 8-12 del PDF, mai estratte. Gli esclusi sono **una frase in prosa** nel riquadro "I RIFIUTATI" ("Medicinali, pile, oli... NON vanno gettati nel..."), da spezzare su virgole e congiunzioni. Due frazioni per pagina: serve la divisione per colonna già usata per l'elenco A-Z. Il riquadro va identificato dalla frase ("NON vanno", "NON sono", "NON rientrano"), non dall'etichetta, che cambia.
+   - *Torino*: **fatto in v0.6.0**. 10 schede, 30 ammessi, 27 esclusi. Da fare: portare queste regole nel livello normalizzato e collegarle alle destinazioni.
 2. **Revisione manuale di 31 voci** (15 Napoli, 16 Torino). Serve prima un meccanismo: le decisioni vanno in file CSV versionati (`data/revisioni/<comune>.csv`) che il Transform applica in coda, altrimenti si perdono a ogni riesecuzione.
 3. **Esclusioni mancanti per Umido, Plastica e Carta (Napoli).** Due strade: (a) l'opuscolo PDF `Asia_Opuscolo_A5_new-1.pdf`, mai consultato, che probabilmente contiene gli stessi elenchi come testo; (b) far leggere le immagini `info-*.png` a Gemma 4 offline, poche immagini, una volta sola. La prima è preferibile perché resta testuale e verificabile.
 4. **Asterischi.** 6 voci a Napoli (insetticida, trielina, smalto, solventi, spray, sostanze chimiche etichettate T e/o F: sono rifiuti pericolosi) e 1 a Torino rimandano a note non estratte. Per Torino la nota è nel PDF a pagina 21; per Napoli va cercata sul sito.
@@ -139,6 +142,12 @@ Cose imparate che non sono decisioni, ma che conviene ricordare.
 ---
 
 ## Cronologia
+
+### v0.6.0 — 12/09/2026
+
+**Aggiunto.** Estrattore delle regole di categoria di Torino (`extract_torino_regole.py`, comando `ecoscan-torino-regole`): 10 schede dalle pagine 8-12, 30 oggetti ammessi e 27 esclusi. Il ruolo di ogni riga è dedotto dal font; le due schede affiancate sono separate per colonna; le celle sono ricostruite raggruppando le righe per centro orizzontale. 12 test nuovi.
+
+**Osservato.** Le frasi del riquadro hanno due forme: elenco ("Scontrini, carta forno... NON vanno conferiti nella carta!") e avvertenza imperativa ("Non gettare l'olio negli scarichi"). Solo la prima elenca oggetti esclusi. Farmaci, Oli esausti e Rifiuti ingombranti sono schede descrittive, senza griglia di oggetti.
 
 ### v0.5.1 — 12/09/2026
 

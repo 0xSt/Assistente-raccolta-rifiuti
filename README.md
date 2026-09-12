@@ -4,7 +4,7 @@ Assistente per la raccolta differenziata che gira interamente in locale. L'utent
 
 Progetto universitario. Comuni del prototipo: **Napoli** (ASIA) e **Torino** (AMIAT).
 
-## Stato attuale (v0.5.1)
+## Stato attuale (v0.6.0)
 
 Il quadro completo è in [docs/diario.md](docs/diario.md).
 
@@ -40,7 +40,8 @@ Serve solo [uv](https://docs.astral.sh/uv/): scarica Python e le dipendenze da s
 ```bash
 uv sync                         # prepara l'ambiente da uv.lock
 
-uv run ecoscan-torino           # Torino: metti prima il PDF in data/sorgenti/ (link in docs/fonti.md)
+uv run ecoscan-torino           # Torino, dizionario A-Z: metti prima il PDF in data/sorgenti/
+uv run ecoscan-torino-regole    # Torino, regole di categoria dalle pagine 8-12
 uv run ecoscan-napoli --recon   # Napoli: ricognizione, poche pagine
 uv run ecoscan-napoli           # Napoli: estrazione completa (584 voci, ~15 minuti)
 uv run ecoscan-ispeziona        # riepiloga il grezzo di Napoli già estratto

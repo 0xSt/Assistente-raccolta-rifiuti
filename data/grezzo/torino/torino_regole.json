@@ -1,0 +1,479 @@
+[
+ {
+  "pagina": 8,
+  "colonna": "sx",
+  "nome_frazione": "Rifiuto non recuperabile",
+  "introduzione": null,
+  "descrizione": null,
+  "nome_riquadro": "I RIFIUTATI",
+  "frase_esclusioni": "Medicinali, pile, oli, lampadine e indumenti NON vanno gettati nel rifiuto non recuperabile!",
+  "tipo_frase": "elenco",
+  "regole": [
+   {
+    "polarita": "ammesso",
+    "testo": "Pannolini, assorbenti igienici, residui di spazzamento domestico, lettiere per animali, scontrini",
+    "dettaglio": null
+   },
+   {
+    "polarita": "ammesso",
+    "testo": "Carta plastificata, unta o molto sporca, nastro adesivo",
+    "dettaglio": null
+   },
+   {
+    "polarita": "ammesso",
+    "testo": "Fotografie, giocattoli, posate di plastica",
+    "dettaglio": null
+   },
+   {
+    "polarita": "ammesso",
+    "testo": "CD e DVD, pirofile da forno, piatti in ceramica stracci",
+    "dettaglio": null
+   },
+   {
+    "polarita": "escluso",
+    "testo": "Medicinali",
+    "dettaglio": "Medicinali, pile, oli, lampadine e indumenti NON vanno gettati nel rifiuto non recuperabile!"
+   },
+   {
+    "polarita": "escluso",
+    "testo": "pile",
+    "dettaglio": "Medicinali, pile, oli, lampadine e indumenti NON vanno gettati nel rifiuto non recuperabile!"
+   },
+   {
+    "polarita": "escluso",
+    "testo": "oli",
+    "dettaglio": "Medicinali, pile, oli, lampadine e indumenti NON vanno gettati nel rifiuto non recuperabile!"
+   },
+   {
+    "polarita": "escluso",
+    "testo": "lampadine",
+    "dettaglio": "Medicinali, pile, oli, lampadine e indumenti NON vanno gettati nel rifiuto non recuperabile!"
+   },
+   {
+    "polarita": "escluso",
+    "testo": "indumenti",
+    "dettaglio": "Medicinali, pile, oli, lampadine e indumenti NON vanno gettati nel rifiuto non recuperabile!"
+   }
+  ],
+  "note": [
+   "Gettali nei contenitori dedicati o presso i centri di raccolta differenziata"
+  ],
+  "fonte": "amiat_rifiutologo_2025",
+  "sha256": "f04e3e45cf46887f8f51f073561410c61e5d4a725d9b3a9b72fafaef8fa3fe31",
+  "versione_estrattore": "torino-regole-0.1"
+ },
+ {
+  "pagina": 8,
+  "colonna": "dx",
+  "nome_frazione": "Carta e cartone",
+  "introduzione": null,
+  "descrizione": null,
+  "nome_riquadro": "I RIFIUTATI",
+  "frase_esclusioni": "Scontrini, carta forno, carta plastificata o carta con residui di cibo NON vanno conferiti nella carta!",
+  "tipo_frase": "elenco",
+  "regole": [
+   {
+    "polarita": "ammesso",
+    "testo": "Giornali, riviste, libri, quaderni",
+    "dettaglio": null
+   },
+   {
+    "polarita": "ammesso",
+    "testo": "Opuscoli, carta da pacchi, cartone e cartoncino",
+    "dettaglio": null
+   },
+   {
+    "polarita": "ammesso",
+    "testo": "Sacchetti di carta puliti, scatole e scatoloni in cartone",
+    "dettaglio": null
+   },
+   {
+    "polarita": "ammesso",
+    "testo": "Poliaccoppiati o cartoni per liquidi (tipo Tetra Pak®)",
+    "dettaglio": null
+   },
+   {
+    "polarita": "escluso",
+    "testo": "Scontrini",
+    "dettaglio": "Scontrini, carta forno, carta plastificata o carta con residui di cibo NON vanno conferiti nella carta!"
+   },
+   {
+    "polarita": "escluso",
+    "testo": "carta forno",
+    "dettaglio": "Scontrini, carta forno, carta plastificata o carta con residui di cibo NON vanno conferiti nella carta!"
+   },
+   {
+    "polarita": "escluso",
+    "testo": "carta plastificata",
+    "dettaglio": "Scontrini, carta forno, carta plastificata o carta con residui di cibo NON vanno conferiti nella carta!"
+   },
+   {
+    "polarita": "escluso",
+    "testo": "carta con residui di cibo",
+    "dettaglio": "Scontrini, carta forno, carta plastificata o carta con residui di cibo NON vanno conferiti nella carta!"
+   }
+  ],
+  "note": [
+   "Scopri dove gettarli nelle pagine seguenti"
+  ],
+  "fonte": "amiat_rifiutologo_2025",
+  "sha256": "f04e3e45cf46887f8f51f073561410c61e5d4a725d9b3a9b72fafaef8fa3fe31",
+  "versione_estrattore": "torino-regole-0.1"
+ },
+ {
+  "pagina": 9,
+  "colonna": "sx",
+  "nome_frazione": "Organico",
+  "introduzione": null,
+  "descrizione": null,
+  "nome_riquadro": "I RIFIUTATI",
+  "frase_esclusioni": "Lettiere chimiche per animali, mozziconi, segatura e polvere NON sono rifiuti organici!",
+  "tipo_frase": "elenco",
+  "regole": [
+   {
+    "polarita": "ammesso",
+    "testo": "Residui di frutta e ortaggi, scarti di cucina, interiora e pelli",
+    "dettaglio": null
+   },
+   {
+    "polarita": "ammesso",
+    "testo": "Gusci d’uovo, molluschi, ossi, alimenti deteriorati",
+    "dettaglio": null
+   },
+   {
+    "polarita": "ammesso",
+    "testo": "Fondi di caffè e filtri di tè, cenere raffreddata",
+    "dettaglio": null
+   },
+   {
+    "polarita": "ammesso",
+    "testo": "Fiori recisi, piccole potature",
+    "dettaglio": null
+   },
+   {
+    "polarita": "escluso",
+    "testo": "Lettiere chimiche per animali",
+    "dettaglio": "Lettiere chimiche per animali, mozziconi, segatura e polvere NON sono rifiuti organici!"
+   },
+   {
+    "polarita": "escluso",
+    "testo": "mozziconi",
+    "dettaglio": "Lettiere chimiche per animali, mozziconi, segatura e polvere NON sono rifiuti organici!"
+   },
+   {
+    "polarita": "escluso",
+    "testo": "segatura",
+    "dettaglio": "Lettiere chimiche per animali, mozziconi, segatura e polvere NON sono rifiuti organici!"
+   },
+   {
+    "polarita": "escluso",
+    "testo": "polvere",
+    "dettaglio": "Lettiere chimiche per animali, mozziconi, segatura e polvere NON sono rifiuti organici!"
+   }
+  ],
+  "note": [
+   "Scopri dove gettarli nelle pagine seguenti"
+  ],
+  "fonte": "amiat_rifiutologo_2025",
+  "sha256": "f04e3e45cf46887f8f51f073561410c61e5d4a725d9b3a9b72fafaef8fa3fe31",
+  "versione_estrattore": "torino-regole-0.1"
+ },
+ {
+  "pagina": 9,
+  "colonna": "dx",
+  "nome_frazione": "Imballaggi in plastica",
+  "introduzione": null,
+  "descrizione": null,
+  "nome_riquadro": "I RIFIUTATI",
+  "frase_esclusioni": "Cartoni per bevande (tipo Tetra Pak®), giocattoli, scarpe, ciabatte, penne, spazzolini, CD e taniche NON rientrano tra i rifiuti in plastica!",
+  "tipo_frase": "elenco",
+  "regole": [
+   {
+    "polarita": "ammesso",
+    "testo": "Bottiglie di plastica, flaconi di prodotti per l’igiene personale e la pulizia della casa",
+    "dettaglio": null
+   },
+   {
+    "polarita": "ammesso",
+    "testo": "Borsine, tappi, piatti e bicchieri in plastica, pellicola in plastica per alimenti",
+    "dettaglio": null
+   },
+   {
+    "polarita": "ammesso",
+    "testo": "Vaschette in plastica o polistirolo per alimenti",
+    "dettaglio": null
+   },
+   {
+    "polarita": "ammesso",
+    "testo": "Appendiabiti in plastica",
+    "dettaglio": null
+   },
+   {
+    "polarita": "escluso",
+    "testo": "Cartoni per bevande (tipo Tetra Pak®)",
+    "dettaglio": "Cartoni per bevande (tipo Tetra Pak®), giocattoli, scarpe, ciabatte, penne, spazzolini, CD e taniche NON rientrano tra i rifiuti in plastica!"
+   },
+   {
+    "polarita": "escluso",
+    "testo": "giocattoli",
+    "dettaglio": "Cartoni per bevande (tipo Tetra Pak®), giocattoli, scarpe, ciabatte, penne, spazzolini, CD e taniche NON rientrano tra i rifiuti in plastica!"
+   },
+   {
+    "polarita": "escluso",
+    "testo": "scarpe",
+    "dettaglio": "Cartoni per bevande (tipo Tetra Pak®), giocattoli, scarpe, ciabatte, penne, spazzolini, CD e taniche NON rientrano tra i rifiuti in plastica!"
+   },
+   {
+    "polarita": "escluso",
+    "testo": "ciabatte",
+    "dettaglio": "Cartoni per bevande (tipo Tetra Pak®), giocattoli, scarpe, ciabatte, penne, spazzolini, CD e taniche NON rientrano tra i rifiuti in plastica!"
+   },
+   {
+    "polarita": "escluso",
+    "testo": "penne",
+    "dettaglio": "Cartoni per bevande (tipo Tetra Pak®), giocattoli, scarpe, ciabatte, penne, spazzolini, CD e taniche NON rientrano tra i rifiuti in plastica!"
+   },
+   {
+    "polarita": "escluso",
+    "testo": "spazzolini",
+    "dettaglio": "Cartoni per bevande (tipo Tetra Pak®), giocattoli, scarpe, ciabatte, penne, spazzolini, CD e taniche NON rientrano tra i rifiuti in plastica!"
+   },
+   {
+    "polarita": "escluso",
+    "testo": "CD",
+    "dettaglio": "Cartoni per bevande (tipo Tetra Pak®), giocattoli, scarpe, ciabatte, penne, spazzolini, CD e taniche NON rientrano tra i rifiuti in plastica!"
+   },
+   {
+    "polarita": "escluso",
+    "testo": "taniche",
+    "dettaglio": "Cartoni per bevande (tipo Tetra Pak®), giocattoli, scarpe, ciabatte, penne, spazzolini, CD e taniche NON rientrano tra i rifiuti in plastica!"
+   }
+  ],
+  "note": [
+   "Scopri dove gettarli nelle pagine seguenti"
+  ],
+  "fonte": "amiat_rifiutologo_2025",
+  "sha256": "f04e3e45cf46887f8f51f073561410c61e5d4a725d9b3a9b72fafaef8fa3fe31",
+  "versione_estrattore": "torino-regole-0.1"
+ },
+ {
+  "pagina": 10,
+  "colonna": "sx",
+  "nome_frazione": "Vetro e imballaggi in metallo",
+  "introduzione": null,
+  "descrizione": null,
+  "nome_riquadro": "I RIFIUTATI",
+  "frase_esclusioni": "Oggetti in ceramica o vetroceramica, lampadine, specchi, vetro infrangibile, contenitori in vetro di farmaci usati NON sono da inserire nel contenitore del vetro!",
+  "tipo_frase": "elenco",
+  "regole": [
+   {
+    "polarita": "ammesso",
+    "testo": "Oggetti vari in vetro",
+    "dettaglio": null
+   },
+   {
+    "polarita": "ammesso",
+    "testo": "Bottiglie, scatolette, lattine per le bevande e per l’olio",
+    "dettaglio": null
+   },
+   {
+    "polarita": "ammesso",
+    "testo": "Vasi, tappi a vite e a corona, vaschette in alluminio per alimenti",
+    "dettaglio": null
+   },
+   {
+    "polarita": "ammesso",
+    "testo": "Bicchieri in vetro non infrangibile",
+    "dettaglio": null
+   },
+   {
+    "polarita": "escluso",
+    "testo": "Oggetti in ceramica",
+    "dettaglio": "Oggetti in ceramica o vetroceramica, lampadine, specchi, vetro infrangibile, contenitori in vetro di farmaci usati NON sono da inserire nel contenitore del vetro!"
+   },
+   {
+    "polarita": "escluso",
+    "testo": "vetroceramica",
+    "dettaglio": "Oggetti in ceramica o vetroceramica, lampadine, specchi, vetro infrangibile, contenitori in vetro di farmaci usati NON sono da inserire nel contenitore del vetro!"
+   },
+   {
+    "polarita": "escluso",
+    "testo": "lampadine",
+    "dettaglio": "Oggetti in ceramica o vetroceramica, lampadine, specchi, vetro infrangibile, contenitori in vetro di farmaci usati NON sono da inserire nel contenitore del vetro!"
+   },
+   {
+    "polarita": "escluso",
+    "testo": "specchi",
+    "dettaglio": "Oggetti in ceramica o vetroceramica, lampadine, specchi, vetro infrangibile, contenitori in vetro di farmaci usati NON sono da inserire nel contenitore del vetro!"
+   },
+   {
+    "polarita": "escluso",
+    "testo": "vetro infrangibile",
+    "dettaglio": "Oggetti in ceramica o vetroceramica, lampadine, specchi, vetro infrangibile, contenitori in vetro di farmaci usati NON sono da inserire nel contenitore del vetro!"
+   },
+   {
+    "polarita": "escluso",
+    "testo": "contenitori in vetro di farmaci usati",
+    "dettaglio": "Oggetti in ceramica o vetroceramica, lampadine, specchi, vetro infrangibile, contenitori in vetro di farmaci usati NON sono da inserire nel contenitore del vetro!"
+   }
+  ],
+  "note": [
+   "Scopri dove gettarli nelle pagine seguenti"
+  ],
+  "fonte": "amiat_rifiutologo_2025",
+  "sha256": "f04e3e45cf46887f8f51f073561410c61e5d4a725d9b3a9b72fafaef8fa3fe31",
+  "versione_estrattore": "torino-regole-0.1"
+ },
+ {
+  "pagina": 10,
+  "colonna": "dx",
+  "nome_frazione": "Pile",
+  "introduzione": null,
+  "descrizione": null,
+  "nome_riquadro": "I RIFIUTATI",
+  "frase_esclusioni": "Non gettare pile di tipologia diversa da quelle sopra indicate.",
+  "tipo_frase": "avvertenza",
+  "regole": [
+   {
+    "polarita": "ammesso",
+    "testo": "C",
+    "dettaglio": null
+   },
+   {
+    "polarita": "ammesso",
+    "testo": "AA",
+    "dettaglio": null
+   },
+   {
+    "polarita": "ammesso",
+    "testo": "AAA",
+    "dettaglio": null
+   },
+   {
+    "polarita": "ammesso",
+    "testo": "1/2AA",
+    "dettaglio": null
+   },
+   {
+    "polarita": "ammesso",
+    "testo": "D",
+    "dettaglio": null
+   },
+   {
+    "polarita": "ammesso",
+    "testo": "Button",
+    "dettaglio": null
+   },
+   {
+    "polarita": "nota",
+    "testo": "Non gettare pile di tipologia diversa da quelle sopra indicate.",
+    "dettaglio": null
+   }
+  ],
+  "note": [
+   "Pile e batterie sono rifiuti speciali pericolosi: a causa della loro elevata tossicità, le sostanze in esse contenute sono nocive sia per la salute umana che per l’ambiente"
+  ],
+  "fonte": "amiat_rifiutologo_2025",
+  "sha256": "f04e3e45cf46887f8f51f073561410c61e5d4a725d9b3a9b72fafaef8fa3fe31",
+  "versione_estrattore": "torino-regole-0.1"
+ },
+ {
+  "pagina": 11,
+  "colonna": "sx",
+  "nome_frazione": "Abiti",
+  "introduzione": null,
+  "descrizione": null,
+  "nome_riquadro": "METTITI NEI NOSTRI PANNI",
+  "frase_esclusioni": null,
+  "tipo_frase": "assente",
+  "regole": [
+   {
+    "polarita": "ammesso",
+    "testo": "Abiti usati",
+    "dettaglio": null
+   },
+   {
+    "polarita": "ammesso",
+    "testo": "Scarpe e cinture",
+    "dettaglio": null
+   },
+   {
+    "polarita": "ammesso",
+    "testo": "Cappelli",
+    "dettaglio": null
+   },
+   {
+    "polarita": "ammesso",
+    "testo": "Borse e zaini",
+    "dettaglio": null
+   }
+  ],
+  "note": [
+   "È importante che i vestiti inseriti nei cassonetti siano puliti, in ordine e chiusi dentro un sacchetto"
+  ],
+  "fonte": "amiat_rifiutologo_2025",
+  "sha256": "f04e3e45cf46887f8f51f073561410c61e5d4a725d9b3a9b72fafaef8fa3fe31",
+  "versione_estrattore": "torino-regole-0.1"
+ },
+ {
+  "pagina": 11,
+  "colonna": "dx",
+  "nome_frazione": "Farmaci",
+  "introduzione": null,
+  "descrizione": null,
+  "nome_riquadro": "I RIFIUTATI",
+  "frase_esclusioni": "Insieme ai farmaci non gettare la scatola che li contiene: deve essere smaltita nella raccolta della carta.",
+  "tipo_frase": "avvertenza",
+  "regole": [
+   {
+    "polarita": "nota",
+    "testo": "Insieme ai farmaci non gettare la scatola che li contiene: deve essere smaltita nella raccolta della carta.",
+    "dettaglio": null
+   }
+  ],
+  "note": [
+   "I farmaci sono rifiuti urbani pericolosi, se smaltiti in modo scorretto le sostanze che li compongono possono disperdersi nell’ambiente e creare danno. Per questo motivo è importante smaltirli nei contenitori dedicati"
+  ],
+  "fonte": "amiat_rifiutologo_2025",
+  "sha256": "f04e3e45cf46887f8f51f073561410c61e5d4a725d9b3a9b72fafaef8fa3fe31",
+  "versione_estrattore": "torino-regole-0.1"
+ },
+ {
+  "pagina": 12,
+  "colonna": "sx",
+  "nome_frazione": "Oli esausti",
+  "introduzione": null,
+  "descrizione": null,
+  "nome_riquadro": "È ESAUSTO, MA HA ANCORA FORZA PER INQUINARE",
+  "frase_esclusioni": "Non gettare l’olio negli scarichi, potresti causare seri problemi alle tue condutture! Inoltre, la sua dispersione nella rete fognaria pregiudica il corretto funzionamento dei depuratori.",
+  "tipo_frase": "avvertenza",
+  "regole": [
+   {
+    "polarita": "nota",
+    "testo": "Non gettare l’olio negli scarichi, potresti causare seri problemi alle tue condutture! Inoltre, la sua dispersione nella rete fognaria pregiudica il corretto funzionamento dei depuratori.",
+    "dettaglio": null
+   }
+  ],
+  "note": [
+   "Se liberato nel sottosuolo, l’olio può raggiungere le falde acquifere: ne basta appena un litro per compromettere la potabilità di un milione di litri d’acqua! Invece, quando rigenerata correttamente, questa sostanza può rivelarsi preziosa per la produzione di asfalti, bitumi, mastici e collanti"
+  ],
+  "fonte": "amiat_rifiutologo_2025",
+  "sha256": "f04e3e45cf46887f8f51f073561410c61e5d4a725d9b3a9b72fafaef8fa3fe31",
+  "versione_estrattore": "torino-regole-0.1"
+ },
+ {
+  "pagina": 12,
+  "colonna": "dx",
+  "nome_frazione": "Rifiuti ingombranti",
+  "introduzione": null,
+  "descrizione": "di Raccolta Il ritiro dei Rifiuti Ingombranti (elettrodomestici e apparecchi elettronici, mobili, oggetti e attrezzature voluminose ad uso domestico...) è gratuito telefonando al Customer Care Amiat o sull’App Iren Ambiente, compilando il relativo form. In alternativa si possono portare gratuitamente presso i Centri",
+  "nome_riquadro": "È ORA DI ESPORSI",
+  "frase_esclusioni": null,
+  "tipo_frase": "assente",
+  "regole": [],
+  "note": [],
+  "fonte": "amiat_rifiutologo_2025",
+  "sha256": "f04e3e45cf46887f8f51f073561410c61e5d4a725d9b3a9b72fafaef8fa3fe31",
+  "versione_estrattore": "torino-regole-0.1"
+ }
+]

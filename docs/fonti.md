@@ -16,8 +16,7 @@ Regola: ogni dato nel database deve risalire a una riga di questa pagina (tabell
 | Pagine | Contenuto | Uso |
 |---|---|---|
 | 6 | Legenda "Come leggere il Rifiutologo" (icone e colori) | Mappatura manuale colori/icone → destinazioni |
-| 8-10 | Pagine per frazione con esempi ammessi e "I rifiutati" | Regole di categoria: **da estrarre** |
-| 11-12 | Farmaci, abiti, oli esausti, ingombranti | Regole di categoria: **da estrarre** |
+| 8-12 | Schede per frazione: oggetti ammessi e riquadro con gli esclusi | **Estratte:** 10 schede → `data/grezzo/torino/torino_regole.json` |
 | 13 | Centri di raccolta (indirizzi e orari) | Fuori perimetro v1 |
 | 16-22 | "Dove lo butto? Dalla A alla Z" | **Estratto:** 324 voci → `data/grezzo/torino/torino_voci_raw.csv` |
 | 23 | "8 punti fermi" (punto 7: nel dubbio, rifiuto non recuperabile) | Regola per il livello di evidenza 3 |
