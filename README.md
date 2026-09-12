@@ -4,12 +4,12 @@ Assistente per la raccolta differenziata che gira interamente in locale. L'utent
 
 Progetto universitario. Comuni del prototipo: **Napoli** (ASIA) e **Torino** (AMIAT).
 
-## Stato attuale (v0.2.0)
+## Stato attuale (v0.2.1)
 
 | Componente | Stato |
 |---|---|
 | Estrattore Torino (PDF) | Funzionante: 324 voci, verificato sul PDF reale |
-| Estrattore Napoli (HTML) | Ricognizione superata (584 voci dalla sitemap); **estrazione completa da eseguire** |
+| Estrattore Napoli (HTML) | **Completato**: 584 voci estratte, tutte con destinazione |
 | Schema dati normalizzato (SQLite) | Definito e verificato con Torino completo + campione Napoli |
 | Transform (condizioni, alias) | Da fare |
 | Retrieval ibrido, backend, frontend, modello | Da fare |
@@ -40,6 +40,7 @@ uv sync                         # prepara l'ambiente da uv.lock
 uv run ecoscan-torino           # Torino: metti prima il PDF in data/sorgenti/ (link in docs/fonti.md)
 uv run ecoscan-napoli --recon   # Napoli: ricognizione, poche pagine
 uv run ecoscan-napoli           # Napoli: estrazione completa (584 voci, ~15 minuti)
+uv run ecoscan-ispeziona        # riepiloga il grezzo di Napoli già estratto
 
 uv run pytest                   # i test Torino si saltano se il PDF non è presente
 uv run ecoscan-demo             # carica i dati nello schema ed esegue interrogazioni di esempio

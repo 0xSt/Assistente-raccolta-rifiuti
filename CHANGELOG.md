@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.2.1] - 2026-09-12
+
+### Aggiunto
+- Comando `ecoscan-ispeziona`: riepiloga il livello grezzo di Napoli già estratto (destinazioni, combinazioni, problemi di qualità, indizi per il Transform) senza riscaricare nulla.
+
+### Confermato dall'estrazione completa di Napoli
+- 584 voci estratte, tutte con destinazione, strategia "parentesi" al 100%, nessuna discordanza con l'indice, 6 pagine frazione.
+- Da verificare: solo 17 voci con avvertenza, numero più basso dell'atteso.
+
 ## [0.2.0] - 2026-09-12
 
 ### Modificato
