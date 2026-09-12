@@ -46,6 +46,16 @@ def test_problemi_qualita_record():
     rec = {"nome_originale": "Ammoniaca", "slug": "ammoniaca-contenitore-vuoto",
            "destinazioni": ["Plastica e Metalli"], "destinazioni_indice": ["Plastica e Metalli"], "avvertenza": None}
     assert [p["codice"] for p in problemi_qualita(rec)] == ["info_nello_slug"]
+
+
+def test_avvertenza_pulita_copre_lo_slug():
+    # caso reale: "Ago per prelievi" ha l'avvertenza con apostrofo, lo slug l'ha persa
+    rec = {"nome_originale": "Ago per prelievi", "slug": "ago-per-prelievi-proteggere-lago-con-il-cappuccio",
+           "destinazioni": ["Non Riciclabile"], "destinazioni_indice": None,
+           "avvertenza": "Proteggere l'ago con il cappuccio"}
+    problemi = {p["codice"]: p for p in problemi_qualita(rec)}
+    assert "info_nello_slug" not in problemi
+    assert problemi["info_nello_slug_coperta"]["risolto"] is True
     rec2 = {"nome_originale": "Busto ortopedico", "slug": "busto-ortopedico-2", "destinazioni": [],
             "avvertenza": "Questo è un eventuale messaggio che è possibile specificare per ogni singolo rifiuto!!!"}
     assert {p["codice"] for p in problemi_qualita(rec2)} == {"placeholder", "slug_duplicato", "senza_destinazione"}
@@ -94,7 +104,7 @@ def test_parser_pagina_voce_con_parentesi():
     assert rec["nome_originale"] == "Armadio"
     assert rec["strategia_destinazioni"] == "parentesi"
     assert rec["destinazioni"] == ["Ecopunto Ingombranti", "Isola Ecologica Estesa", "Numero Verde Gratuito"]
-    assert rec["descrizioni_destinazioni"]["Isola Ecologica Estesa"].startswith("Lo puoi conferire")
+    assert "descrizioni_destinazioni" not in rec  # proprietà della destinazione, non della voce
 
 
 def test_ripiego_su_vocabolario():

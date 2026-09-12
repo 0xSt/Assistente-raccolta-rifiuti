@@ -231,19 +231,6 @@ def destinazioni_da_vocabolario(soup, vocabolario: set[str]) -> list[str]:
     return trovate
 
 
-def descrizioni_destinazioni(soup, destinazioni: list[str]) -> dict[str, str]:
-    descrizioni = {}
-    for img in soup.find_all("img", alt=re.compile(r"^Icona", re.I)):
-        blocco = img.find_parent(["li", "div"])
-        if not blocco:
-            continue
-        t = re.sub(r"^Icona[^A-Z]*", "", _testo(blocco))
-        for d in destinazioni:
-            if t.startswith(d) and d not in descrizioni:
-                descrizioni[d] = t[len(d):].strip(" .:-") or None
-    return descrizioni
-
-
 def parse_pagina_voce(html: str, url: str, vocabolario: set[str] | None = None) -> dict:
     soup = BeautifulSoup(html, "lxml")
     h1 = soup.find("h1")
@@ -257,9 +244,10 @@ def parse_pagina_voce(html: str, url: str, vocabolario: set[str] | None = None) 
     if not destinazioni:
         strategia = "nessuna"
 
+    # La descrizione di una destinazione è identica su tutte le voci che la usano:
+    # è una proprietà della destinazione e si estrarrà una volta sola, non qui.
     return {"slug": _slug(url), "url": url, "nome_originale": nome, "destinazioni": destinazioni,
-            "strategia_destinazioni": strategia,
-            "descrizioni_destinazioni": descrizioni_destinazioni(soup, destinazioni)}
+            "strategia_destinazioni": strategia}
 
 
 def parse_pagina_frazione(html: str, url: str) -> dict:

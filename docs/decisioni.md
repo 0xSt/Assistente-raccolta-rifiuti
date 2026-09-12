@@ -25,10 +25,14 @@ Formato: decisione, motivazione, stato. Le decisioni si aggiornano, non si cance
 | D19 | Scoperta delle voci dalla sitemap XML (584 URL), non dalla paginazione dell'indice | Confermata dalla ricognizione; l'indice mostra 40 voci per pagina | Accettata |
 | D20 | Gestione di ambiente e dipendenze con **uv**; codice come package `src/ecoscan`, comandi in `[project.scripts]` | Ambiente riproducibile da `uv.lock`, import assoluti stabili, comandi eseguibili da qualsiasi cartella | Accettata |
 | D21 | Percorsi centralizzati in `ecoscan/percorsi.py`, con radice trovata dal `pyproject.toml` e override `ECOSCAN_RADICE` | Evita percorsi relativi alla cartella corrente, che si rompono nei container e nei comandi installati | Accettata |
+| D22 | Le descrizioni delle destinazioni non si estraggono dalle pagine voce | Sono identiche su tutte le voci che usano quella destinazione: proprietà della destinazione, da estrarre una volta sola | Accettata |
+| D23 | Il campo avvertenza ha priorità sul testo ricavato dallo slug | L'avvertenza conserva accenti e apostrofi, lo slug li perde | Accettata |
+| D24 | Le parentesi nei nomi vanno classificate (alias vs condizione), non trattate in modo uniforme | A Napoli indicano sinonimi, esempi o condizioni; a Torino quasi sempre condizioni | Accettata |
 
 ## Questioni aperte
 
-- Napoli: verifica dell'estrazione completa sulle 584 voci (strategie usate, discordanze con l'indice).
+- Napoli: Transform (classificazione delle parentesi, voci composte, refusi, deduplicazione).
+- Descrizioni e indirizzi delle destinazioni: 363 voci su 584 richiedono di andare da qualche parte (isole ecologiche, ecopunti), quindi prima o poi serve dire dove.
 - Torino: Transform delle condizioni non tra parentesi ("con residui", "unta", "pulito/sporco") e degli alias.
 - Estrazione delle regole di categoria: Torino pagine 8-12, Napoli sei pagine frazione e opuscolo PDF.
 - Set di test con foto etichettate e metriche (riconoscimento, destinazione per comune, latenza).

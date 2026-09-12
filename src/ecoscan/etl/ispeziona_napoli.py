@@ -49,8 +49,8 @@ def riepiloga(voci: list[dict], campione: int = 0) -> None:
     for v in with_avv[:10]:
         print(f"  {v['nome_originale']}: {v['avvertenza'][:90]}")
 
-    print("\n## Descrizioni delle destinazioni presenti")
-    print(f"  voci con almeno una descrizione: {sum(1 for v in voci if v.get('descrizioni_destinazioni'))}")
+    coperte = sum(1 for v in voci for p in v.get("problemi", []) if p["codice"] == "info_nello_slug_coperta")
+    print(f"  di cui coperte da un'avvertenza pulita: {coperte}")
 
     # Indizi per il Transform: condizioni e voci composte
     tra_parentesi = [v["nome_originale"] for v in voci if "(" in v["nome_originale"]]

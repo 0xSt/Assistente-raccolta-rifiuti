@@ -81,13 +81,22 @@ def possibili_duplicati(nomi: list[str]) -> list[list[str]]:
 
 
 def problemi_qualita(record: dict) -> list[dict]:
-    """Elenco dei problemi di un record grezzo, nel formato della tabella problema_qualita."""
+    """Elenco dei problemi di un record grezzo, nel formato della tabella problema_qualita.
+
+    Va chiamata DOPO aver assegnato l'avvertenza: la sua presenza cambia la gravità
+    dell'informazione nascosta nello slug.
+    """
     out = []
     nome, slug = record["nome_originale"], record["slug"]
     if e_placeholder(record.get("avvertenza")):
         out.append({"codice": "placeholder", "dettaglio": record["avvertenza"]})
-    if (extra := info_nello_slug(nome, slug)):
+    extra = info_nello_slug(nome, slug)
+    if extra and not record.get("avvertenza"):
+        # senza un'avvertenza pulita, il testo dello slug è l'unica traccia: va revisionato
         out.append({"codice": "info_nello_slug", "dettaglio": extra})
+    elif extra:
+        # l'avvertenza riporta la stessa informazione con accenti e apostrofi corretti
+        out.append({"codice": "info_nello_slug_coperta", "dettaglio": extra, "risolto": True})
     if suffisso_duplicato(slug) is not None and info_nello_slug(nome, slug) is None:
         out.append({"codice": "slug_duplicato", "dettaglio": slug})
     if nome != normalizza_spazi(nome):

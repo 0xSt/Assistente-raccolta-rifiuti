@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.2.2] - 2026-09-12
+
+### Corretto
+- Rimosso il campo `descrizioni_destinazioni` dalle voci: il parser non lo popolava mai e il dato appartiene comunque alla destinazione, non alla voce.
+
+### Modificato
+- `info_nello_slug` viene segnalato come risolto (`info_nello_slug_coperta`) quando la stessa informazione è già nel campo avvertenza, che è pulito.
+
+### Documentato
+- Numeri e problemi dell'estrazione completa di Napoli in `docs/qualita_dati.md`.
+
 ## [0.2.1] - 2026-09-12
 
 ### Aggiunto
