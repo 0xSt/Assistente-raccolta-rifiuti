@@ -5,7 +5,7 @@
   (link voce, intestazioni di colonna, destinazioni tra parentesi). Verifica la logica,
   non la conformità al markup reale: quella si verifica con `--recon`.
 """
-from extract_napoli import parse_liste, parse_pagina_voce
+from extract_napoli import parse_liste, parse_pagina_frazione, parse_pagina_voce
 from napoli_qualita import (
     chiave_confronto, e_placeholder, info_nello_slug, normalizza_spazi,
     possibili_duplicati, problemi_qualita, slugify_wp, split_destinazioni,
@@ -51,11 +51,14 @@ def test_problemi_qualita_record():
     assert {p["codice"] for p in problemi_qualita(rec2)} == {"placeholder", "slug_duplicato", "senza_destinazione"}
 
 
-PAGINA_SINTETICA = """
+# Fixture sintetica che riproduce la FRAMMENTAZIONE osservata sul sito (settembre 2026):
+# ogni destinazione è un elemento separato, quindi "(" , nome e ")" non stanno in un solo nodo di testo.
+PAGINA_VOCE = """
 <html><body>
 <h1>Dove buttare Armadio?</h1>
-<div><a href="https://www.asianapoli.it/dove-lo-butto/armadio/">Armadio</a></div>
-<div>(Ecopunto Ingombranti, Isola Ecologica Estesa, Numero Verde Gratuito)</div>
+<div class="box"><a href="https://www.asianapoli.it/dove-lo-butto/armadio/">Armadio</a>
+  <div class="dest">(<span>Ecopunto Ingombranti</span> , <span>Isola Ecologica Estesa</span> ,
+     <span>Numero Verde Gratuito</span>)</div></div>
 <ul>
  <li><img alt="Icona Porta a Porta"><span>Isola Ecologica Estesa</span><p>Lo puoi conferire presso le Isole Ecologiche Estese.</p></li>
  <li><img alt="Icona Porta a Porta"><span>Numero Verde Gratuito</span><p>Puoi contattare il numero verde.</p></li>
@@ -69,17 +72,59 @@ PAGINA_SINTETICA = """
 </body></html>
 """
 
+# Stessa voce senza il blocco tra parentesi: deve funzionare il ripiego sul vocabolario
+PAGINA_VOCE_SENZA_PARENTESI = PAGINA_VOCE.replace(
+    '<div class="dest">(<span>Ecopunto Ingombranti</span> , <span>Isola Ecologica Estesa</span> ,\n'
+    '     <span>Numero Verde Gratuito</span>)</div>', "")
 
-def test_parser_pagina_voce_sintetica():
-    rec = parse_pagina_voce(PAGINA_SINTETICA, "https://www.asianapoli.it/dove-lo-butto/armadio/")
+PAGINA_FRAZIONE = """
+<html><body>
+<h1>Plastica e Metalli</h1>
+<h2>Il contenitore per la raccolta della Plastica è contraddistinto dal colore <b>GIALLO</b></h2>
+<h3>Cosa differenziare nel contenitore della Plastica</h3>
+<div><img src="a.png"><strong>Bottiglie e flaconi in plastica</strong></div>
+<div><img src="b.png"><strong>Bombolette spray non pericolose</strong><br>(non etichettate T e F)</div>
+<h4>Piatti e bicchieri in plastica possono essere anche sporchi ma svuotati di ogni residuo</h4>
+</body></html>
+"""
+
+
+def test_parser_pagina_voce_con_parentesi():
+    rec = parse_pagina_voce(PAGINA_VOCE, "https://www.asianapoli.it/dove-lo-butto/armadio/")
     assert rec["nome_originale"] == "Armadio"
+    assert rec["strategia_destinazioni"] == "parentesi"
     assert rec["destinazioni"] == ["Ecopunto Ingombranti", "Isola Ecologica Estesa", "Numero Verde Gratuito"]
     assert rec["descrizioni_destinazioni"]["Isola Ecologica Estesa"].startswith("Lo puoi conferire")
 
 
+def test_ripiego_su_vocabolario():
+    vocabolario = {"Ecopunto Ingombranti", "Isola Ecologica Estesa", "Numero Verde Gratuito", "Isola Ecologica"}
+    url = "https://www.asianapoli.it/dove-lo-butto/armadio/"
+    assert parse_pagina_voce(PAGINA_VOCE_SENZA_PARENTESI, url)["destinazioni"] == []
+    rec = parse_pagina_voce(PAGINA_VOCE_SENZA_PARENTESI, url, vocabolario)
+    assert rec["strategia_destinazioni"] == "vocabolario"
+    # solo le destinazioni con icona, e vince la corrispondenza più lunga
+    assert rec["destinazioni"] == ["Isola Ecologica Estesa", "Numero Verde Gratuito"]
+
+
 def test_parser_liste_sintetica():
-    righe = {r["slug"]: r for r in parse_liste(PAGINA_SINTETICA, "https://www.asianapoli.it/dove-lo-butto/armadio/")}
-    assert set(righe) == {"asciugacapelli", "bacinella-in-plastica"}  # il link accanto al titolo è escluso
+    righe = {r["slug"]: r for r in parse_liste(PAGINA_VOCE, "https://www.asianapoli.it/dove-lo-butto/armadio/")}
+    assert set(righe) == {"asciugacapelli", "bacinella-in-plastica"}  # il link alla voce corrente è escluso
     assert righe["bacinella-in-plastica"]["colonna"] == "Avvertenza"
     assert e_placeholder(righe["bacinella-in-plastica"]["testo"])
     assert righe["asciugacapelli"]["testo"] is None
+
+
+def test_separatori_con_spazi_dell_indice():
+    # l'indice reale restituisce "Contenitore Abiti Usati , Isola Ecologica Estesa"
+    assert split_destinazioni("Contenitore Abiti Usati , Isola Ecologica Estesa , Isola Ecologica Ridotta") == [
+        "Contenitore Abiti Usati", "Isola Ecologica Estesa", "Isola Ecologica Ridotta"]
+
+
+def test_parser_pagina_frazione():
+    fr = parse_pagina_frazione(PAGINA_FRAZIONE, "")
+    assert fr["nome_frazione"] == "Plastica e Metalli" and fr["colore"] == "giallo"
+    ammessi = {r["testo"]: r["dettaglio"] for r in fr["regole"] if r["polarita"] == "ammesso"}
+    assert ammessi["Bottiglie e flaconi in plastica"] is None
+    assert ammessi["Bombolette spray non pericolose"] == "(non etichettate T e F)"  # dettaglio dopo <br>
+    assert any("svuotati di ogni residuo" in n for n in fr["note"])

@@ -23,4 +23,5 @@ Ogni problema diventa una riga della tabella `problema_qualita` durante il caric
 | Stessa destinazione con due nomi | "Carta e Cartoncino" (indice) / "Carta e Cartone" (frazioni) | Tabella `destinazione_alias` |
 | Refusi | "CCaffettiere" | Codice `refuso` |
 | Spaziatura e maiuscole incoerenti | "Bambù (in Grandi Quantità )", "calcinacci" | Normalizzazione |
+| Dettaglio separato dal testo | "Bombolette spray non pericolose" + "(non etichettate T e F)" dopo un `<br>` | Campo `dettaglio` della regola |
 | Lista non affidabile | "Puoi inoltre conferire in questo contenitore" quasi identica su voci diverse | Usata solo per le avvertenze |

@@ -24,6 +24,11 @@ Regola: ogni dato nel database deve risalire a una riga di questa pagina (tabell
 
 Consultate l'11/09/2026 tramite navigazione, **non ancora estratte in automatico**. I dati Napoli in `db/demo_schema.py` sono un campione trascritto da queste pagine.
 
+Ricognizione del 12/09/2026 (`python etl/extract_napoli.py --recon`, eseguita da Stef):
+- la **sitemap XML è disponibile** e contiene **584 URL di voce**: è la strategia di scoperta usata;
+- l'indice mostra **40 voci per pagina** (A-B), con la sola colonna "Contenitore";
+- il vocabolario delle destinazioni si ricava dall'indice e dalle voci lette correttamente.
+
 | URL | Contenuto | Uso |
 |---|---|---|
 | https://www.asianapoli.it/dove-lo-butto/ | Indice del dizionario (Rifiuto / Contenitore), paginato | Struttura dell'estrattore; campione di 7 voci (A-B) |

@@ -20,6 +20,7 @@ import json
 import re
 import time
 import xml.etree.ElementTree as ET
+from collections import Counter
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -191,31 +192,72 @@ def parse_liste(html: str, url_pagina: str) -> list[dict]:
     return righe
 
 
-def parse_pagina_voce(html: str, url: str) -> dict:
-    soup = BeautifulSoup(html, "lxml")
-    h1 = soup.find("h1")
-    titolo = normalizza_spazi(h1.get_text(" ", strip=True)) if h1 else ""
-    m = re.fullmatch(r"Dove buttare\s+(.+?)\s*\?", titolo)
-    nome = m.group(1) if m else titolo
+def _testo(el) -> str:
+    return normalizza_spazi(el.get_text(" ", strip=True))
 
-    destinazioni = []
-    if h1:
-        for s in h1.find_all_next(string=True, limit=500):
-            if (mm := re.fullmatch(r"\((.+)\)", s.strip())):
-                destinazioni = split_destinazioni(mm.group(1))
-                break
 
-    # Descrizione di ogni destinazione: blocco con icona il cui testo inizia con il nome
+def destinazioni_tra_parentesi(soup, h1) -> list[str]:
+    """Strategia A: elemento il cui testo COMPLESSIVO è '(Dest1, Dest2)'.
+
+    Le destinazioni sono nodi di testo separati, quindi va letto il testo aggregato
+    dell'elemento, non i singoli nodi. Si sceglie l'elemento più piccolo che combacia.
+    """
+    candidati = []
+    for el in (h1.find_all_next() if h1 else soup.find_all()):
+        t = _testo(el)
+        if 3 < len(t) < 400 and (m := re.fullmatch(r"\((.+)\)", t)):
+            candidati.append((len(t), m.group(1)))
+    return split_destinazioni(min(candidati)[1]) if candidati else []
+
+
+def destinazioni_da_vocabolario(soup, vocabolario: set[str]) -> list[str]:
+    """Strategia B: blocchi con icona il cui testo inizia con una destinazione nota.
+
+    Il vocabolario si costruisce dall'indice, che si legge in modo affidabile.
+    """
+    trovate = []
+    for img in soup.find_all("img", alt=re.compile(r"^Icona", re.I)):
+        blocco = img.find_parent(["li", "div"])
+        if not blocco:
+            continue
+        t = _testo(blocco)
+        # il testo del blocco può iniziare con il testo alternativo dell'icona
+        t = re.sub(r"^Icona[^A-Z]*", "", t)
+        corrispondenze = [d for d in vocabolario if t.startswith(d)]
+        if corrispondenze and (scelta := max(corrispondenze, key=len)) not in trovate:
+            trovate.append(scelta)
+    return trovate
+
+
+def descrizioni_destinazioni(soup, destinazioni: list[str]) -> dict[str, str]:
     descrizioni = {}
     for img in soup.find_all("img", alt=re.compile(r"^Icona", re.I)):
         blocco = img.find_parent(["li", "div"])
-        testo = normalizza_spazi(blocco.get_text(" ", strip=True)) if blocco else ""
+        if not blocco:
+            continue
+        t = re.sub(r"^Icona[^A-Z]*", "", _testo(blocco))
         for d in destinazioni:
-            if testo.startswith(d) and d not in descrizioni:
-                descrizioni[d] = testo[len(d):].strip() or None
+            if t.startswith(d) and d not in descrizioni:
+                descrizioni[d] = t[len(d):].strip(" .:-") or None
+    return descrizioni
 
-    return {"slug": _slug(url), "url": url, "nome_originale": nome,
-            "destinazioni": destinazioni, "descrizioni_destinazioni": descrizioni}
+
+def parse_pagina_voce(html: str, url: str, vocabolario: set[str] | None = None) -> dict:
+    soup = BeautifulSoup(html, "lxml")
+    h1 = soup.find("h1")
+    titolo = _testo(h1) if h1 else ""
+    m = re.fullmatch(r"Dove buttare\s+(.+?)\s*\?", titolo)
+    nome = m.group(1) if m else titolo
+
+    destinazioni, strategia = destinazioni_tra_parentesi(soup, h1), "parentesi"
+    if not destinazioni and vocabolario:
+        destinazioni, strategia = destinazioni_da_vocabolario(soup, vocabolario), "vocabolario"
+    if not destinazioni:
+        strategia = "nessuna"
+
+    return {"slug": _slug(url), "url": url, "nome_originale": nome, "destinazioni": destinazioni,
+            "strategia_destinazioni": strategia,
+            "descrizioni_destinazioni": descrizioni_destinazioni(soup, destinazioni)}
 
 
 def parse_pagina_frazione(html: str, url: str) -> dict:
@@ -236,9 +278,17 @@ def parse_pagina_frazione(html: str, url: str) -> dict:
             if el.name in ("h3", "h4"):
                 break
             testo = normalizza_spazi(el.get_text(" ", strip=True))
-            if testo:
-                dettaglio = el.next_sibling.strip() if isinstance(el.next_sibling, str) and el.next_sibling.strip() else None
-                regole.append({"polarita": polarita, "testo": testo, "dettaglio": dettaglio})
+            if not testo:
+                continue
+            # il dettaglio segue il testo in grassetto, a volte dopo un <br>: raccolgo
+            # i nodi successivi fino al prossimo blocco in grassetto o alla prossima immagine
+            pezzi = []
+            for sib in el.next_siblings:
+                if getattr(sib, "name", None) in ("strong", "b", "img", "h3", "h4"):
+                    break
+                pezzi.append(sib if isinstance(sib, str) else sib.get_text(" ", strip=True))
+            dettaglio = normalizza_spazi(" ".join(pezzi)) or None
+            regole.append({"polarita": polarita, "testo": testo, "dettaglio": dettaglio})
     for h4 in soup.find_all("h4"):
         t = normalizza_spazi(h4.get_text(" ", strip=True))
         if t and not re.match(r"(devi buttare|utilizza la nostra|consentono ai cittadini)", t, re.I):
@@ -272,8 +322,17 @@ def estrai(out: Path, f: Fetcher, limite: int | None = None) -> None:
                 avvertenze.setdefault(riga["slug"], riga["testo"])
         rec.update({"fonte": "asia_napoli_dove_lo_butto", "sha256": snap.sha256,
                     "recuperato_il": snap.recuperato_il, "versione_estrattore": VERSIONE_ESTRATTORE,
-                    "destinazioni_indice": indice.get(rec["slug"])})
+                    "destinazioni_indice": indice.get(rec["slug"]), "_html": snap.html})
         records.append(rec)
+
+    # Secondo passaggio: le voci rimaste senza destinazione si rileggono usando il vocabolario
+    # costruito da quelle riuscite (più l'indice), perché il loro impaginato può essere diverso.
+    vocabolario = {d for r in records for d in r["destinazioni"]} | {d for v in indice.values() for d in v}
+    for rec in records:
+        if not rec["destinazioni"] and vocabolario:
+            rec.update(parse_pagina_voce(rec["_html"], rec["url"], vocabolario))
+    for rec in records:
+        del rec["_html"]
 
     for rec in records:
         rec["avvertenza"] = avvertenze.get(rec["slug"])
@@ -293,6 +352,10 @@ def estrai(out: Path, f: Fetcher, limite: int | None = None) -> None:
 
     # Controlli di completezza: falliscono in modo esplicito invece di produrre dati parziali
     senza_dest = [r["slug"] for r in records if not r["destinazioni"]]
+    strategie = Counter(r["strategia_destinazioni"] for r in records)
+    incoerenti = [r["slug"] for r in records
+                  if r["destinazioni_indice"] and sorted(r["destinazioni_indice"]) != sorted(r["destinazioni"])]
+    print(f"Strategie: {dict(strategie)} | discordanze con l'indice: {len(incoerenti)} {incoerenti[:5]}")
     print(f"Voci estratte: {len(records)} | senza destinazione: {len(senza_dest)} | "
           f"con avvertenza: {sum(1 for r in records if r['avvertenza'])} | frazioni: {len(frazioni)}")
     if strategia == "indice" and len(urls) <= len(indice):
@@ -308,10 +371,13 @@ def recon(f: Fetcher) -> None:
     print(f"Indice pagina 1: {len(righe)} righe, colonne {sorted({str(r['colonna']) for r in righe})}")
     for r in righe[:3]:
         print("  ", r)
+    vocabolario = {d for r in righe if r["colonna"] == "Contenitore" and r["testo"]
+                   for d in split_destinazioni(r["testo"])}
+    print(f"Vocabolario destinazioni dall'indice ({len(vocabolario)}): {sorted(vocabolario)}")
     for slug in ["specchio", "bacinella-in-plastica", "ago-per-prelievi-proteggere-lago-con-il-cappuccio"]:
         url = f"{DIZIONARIO}{slug}/"
-        rec = parse_pagina_voce(f.get(url).html, url)
-        print(json.dumps(rec, ensure_ascii=False, indent=1)[:600])
+        rec = parse_pagina_voce(f.get(url).html, url, vocabolario)
+        print(json.dumps(rec, ensure_ascii=False, indent=1)[:700])
     fr = parse_pagina_frazione(f.get(f"{BASE}/servizi/materiali-da-differenziare/plastica-e-metalli/").html, "")
     print(json.dumps(fr, ensure_ascii=False, indent=1)[:800])
 

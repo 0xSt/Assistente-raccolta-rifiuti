@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.1.1] - 2026-09-12
+
+### Corretto
+- Le destinazioni nelle pagine voce risultavano sempre vuote: i nodi di testo sono frammentati, ora si legge il testo aggregato degli elementi.
+- Il dettaglio delle regole di categoria non veniva raccolto quando separato da un `<br>`.
+
+### Aggiunto
+- Secondo passaggio di estrazione con ripiego sul vocabolario di destinazioni, per voci con impaginato diverso.
+- Diagnostica: conteggio per strategia e discordanze tra pagina voce e indice.
+- 3 test nuovi; fixture aggiornata alla frammentazione reale del markup.
+
+### Confermato dalla ricognizione
+- Sitemap disponibile con 584 URL di voce; indice a 40 voci per pagina; struttura delle pagine frazione.
+
 ## [0.1.0] - 2026-09-11
 
 ### Aggiunto

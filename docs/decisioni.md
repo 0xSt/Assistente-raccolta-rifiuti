@@ -21,10 +21,12 @@ Formato: decisione, motivazione, stato. Le decisioni si aggiornano, non si cance
 | D15 | Destinazioni classificate per **canale** e collegate a **flussi** canonici molti-a-molti | Confrontare comuni con raggruppamenti diversi | Accettata |
 | D16 | Estrazione Torino deterministica dai marcatori vettoriali, senza LLM | Riproducibile e verificabile; LLM riservato ai casi ambigui | Accettata |
 | D17 | Estrattore Napoli senza classi CSS; lista "Puoi inoltre conferire" non usata per l'appartenenza al contenitore | Elementor rigenera le classi; la lista è quasi identica su voci con destinazioni diverse | Accettata |
+| D18 | Destinazioni lette dal testo **aggregato** degli elementi, non dai singoli nodi; estrazione a due passaggi con ripiego su vocabolario | Ogni destinazione è un elemento separato: i nodi di testo sono frammentati (`(`, nome, `)`) | Accettata |
+| D19 | Scoperta delle voci dalla sitemap XML (584 URL), non dalla paginazione dell'indice | Confermata dalla ricognizione; l'indice mostra 40 voci per pagina | Accettata |
 
 ## Questioni aperte
 
-- Napoli: esistenza della sitemap e meccanismo di paginazione dell'indice (serve `--recon`).
+- Napoli: verifica dell'estrazione completa sulle 584 voci (strategie usate, discordanze con l'indice).
 - Torino: Transform delle condizioni non tra parentesi ("con residui", "unta", "pulito/sporco") e degli alias.
 - Estrazione delle regole di categoria: Torino pagine 8-12, Napoli sei pagine frazione e opuscolo PDF.
 - Set di test con foto etichettate e metriche (riconoscimento, destinazione per comune, latenza).
