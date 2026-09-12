@@ -1,5 +1,7 @@
 # Fonti dei dati
 
+Da dove vengono i dati. Decisioni e cronologia: [diario](diario.md). Termini: [glossario](glossario.md).
+
 Regola: ogni dato nel database deve risalire a una riga di questa pagina (tabelle `fonte`, `snapshot`, `record_grezzo`).
 
 ## Fonti usate per i dati

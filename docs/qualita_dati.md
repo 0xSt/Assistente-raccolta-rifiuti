@@ -1,5 +1,7 @@
 # Problemi di qualità trovati nelle fonti
 
+Catalogo di riferimento per fonte. Le decisioni su come trattarli e la cronologia stanno nel [diario](diario.md).
+
 Ogni problema diventa una riga della tabella `problema_qualita` durante il caricamento.
 
 ## Torino (Rifiutologo 2025)

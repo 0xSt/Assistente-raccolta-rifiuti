@@ -4,7 +4,9 @@ Assistente per la raccolta differenziata che gira interamente in locale. L'utent
 
 Progetto universitario. Comuni del prototipo: **Napoli** (ASIA) e **Torino** (AMIAT).
 
-## Stato attuale (v0.4.0)
+## Stato attuale (v0.4.1)
+
+Il quadro completo è in [docs/diario.md](docs/diario.md).
 
 | Componente | Stato |
 |---|---|
@@ -61,7 +63,9 @@ I nuovi moduli vanno in `src/ecoscan/`; per renderli eseguibili basta aggiungere
 
 ## Documentazione
 
+- **[docs/diario.md](docs/diario.md)**: il file da leggere per primo. Stato del progetto, decisioni prese e perché, questioni aperte, annotazioni e cronologia delle modifiche.
+- [docs/glossario.md](docs/glossario.md): significato dei termini usati nel progetto, in particolare quelli dell'ETL
 - [docs/fonti.md](docs/fonti.md): link e documenti da cui provengono i dati
-- [docs/decisioni.md](docs/decisioni.md): decisioni di progetto e motivazioni
-- [docs/qualita_dati.md](docs/qualita_dati.md): problemi trovati nelle fonti
-- [CHANGELOG.md](CHANGELOG.md): cronologia delle modifiche
+- [docs/qualita_dati.md](docs/qualita_dati.md): catalogo dei difetti di ciascuna fonte
+
+Diario e glossario si tengono aggiornati man mano: il diario a ogni modifica sostanziale o decisione, il glossario quando entra in gioco un termine nuovo.
