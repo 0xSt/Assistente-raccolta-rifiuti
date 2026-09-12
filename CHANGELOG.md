@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.2.0] - 2026-09-12
+
+### Modificato
+- Gestione del progetto con **uv**: `pyproject.toml` + `uv.lock` al posto di `requirements.txt` e `pytest.ini`.
+- Codice riorganizzato come package `src/ecoscan` (`etl/`, `db/`), import assoluti.
+- Tre comandi: `ecoscan-torino`, `ecoscan-napoli`, `ecoscan-demo`.
+
+### Aggiunto
+- `ecoscan/percorsi.py`: radice del progetto e cartelle dati, con override `ECOSCAN_RADICE`.
+- 3 test sulla risoluzione dei percorsi; messaggio esplicito se manca il PDF di Torino.
+
 ## [0.1.1] - 2026-09-12
 
 ### Corretto

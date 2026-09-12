@@ -4,7 +4,7 @@ Assistente per la raccolta differenziata che gira interamente in locale. L'utent
 
 Progetto universitario. Comuni del prototipo: **Napoli** (ASIA) e **Torino** (AMIAT).
 
-## Stato attuale (v0.1.1)
+## Stato attuale (v0.2.0)
 
 | Componente | Stato |
 |---|---|
@@ -17,31 +17,44 @@ Progetto universitario. Comuni del prototipo: **Napoli** (ASIA) e **Torino** (AM
 ## Struttura
 
 ```
-etl/            estrattori (livello grezzo) e funzioni di pulizia
-db/             schema.sql e script dimostrativo dello schema
-tests/          test di regressione e unitari
-data/grezzo/    output degli estrattori (versionati)
-data/sorgenti/  documenti ufficiali scaricati (NON versionati, vedi docs/fonti.md)
-data/cache/     cache HTML dell'estrattore Napoli (NON versionata)
-docs/           fonti, decisioni, qualità dei dati
+pyproject.toml       dipendenze, comandi e configurazione di pytest
+uv.lock              versioni bloccate (da versionare)
+src/ecoscan/
+  percorsi.py        radice del progetto e cartelle dati
+  etl/               estrattori (livello grezzo) e funzioni di pulizia
+  db/                schema.sql e script dimostrativo dello schema
+tests/               test di regressione e unitari
+data/grezzo/         output degli estrattori (versionati)
+data/sorgenti/       documenti ufficiali scaricati (NON versionati, vedi docs/fonti.md)
+data/cache/          cache HTML dell'estrattore Napoli (NON versionata)
+docs/                fonti, decisioni, qualità dei dati
 ```
 
 ## Come eseguire
 
+Serve solo [uv](https://docs.astral.sh/uv/): scarica Python e le dipendenze da sé, non serve creare o attivare un virtualenv.
+
 ```bash
-python -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
+uv sync                         # prepara l'ambiente da uv.lock
 
-# Torino: scarica il PDF (link in docs/fonti.md) in data/sorgenti/, poi
-python etl/extract_torino.py
+uv run ecoscan-torino           # Torino: metti prima il PDF in data/sorgenti/ (link in docs/fonti.md)
+uv run ecoscan-napoli --recon   # Napoli: ricognizione, poche pagine
+uv run ecoscan-napoli           # Napoli: estrazione completa (584 voci, ~15 minuti)
 
-# Napoli: prima la ricognizione, poi l'estrazione completa
-python etl/extract_napoli.py --recon
-python etl/extract_napoli.py
-
-python -m pytest          # i test Torino si saltano se il PDF non è presente
-python db/demo_schema.py  # carica i dati nello schema ed esegue interrogazioni di esempio
+uv run pytest                   # i test Torino si saltano se il PDF non è presente
+uv run ecoscan-demo             # carica i dati nello schema ed esegue interrogazioni di esempio
 ```
+
+Ogni comando accetta `--help`. I percorsi sono relativi alla radice del progetto, quindi funzionano da qualsiasi cartella; `ECOSCAN_RADICE` permette di forzarla (utile nei container).
+
+### Aggiungere dipendenze e file
+
+```bash
+uv add <pacchetto>              # dipendenza di esecuzione (aggiorna pyproject.toml e uv.lock)
+uv add --dev <pacchetto>        # dipendenza solo di sviluppo
+```
+
+I nuovi moduli vanno in `src/ecoscan/`; per renderli eseguibili basta aggiungere una riga in `[project.scripts]` che punti a una funzione `main()`.
 
 ## Documentazione
 

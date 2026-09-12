@@ -5,8 +5,8 @@
   (link voce, intestazioni di colonna, destinazioni tra parentesi). Verifica la logica,
   non la conformità al markup reale: quella si verifica con `--recon`.
 """
-from extract_napoli import parse_liste, parse_pagina_frazione, parse_pagina_voce
-from napoli_qualita import (
+from ecoscan.etl.extract_napoli import parse_liste, parse_pagina_frazione, parse_pagina_voce
+from ecoscan.etl.napoli_qualita import (
     chiave_confronto, e_placeholder, info_nello_slug, normalizza_spazi,
     possibili_duplicati, problemi_qualita, slugify_wp, split_destinazioni,
 )

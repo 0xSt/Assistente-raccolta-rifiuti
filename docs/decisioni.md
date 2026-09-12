@@ -23,6 +23,8 @@ Formato: decisione, motivazione, stato. Le decisioni si aggiornano, non si cance
 | D17 | Estrattore Napoli senza classi CSS; lista "Puoi inoltre conferire" non usata per l'appartenenza al contenitore | Elementor rigenera le classi; la lista è quasi identica su voci con destinazioni diverse | Accettata |
 | D18 | Destinazioni lette dal testo **aggregato** degli elementi, non dai singoli nodi; estrazione a due passaggi con ripiego su vocabolario | Ogni destinazione è un elemento separato: i nodi di testo sono frammentati (`(`, nome, `)`) | Accettata |
 | D19 | Scoperta delle voci dalla sitemap XML (584 URL), non dalla paginazione dell'indice | Confermata dalla ricognizione; l'indice mostra 40 voci per pagina | Accettata |
+| D20 | Gestione di ambiente e dipendenze con **uv**; codice come package `src/ecoscan`, comandi in `[project.scripts]` | Ambiente riproducibile da `uv.lock`, import assoluti stabili, comandi eseguibili da qualsiasi cartella | Accettata |
+| D21 | Percorsi centralizzati in `ecoscan/percorsi.py`, con radice trovata dal `pyproject.toml` e override `ECOSCAN_RADICE` | Evita percorsi relativi alla cartella corrente, che si rompono nei container e nei comandi installati | Accettata |
 
 ## Questioni aperte
 

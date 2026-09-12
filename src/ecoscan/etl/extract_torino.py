@@ -6,8 +6,7 @@ Ogni voce ha uno o più marcatori circolari vettoriali (17 pt) che indicano le d
   - gradiente: stesso colore per sei destinazioni, distinte dall'impronta del glifo bianco interno
 
 Uso:
-  python etl/extract_torino.py --pdf data/sorgenti/Rifiutologo_AMIAT_2025_x_sito.pdf \
-                               --out data/grezzo/torino/torino_voci_raw.csv [--diagnostica]
+  uv run ecoscan-torino [--pdf ...] [--out ...] [--diagnostica]
 """
 from __future__ import annotations
 
@@ -18,6 +17,8 @@ from collections import Counter
 from pathlib import Path
 
 import pymupdf
+
+from ecoscan.percorsi import GREZZO, PDF_TORINO
 
 PAGINE_DIZIONARIO = range(15, 22)  # indici 0-based delle pagine 16-22
 LATO_MARCATORE = 17
@@ -130,12 +131,15 @@ def valida(righe: list[dict]) -> None:
     assert len(righe) > 300, f"numero di voci sospetto: {len(righe)}"
 
 
-if __name__ == "__main__":
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--pdf", type=Path, default=Path("data/sorgenti/Rifiutologo_AMIAT_2025_x_sito.pdf"))
-    ap.add_argument("--out", type=Path, default=Path("data/grezzo/torino/torino_voci_raw.csv"))
+def main() -> None:
+    ap = argparse.ArgumentParser(description="Estrae le voci del Rifiutologo AMIAT (Torino) nel livello grezzo.")
+    ap.add_argument("--pdf", type=Path, default=PDF_TORINO)
+    ap.add_argument("--out", type=Path, default=GREZZO / "torino" / "torino_voci_raw.csv")
     ap.add_argument("--diagnostica", action="store_true")
     args = ap.parse_args()
+
+    if not args.pdf.is_file():
+        raise SystemExit(f"PDF non trovato: {args.pdf}\nScaricalo dal link in docs/fonti.md e mettilo in {PDF_TORINO.parent}")
 
     righe, conteggio = estrai(args.pdf)
     valida(righe)
@@ -149,3 +153,7 @@ if __name__ == "__main__":
     if args.diagnostica:
         for impronta, n in conteggio.most_common():
             print(f"  impronta con {len(impronta)} forme: {n} marcatori")
+
+
+if __name__ == "__main__":
+    main()

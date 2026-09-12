@@ -1,11 +1,9 @@
 """Test di regressione dell'estrattore Torino sul PDF reale (saltati se il PDF non è presente)."""
-from pathlib import Path
-
 import pytest
 
-from extract_torino import estrai, valida
+from ecoscan.etl.extract_torino import estrai, valida
+from ecoscan.percorsi import PDF_TORINO as PDF
 
-PDF = Path(__file__).parents[1] / "data/sorgenti/Rifiutologo_AMIAT_2025_x_sito.pdf"
 pytestmark = pytest.mark.skipif(not PDF.exists(), reason="PDF sorgente non presente in data/sorgenti/")
 
 

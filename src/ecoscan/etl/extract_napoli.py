@@ -9,8 +9,8 @@ del contenuto, cioè URL delle voci, titolo "Dove buttare X?", intestazioni di c
 ("Contenitore", "Avvertenza") e la lista di destinazioni tra parentesi.
 
 Uso:
-  python etl/extract_napoli.py --recon            # scarica indice + 3 voci e stampa cosa trova
-  python etl/extract_napoli.py                    # estrazione completa in data/grezzo/napoli
+  uv run ecoscan-napoli --recon    # scarica indice + 3 voci e stampa cosa trova
+  uv run ecoscan-napoli            # estrazione completa in data/grezzo/napoli
 """
 from __future__ import annotations
 
@@ -30,7 +30,9 @@ from urllib.parse import urljoin, urlparse
 import requests
 from bs4 import BeautifulSoup
 
-from napoli_qualita import normalizza_spazi, problemi_qualita, split_destinazioni
+from ecoscan.percorsi import CACHE, GREZZO
+
+from ecoscan.etl.napoli_qualita import normalizza_spazi, problemi_qualita, split_destinazioni
 
 BASE = "https://www.asianapoli.it"
 DIZIONARIO = f"{BASE}/dove-lo-butto/"
@@ -382,12 +384,16 @@ def recon(f: Fetcher) -> None:
     print(json.dumps(fr, ensure_ascii=False, indent=1)[:800])
 
 
-if __name__ == "__main__":
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--out", type=Path, default=Path("data/grezzo/napoli"))
-    ap.add_argument("--cache", type=Path, default=Path("data/cache/napoli"))
-    ap.add_argument("--recon", action="store_true")
-    ap.add_argument("--limite", type=int, default=None)
+def main() -> None:
+    ap = argparse.ArgumentParser(description="Estrae il dizionario ASIA Napoli nel livello grezzo.")
+    ap.add_argument("--out", type=Path, default=GREZZO / "napoli")
+    ap.add_argument("--cache", type=Path, default=CACHE / "napoli")
+    ap.add_argument("--recon", action="store_true", help="ricognizione: poche pagine, nessuna scrittura")
+    ap.add_argument("--limite", type=int, default=None, help="estrai solo le prime N voci")
     args = ap.parse_args()
     fetcher = Fetcher(args.cache)
     recon(fetcher) if args.recon else estrai(args.out, fetcher, args.limite)
+
+
+if __name__ == "__main__":
+    main()
