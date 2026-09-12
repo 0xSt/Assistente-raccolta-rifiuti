@@ -28,7 +28,8 @@ Va aggiornato **a ogni cambiamento sostanziale**, non a ogni riga di codice. In 
 | Transform Napoli | Eseguito: 574 voci normalizzate, 0 conflitti, 15 da revisionare |
 | Transform Torino | Eseguito: 324 voci normalizzate, 0 conflitti, 16 da revisionare |
 | Schema dati (SQLite) | Definito e verificato con Torino completo e un campione di Napoli |
-| Regole di categoria | **Da fare**: mancano le esclusioni in entrambe le fonti |
+| Regole di categoria — Napoli | Estrattore corretto: ammessi ed esclusi. Da rieseguire per aggiornare il grezzo |
+| Regole di categoria — Torino | **Da fare**: pagine 8-12 del PDF mai estratte |
 | Revisione manuale | **Da fare**: 31 voci segnalate |
 | Serving (FTS5, embedding, ricerca ibrida) | Da fare |
 | Backend, frontend, modello | Da fare |
@@ -66,7 +67,11 @@ Formato: decisione, motivazione, stato.
 | # | Decisione | Motivazione | Stato |
 |---|---|---|---|
 | D11 | Nessun catalogo canonico degli oggetti per ora (`oggetto_canonico_id` facoltativo) | Evitare l'entity resolution nel prototipo senza chiudere la porta | Accettata |
-| D12 | Un solo file SQLite: FTS5 + vettori | Nessun container database aggiuntivo sul laptop | Accettata |
+| D12 | Un solo file SQLite: FTS5 + vettori con **sqlite-vec**, nessun vector database separato | ~3000 vettori a 256 dimensioni sono 3 MB: la ricerca esaustiva è sotto il millisecondo. Un indice approssimato serve a milioni di vettori, non a migliaia, e un container in più competerebbe per la RAM con il modello | Accettata |
+| D34 | **Il corpus resta testuale: solo la query è multimodale.** Nessuna indicizzazione di immagini | Gemma 4 è generativo e non produce vettori confrontabili; servirebbe un modello CLIP in più. Le immagini delle fonti sono stilizzate e rappresentano categorie, e l'informazione che decide la risposta è testuale e locale, non visiva | Accettata |
+| D35 | Nessuna descrizione visiva generata da Gemma per ora | Rimandata da Stef: costa una notte di calcolo e va valutata, non data per buona. Resta come possibile sviluppo | Rimandata |
+| D36 | Load a ricostruzione totale, in tre passaggi separati (relazionale, lessicale, vettoriale) | La verità sta nei file normalizzati, il database è un artefatto derivato: più semplice di una logica di aggiornamento e idempotente | Accettata |
+| D37 | Una scheda genera più vettori (nome+condizioni, ogni alias); la destinazione non entra mai nel testo indicizzato | Chi cerca "tetrapak" non deve sperare che assomigli a "Cartone per bevande". Indicizzare la destinazione farebbe trovare gli oggetti per contenitore e allontanerebbe oggetti quasi identici con destinazioni diverse, che è proprio il caso in cui serve chiedere all'utente | Accettata |
 | D13 | Tre livelli: grezzo, normalizzato, serving | Tracciabilità di ogni dato fino alla fonte | Accettata |
 | D14 | Più destinazioni per una voce sono **alternative** (OR), non componenti | Verificato su entrambe le fonti (Divani, Armadio) | Accettata |
 | D15 | Destinazioni classificate per **canale** e collegate a **flussi** canonici molti-a-molti | Confrontare comuni con raggruppamenti diversi (vetro+metalli a Torino, plastica+metalli a Napoli) | Accettata |
@@ -81,6 +86,8 @@ Formato: decisione, motivazione, stato.
 | D19 | Scoperta delle voci dalla sitemap XML (584 URL), non dalla paginazione dell'indice | Confermato dalla ricognizione; l'indice mostra 40 voci per pagina | Accettata |
 | D22 | Le descrizioni delle destinazioni non si estraggono dalle pagine voce | Sono identiche su tutte le voci che usano quella destinazione: proprietà della destinazione | Accettata |
 | D23 | Il campo avvertenza ha priorità sul testo ricavato dallo slug | L'avvertenza conserva accenti e apostrofi, lo slug li perde ("l'ago" → "lago") | Accettata |
+| D32 | Nelle pagine frazione la raccolta dipende dalla polarità: ammessi dai `<strong>`, esclusi dagli `<li>` | Il markup delle due sezioni è diverso; cercare solo i `<strong>` restituiva zero esclusioni in silenzio | Accettata |
+| D33 | Un controllo fallisce se una frazione ha ammessi ma nessun escluso | Una fonte muta è quasi sempre un markup non gestito, non una fonte davvero priva di esclusioni | Accettata |
 
 ### Transform
 
@@ -103,13 +110,13 @@ Formato: decisione, motivazione, stato.
 
 Ordinate per priorità.
 
-1. **Regole di categoria: mancano le esclusioni in entrambe le fonti.**
-   - *Napoli*: gli ammessi sono `<strong>` sotto un'immagine, gli esclusi un **elenco puntato** `<ul><li>`. Il parser cerca solo `<strong>` e quindi raccoglie zero esclusioni, in silenzio. Serve raccolta diversa per polarità e un controllo che fallisca se una frazione resta senza esclusioni.
+1. **Regole di categoria.**
+   - *Napoli*: **risolto in v0.5.0**. Resta da rieseguire `ecoscan-napoli` (la cache HTML rende l'operazione immediata) e verificare i conteggi per frazione.
    - *Torino*: pagine 8-12 del PDF, mai estratte. Gli esclusi sono **una frase in prosa** nel riquadro "I RIFIUTATI" ("Medicinali, pile, oli... NON vanno gettati nel..."), da spezzare su virgole e congiunzioni. Due frazioni per pagina: serve la divisione per colonna già usata per l'elenco A-Z. Il riquadro va identificato dalla frase ("NON vanno", "NON sono", "NON rientrano"), non dall'etichetta, che cambia.
 2. **Revisione manuale di 31 voci** (15 Napoli, 16 Torino). Serve prima un meccanismo: le decisioni vanno in file CSV versionati (`data/revisioni/<comune>.csv`) che il Transform applica in coda, altrimenti si perdono a ogni riesecuzione.
 3. **Asterischi.** 6 voci a Napoli (insetticida, trielina, smalto, solventi, spray, sostanze chimiche etichettate T e/o F: sono rifiuti pericolosi) e 1 a Torino rimandano a note non estratte. Per Torino la nota è nel PDF a pagina 21; per Napoli va cercata sul sito.
 4. **Caricamento del normalizzato nello schema SQLite.** Finora provato solo con un campione.
-5. **Pagine "Non riciclabile" e "Altre raccolte" di Napoli**: zero regole anche fra gli ammessi. Verificare se sono davvero prive di elenchi.
+5. **Pagine "Non riciclabile" e "Altre raccolte" di Napoli**: zero regole anche fra gli ammessi. Con il nuovo estrattore si saprà se erano un problema di markup o se sono davvero prive di elenchi.
 6. **Serving**: indici FTS5 a trigrammi, embedding, ricerca ibrida con RRF.
 7. **Valutazione**: set di foto etichettate e metriche (riconoscimento, destinazione per comune, latenza su CPU). Mai iniziata, ed è ciò che distingue un prototipo da un lavoro difendibile.
 8. **Dove conferire**: 363 voci su 584 a Napoli rimandano a isole ecologiche o ecopunti. Prima o poi l'agente deve dire *dove* si trovano.
@@ -130,6 +137,14 @@ Cose imparate che non sono decisioni, ma che conviene ricordare.
 ---
 
 ## Cronologia
+
+### v0.5.0 — 12/09/2026
+
+**Corretto.** Le pagine frazione di Napoli non producevano nessuna regola di esclusione. Causa: ammessi ed esclusi hanno markup diverso (`<strong>` sotto un'immagine i primi, elenco puntato i secondi) e il parser cercava solo i `<strong>`. La raccolta ora dipende dalla polarità. Gli elenchi di navigazione sono esclusi, e le intestazioni "SI"/"NO" non finiscono più fra le note.
+
+**Aggiunto.** Controllo che segnala le frazioni con ammessi ma senza esclusi, e conteggi per frazione nell'output dell'estrazione. 5 test sulla struttura reale della pagina del Vetro.
+
+**Deciso con Stef** (vedi D12, D34-D37): corpus testuale con query multimodale, nessuna descrizione visiva per ora, SQLite con sqlite-vec invece di un vector database, Load a ricostruzione totale in tre passaggi.
 
 ### v0.4.1 — 12/09/2026
 

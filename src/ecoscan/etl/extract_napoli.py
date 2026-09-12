@@ -250,6 +250,51 @@ def parse_pagina_voce(html: str, url: str, vocabolario: set[str] | None = None) 
             "strategia_destinazioni": strategia}
 
 
+INTESTAZIONE_SEZIONE = re.compile(r"cosa (non )?differenziare", re.IGNORECASE)
+# Le intestazioni "SI"/"NO" sono etichette grafiche della sezione, non note di conferimento
+ETICHETTA_GRAFICA = re.compile(r"^(si|no)$", re.IGNORECASE)
+NOTE_DI_NAVIGAZIONE = re.compile(r"(devi buttare|utilizza la nostra|consentono ai cittadini)", re.IGNORECASE)
+
+
+def _dettaglio_dopo(elemento) -> str | None:
+    """Testo che segue un elemento in grassetto, anche oltre un <br>, fino al blocco successivo."""
+    pezzi = []
+    for sib in elemento.next_siblings:
+        if getattr(sib, "name", None) in ("strong", "b", "img", "h3", "h4"):
+            break
+        pezzi.append(sib if isinstance(sib, str) else sib.get_text(" ", strip=True))
+    return normalizza_spazi(" ".join(pezzi)) or None
+
+
+def _voci_ammesse(h3) -> list[dict]:
+    """Gli AMMESSI sono testi in grassetto sotto un'immagine."""
+    regole = []
+    for el in h3.find_all_next(["strong", "b", "h3", "h4"]):
+        if el.name in ("h3", "h4"):
+            break
+        if (testo := normalizza_spazi(el.get_text(" ", strip=True))):
+            regole.append({"polarita": "ammesso", "testo": testo, "dettaglio": _dettaglio_dopo(el)})
+    return regole
+
+
+def _voci_escluse(h3) -> list[dict]:
+    """Gli ESCLUSI sono un elenco puntato, non testi in grassetto: markup diverso dagli ammessi.
+
+    È il motivo per cui la prima versione dell'estrattore restituiva zero esclusioni.
+    """
+    regole = []
+    for el in h3.find_all_next(["li", "strong", "b", "h3", "h4"]):
+        if el.name in ("h3", "h4"):
+            break
+        if el.name != "li":
+            continue
+        if el.find("a") or el.find(["ul", "ol"]):
+            continue  # voce di menu o elenco annidato, non una regola
+        if (testo := normalizza_spazi(el.get_text(" ", strip=True))):
+            regole.append({"polarita": "escluso", "testo": testo, "dettaglio": None})
+    return regole
+
+
 def parse_pagina_frazione(html: str, url: str) -> dict:
     soup = BeautifulSoup(html, "lxml")
     nome = normalizza_spazi(soup.find("h1").get_text(" ", strip=True))
@@ -258,30 +303,18 @@ def parse_pagina_frazione(html: str, url: str) -> dict:
         if (m := re.search(r"colore\s+(\w+)", h2.get_text(" ", strip=True), re.I)):
             colore = m.group(1).lower()
             break
-    regole, note = [], []
+
+    regole = []
     for h3 in soup.find_all("h3"):
-        t = normalizza_spazi(h3.get_text(" ", strip=True))
-        if not re.match(r"cosa (non )?differenziare", t, re.I):
+        testo = normalizza_spazi(h3.get_text(" ", strip=True))
+        if not (m := INTESTAZIONE_SEZIONE.match(testo)):
             continue
-        polarita = "escluso" if re.search(r"\bnon\b", t, re.I) else "ammesso"
-        for el in h3.find_all_next(["strong", "b", "h3", "h4"]):
-            if el.name in ("h3", "h4"):
-                break
-            testo = normalizza_spazi(el.get_text(" ", strip=True))
-            if not testo:
-                continue
-            # il dettaglio segue il testo in grassetto, a volte dopo un <br>: raccolgo
-            # i nodi successivi fino al prossimo blocco in grassetto o alla prossima immagine
-            pezzi = []
-            for sib in el.next_siblings:
-                if getattr(sib, "name", None) in ("strong", "b", "img", "h3", "h4"):
-                    break
-                pezzi.append(sib if isinstance(sib, str) else sib.get_text(" ", strip=True))
-            dettaglio = normalizza_spazi(" ".join(pezzi)) or None
-            regole.append({"polarita": polarita, "testo": testo, "dettaglio": dettaglio})
+        regole.extend(_voci_escluse(h3) if m.group(1) else _voci_ammesse(h3))
+
+    note = []
     for h4 in soup.find_all("h4"):
         t = normalizza_spazi(h4.get_text(" ", strip=True))
-        if t and not re.match(r"(devi buttare|utilizza la nostra|consentono ai cittadini)", t, re.I):
+        if t and not NOTE_DI_NAVIGAZIONE.match(t) and not ETICHETTA_GRAFICA.match(t):
             note.append(t)
     return {"url": url, "nome_frazione": nome, "colore": colore, "regole": regole, "note": note}
 
@@ -348,6 +381,17 @@ def estrai(out: Path, f: Fetcher, limite: int | None = None) -> None:
     print(f"Strategie: {dict(strategie)} | discordanze con l'indice: {len(incoerenti)} {incoerenti[:5]}")
     print(f"Voci estratte: {len(records)} | senza destinazione: {len(senza_dest)} | "
           f"con avvertenza: {sum(1 for r in records if r['avvertenza'])} | frazioni: {len(frazioni)}")
+    for fr in frazioni:
+        ammessi = sum(1 for r in fr["regole"] if r["polarita"] == "ammesso")
+        esclusi = sum(1 for r in fr["regole"] if r["polarita"] == "escluso")
+        print(f"  {fr['nome_frazione']}: {ammessi} ammessi, {esclusi} esclusi, colore {fr['colore']}")
+    # una frazione con ammessi ma senza esclusi indica un markup non gestito, non una fonte muta
+    mute = [f["nome_frazione"] for f in frazioni
+            if any(r["polarita"] == "ammesso" for r in f["regole"])
+            and not any(r["polarita"] == "escluso" for r in f["regole"])]
+    if mute:
+        print(f"ATTENZIONE: frazioni con ammessi ma senza esclusi: {mute}. "
+              "Controlla il markup della sezione 'Cosa non differenziare'.")
     if strategia == "indice" and len(urls) <= len(indice):
         print("ATTENZIONE: trovata solo la prima pagina dell'indice. La paginazione è probabilmente AJAX: "
               "controlla nella scheda Rete del browser quale richiesta carica le pagine successive.")

@@ -88,6 +88,9 @@ contenitore dedicato, centro di raccolta, raccolta itinerante, ritiro a domicili
 Serve a confrontare raggruppamenti diversi: "Vetro e imballaggi in metallo" a Torino è
 vetro+metalli, "Plastica e Metalli" a Napoli è plastica+metalli.
 
+**Polarità** — Se una regola di categoria dice cosa va nel contenitore (`ammesso`),
+cosa non ci va (`escluso`) o aggiunge un'istruzione (`nota`).
+
 **Frazione** — Come le aziende chiamano la categoria di raccolta. Nel progetto si usa
 "destinazione" per il dato e "frazione" quando si cita la fonte.
 
@@ -166,6 +169,10 @@ regola finale sempre da SQL e mai dal modello.
 può usarla senza interpretarne il testo.
 
 ## Strumenti
+
+**sqlite-vec** — Estensione che aggiunge a SQLite la ricerca per similarità fra vettori.
+Scelta al posto di un vector database separato: con poche migliaia di vettori la ricerca
+esaustiva è già istantanea e non serve un altro container.
 
 **uv** — Gestore di ambienti e dipendenze Python usato nel progetto. `uv sync` prepara
 l'ambiente da `uv.lock`, `uv run` esegue un comando dentro quell'ambiente.

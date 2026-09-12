@@ -37,6 +37,8 @@ Ogni problema diventa una riga della tabella `problema_qualita` durante il caric
 | Refusi | "CCaffettiere" | Codice `refuso` |
 | Spaziatura e maiuscole incoerenti | "Bambù (in Grandi Quantità )", "calcinacci" | Normalizzazione |
 | Dettaglio separato dal testo | "Bombolette spray non pericolose" + "(non etichettate T e F)" dopo un `<br>` | Campo `dettaglio` della regola |
+| Ammessi ed esclusi con markup diverso | ammessi: `<img>` + `<strong>`; esclusi: `<ul><li>` | Raccolta separata per polarità (corretto in v0.5.0) |
+| Etichette grafiche "SI"/"NO" lette come note | nota "NO" nella pagina del Vetro | Filtrate |
 | Lista non affidabile | "Puoi inoltre conferire in questo contenitore" quasi identica su voci diverse | Usata solo per le avvertenze |
 
 ### Correzioni al registro dopo il Transform
