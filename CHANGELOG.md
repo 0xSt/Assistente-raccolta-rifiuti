@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.4.0] - 2026-09-12
+
+### Aggiunto
+- Transform di Torino: `transform_torino.py` con il profilo delle 324 voci del Rifiutologo. 0 conflitti, 16 voci da revisionare.
+- `ecoscan-transform --comune {napoli,torino,tutti}`: il comando copre entrambe le fonti e legge sia JSONL sia CSV.
+- 19 test nuovi sui casi reali di Torino.
+
+### Modificato
+- Il Transform è stato diviso in motore comune (`transform_comune.py`) e profili per comune. Le regole che cambiano tra fonti (condizioni, locuzioni, sigle, voci da scartare) stanno nel `Profilo`.
+- Le voci normalizzate portano il campo `comune`.
+- Le parentesi che elencano materiali o provenienza sono classificate come condizioni.
+
 ## [0.3.1] - 2026-09-12
 
 ### Corretto

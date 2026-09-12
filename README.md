@@ -4,7 +4,7 @@ Assistente per la raccolta differenziata che gira interamente in locale. L'utent
 
 Progetto universitario. Comuni del prototipo: **Napoli** (ASIA) e **Torino** (AMIAT).
 
-## Stato attuale (v0.3.1)
+## Stato attuale (v0.4.0)
 
 | Componente | Stato |
 |---|---|
@@ -12,7 +12,7 @@ Progetto universitario. Comuni del prototipo: **Napoli** (ASIA) e **Torino** (AM
 | Estrattore Napoli (HTML) | **Completato**: 584 voci estratte, tutte con destinazione |
 | Schema dati normalizzato (SQLite) | Definito e verificato con Torino completo + campione Napoli |
 | Transform Napoli (condizioni, alias, dedup) | Eseguito su 574 voci: 0 conflitti, 15 da revisionare |
-| Transform Torino | Da fare |
+| Transform Torino | Eseguito su 324 voci: 0 conflitti, 16 da revisionare |
 | Retrieval ibrido, backend, frontend, modello | Da fare |
 
 ## Struttura
@@ -22,7 +22,7 @@ pyproject.toml       dipendenze, comandi e configurazione di pytest
 uv.lock              versioni bloccate (da versionare)
 src/ecoscan/
   percorsi.py        radice del progetto e cartelle dati
-  etl/               estrattori (livello grezzo) e funzioni di pulizia
+  etl/               estrattori (grezzo), motore del Transform e profili per comune
   db/                schema.sql e script dimostrativo dello schema
 tests/               test di regressione e unitari
 data/grezzo/         output degli estrattori (versionati)
@@ -42,7 +42,7 @@ uv run ecoscan-torino           # Torino: metti prima il PDF in data/sorgenti/ (
 uv run ecoscan-napoli --recon   # Napoli: ricognizione, poche pagine
 uv run ecoscan-napoli           # Napoli: estrazione completa (584 voci, ~15 minuti)
 uv run ecoscan-ispeziona        # riepiloga il grezzo di Napoli già estratto
-uv run ecoscan-transform        # normalizza il grezzo -> data/normalizzato/
+uv run ecoscan-transform        # normalizza entrambi i comuni -> data/normalizzato/
 
 uv run pytest                   # i test Torino si saltano se il PDF non è presente
 uv run ecoscan-demo             # carica i dati nello schema ed esegue interrogazioni di esempio

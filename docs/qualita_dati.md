@@ -13,6 +13,12 @@ Ogni problema diventa una riga della tabella `problema_qualita` durante il caric
 | Refusi e incoerenze | "prevenienti", "Blue-ray", "Filtri del the", "Capsule di caffè" / "Capsule del caffè" | Testo originale conservato, forma pulita separata |
 | Rimandi a note | "Oli vegetali esausti*" | Asterisco rimosso, nota in `avvertenza` |
 
+### Esito del Transform di Torino (324 voci)
+
+- **0 conflitti**. L'unico conflitto iniziale ("Involucro cioccolatini") era dovuto alle parentesi con il materiale, classificate erroneamente come sinonimi.
+- 16 voci da revisionare: 15 separazioni di voci composte (la maggior parte corrette, es. "Giornali e riviste") e 1 asterisco.
+- Le condizioni di Torino stanno quasi sempre tra parentesi, al contrario di Napoli.
+
 ## Napoli (sito ASIA)
 
 | Problema | Esempio | Trattamento |

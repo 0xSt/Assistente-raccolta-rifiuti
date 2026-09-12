@@ -35,12 +35,16 @@ Formato: decisione, motivazione, stato. Le decisioni si aggiornano, non si cance
 | D28b | Il codice materiale fa parte della chiave di deduplicazione | "Simbolo FOR (50)" e "Simbolo FOR (51)" hanno destinazioni diverse | Accettata |
 | D28 | Deduplicazione insensibile a singolare/plurale; destinazioni diverse = conflitto segnalato, mai risolto in automatico | "Assorbente"/"Assorbenti" sono la stessa voce; una contraddizione della fonte non va nascosta | Accettata |
 | D29 | Le voci non reali si scartano per nome | Il dizionario pubblico contiene "Test di esempio" con tre destinazioni | Accettata |
+| D30 | Motore del Transform unico, regole per comune in un `Profilo` | Napoli e Torino condividono la meccanica ma non le regole: "usa e getta" è locuzione fissa a Napoli e condizione a Torino | Accettata |
+| D31 | Le parentesi che elencano materiali o provenienza sono condizioni | "Involucro cioccolatini (alluminio)" e "(plastica argentata)" hanno destinazioni diverse: il materiale è la variante, non un sinonimo | Accettata |
 
 ## Questioni aperte
 
 - **Pagine frazione: le regole di esclusione non vengono estratte.** Tutte le regole risultano `ammesso`; la nota "NO" isolata nella pagina del Vetro mostra che la sezione "cosa non differenziare" esiste ma non viene associata agli oggetti. Serve per il livello di evidenza 2.
 - Le pagine "Non riciclabile" e "Altri servizi" non producono regole: da verificare se sono davvero prive di elenchi.
-- Revisione manuale delle voci marcate `da_revisionare` dal Transform.
+- Revisione manuale delle voci marcate `da_revisionare`: 15 a Napoli, 16 a Torino.
+- Torino: le regole di categoria (pagine 8-12 del PDF) non sono ancora estratte.
+- Caricamento del livello normalizzato di entrambi i comuni nello schema SQLite.
 - Descrizioni e indirizzi delle destinazioni: 363 voci su 584 richiedono di andare da qualche parte (isole ecologiche, ecopunti), quindi prima o poi serve dire dove.
 - Torino: Transform delle condizioni non tra parentesi ("con residui", "unta", "pulito/sporco") e degli alias.
 - Estrazione delle regole di categoria: Torino pagine 8-12, Napoli sei pagine frazione e opuscolo PDF.

@@ -1,8 +1,9 @@
-"""Esegue il Transform sul livello grezzo di Napoli e scrive le voci normalizzate.
+"""Esegue il Transform sul livello grezzo e scrive le voci normalizzate.
 
 Uso:
-  uv run ecoscan-transform              # scrive data/normalizzato/napoli_voci.jsonl e stampa il rapporto
-  uv run ecoscan-transform --verbose    # elenca anche tutte le voci da revisionare
+  uv run ecoscan-transform                    # entrambi i comuni
+  uv run ecoscan-transform --comune torino    # uno solo
+  uv run ecoscan-transform --verbose          # elenca anche le voci da revisionare
 """
 from __future__ import annotations
 
@@ -12,13 +13,29 @@ from collections import Counter
 from dataclasses import asdict
 from pathlib import Path
 
+import csv
+
 from ecoscan.etl.ispeziona_napoli import carica
-from ecoscan.etl.transform_napoli import deduplica, trasforma_voce
+from ecoscan.etl.transform_comune import deduplica, trasforma_voce
+from ecoscan.etl.transform_napoli import PROFILO_NAPOLI
+from ecoscan.etl.transform_torino import PROFILO_TORINO
 from ecoscan.percorsi import DATI, GREZZO
 
+PROFILI = {"napoli": PROFILO_NAPOLI, "torino": PROFILO_TORINO}
 
-def esegui(voci_grezze: list[dict]):
-    trasformate = [v for v in (trasforma_voce(r) for r in voci_grezze) if v is not None]
+
+def carica_torino(percorso: Path) -> list[dict]:
+    """Il grezzo di Torino è un CSV: lo porta alla stessa forma del JSONL di Napoli."""
+    if not percorso.is_file():
+        raise SystemExit(f"File non trovato: {percorso}\nLancia prima: uv run ecoscan-torino")
+    with open(percorso, encoding="utf-8") as fh:
+        return [{"slug": f"pagina-{r['pagina']}-{i}", "nome_originale": r["voce_originale"],
+                 "destinazioni": r["destinazioni_alternative"].split("|"), "avvertenza": None}
+                for i, r in enumerate(csv.DictReader(fh))]
+
+
+def esegui(voci_grezze: list[dict], profilo):
+    trasformate = [v for v in (trasforma_voce(r, profilo) for r in voci_grezze) if v is not None]
     scartate = len(voci_grezze) - len(trasformate)
     unite, conflitti = deduplica(trasformate)
     return unite, conflitti, scartate
@@ -53,20 +70,30 @@ def rapporto(grezze: list[dict], unite, conflitti, scartate: int, verbose: bool 
 
 
 def main() -> None:
-    ap = argparse.ArgumentParser(description="Normalizza il livello grezzo di Napoli.")
-    ap.add_argument("--file", type=Path, default=GREZZO / "napoli" / "napoli_voci.jsonl")
-    ap.add_argument("--out", type=Path, default=DATI / "normalizzato" / "napoli_voci.jsonl")
+    ap = argparse.ArgumentParser(description="Normalizza il livello grezzo di un comune.")
+    ap.add_argument("--comune", choices=[*PROFILI, "tutti"], default="tutti")
+    ap.add_argument("--file", type=Path, help="sovrascrive il percorso del grezzo")
+    ap.add_argument("--out", type=Path, help="sovrascrive il percorso di uscita")
     ap.add_argument("--verbose", action="store_true")
     args = ap.parse_args()
 
-    grezze = carica(args.file)
-    unite, conflitti, scartate = esegui(grezze)
-    args.out.parent.mkdir(parents=True, exist_ok=True)
-    with open(args.out, "w", encoding="utf-8") as fh:
-        for v in unite:
-            fh.write(json.dumps(asdict(v), ensure_ascii=False) + "\n")
-    rapporto(grezze, unite, conflitti, scartate, args.verbose)
-    print(f"\nScritto: {args.out}")
+    comuni = list(PROFILI) if args.comune == "tutti" else [args.comune]
+    for comune in comuni:
+        print(f"\n{'=' * 20} {comune.upper()}")
+        if comune == "napoli":
+            sorgente = args.file or GREZZO / "napoli" / "napoli_voci.jsonl"
+            grezze = carica(sorgente)
+        else:
+            sorgente = args.file or GREZZO / "torino" / "torino_voci_raw.csv"
+            grezze = carica_torino(sorgente)
+        unite, conflitti, scartate = esegui(grezze, PROFILI[comune])
+        out = args.out or DATI / "normalizzato" / f"{comune}_voci.jsonl"
+        out.parent.mkdir(parents=True, exist_ok=True)
+        with open(out, "w", encoding="utf-8") as fh:
+            for v in unite:
+                fh.write(json.dumps(asdict(v), ensure_ascii=False) + "\n")
+        rapporto(grezze, unite, conflitti, scartate, args.verbose)
+        print(f"Scritto: {out}")
 
 
 if __name__ == "__main__":
