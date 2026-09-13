@@ -1,0 +1,398 @@
+[
+ {
+  "url": "https://www.asianapoli.it/servizi/materiali-da-differenziare/umido-organico/",
+  "nome_frazione": "Umido/Organico",
+  "colore": "marrone",
+  "regole": [
+   {
+    "polarita": "ammesso",
+    "testo": "Avanzi di cucina e di cibo",
+    "dettaglio": "(eliminando liquidi in eccesso)",
+    "origine": "estrazione"
+   },
+   {
+    "polarita": "ammesso",
+    "testo": "Verdure, avanzi e bucce di frutta",
+    "dettaglio": null,
+    "origine": "estrazione"
+   },
+   {
+    "polarita": "ammesso",
+    "testo": "Gusci di frutti di mare",
+    "dettaglio": null,
+    "origine": "estrazione"
+   },
+   {
+    "polarita": "ammesso",
+    "testo": "Cartoni di pizza con residui di cibo",
+    "dettaglio": null,
+    "origine": "estrazione"
+   },
+   {
+    "polarita": "ammesso",
+    "testo": "Gusci d’uovo, pane",
+    "dettaglio": null,
+    "origine": "estrazione"
+   },
+   {
+    "polarita": "ammesso",
+    "testo": "Fondi di caffè e cialde in carta, filtri di the e tisane",
+    "dettaglio": null,
+    "origine": "estrazione"
+   },
+   {
+    "polarita": "ammesso",
+    "testo": "Tappi di sughero",
+    "dettaglio": null,
+    "origine": "estrazione"
+   },
+   {
+    "polarita": "ammesso",
+    "testo": "Alimenti avariati senza confezioni",
+    "dettaglio": null,
+    "origine": "estrazione"
+   },
+   {
+    "polarita": "ammesso",
+    "testo": "Fazzoletti di carta unti",
+    "dettaglio": "(scottex, tovaglioli)",
+    "origine": "estrazione"
+   },
+   {
+    "polarita": "ammesso",
+    "testo": "Segatura, cenere di legna",
+    "dettaglio": null,
+    "origine": "estrazione"
+   },
+   {
+    "polarita": "ammesso",
+    "testo": "Foglie, fiori e piante da appartamento, terriccio dei travasi",
+    "dettaglio": null,
+    "origine": "estrazione"
+   },
+   {
+    "polarita": "escluso",
+    "testo": "Legno verniciato",
+    "dettaglio": null,
+    "origine": "trascrizione_manuale"
+   },
+   {
+    "polarita": "escluso",
+    "testo": "Lettiere per animali",
+    "dettaglio": null,
+    "origine": "trascrizione_manuale"
+   },
+   {
+    "polarita": "escluso",
+    "testo": "Liquidi, olio vegetale",
+    "dettaglio": null,
+    "origine": "trascrizione_manuale"
+   },
+   {
+    "polarita": "escluso",
+    "testo": "Mozziconi e cenere di sigaretta",
+    "dettaglio": null,
+    "origine": "trascrizione_manuale"
+   },
+   {
+    "polarita": "escluso",
+    "testo": "Pannolini e assorbenti",
+    "dettaglio": null,
+    "origine": "trascrizione_manuale"
+   },
+   {
+    "polarita": "escluso",
+    "testo": "Tessuti naturali e sintetici",
+    "dettaglio": null,
+    "origine": "trascrizione_manuale"
+   },
+   {
+    "polarita": "nota",
+    "testo": "NON METTERE NESSUN OGGETTO IN PLASTICA",
+    "dettaglio": null,
+    "origine": "trascrizione_manuale"
+   }
+  ],
+  "note": [
+   "USA SACCHI COMPOSTABILI"
+  ],
+  "immagini_informative": [],
+  "sha256": "e9b6c919c526be2e1b043cbbcf9e5117dcd7f268f7f5a84cf4edce8eb08d6df0",
+  "recuperato_il": "2026-09-13T17:18:56.808336+00:00",
+  "versione_estrattore": "napoli-0.1",
+  "assenza_esclusioni_verificata": false,
+  "trascrizione_manuale": {
+   "fonte": "https://www.asianapoli.it/servizi/materiali-da-differenziare/umido-organico/",
+   "data": "2026-09-12"
+  }
+ },
+ {
+  "url": "https://www.asianapoli.it/servizi/materiali-da-differenziare/plastica-e-metalli/",
+  "nome_frazione": "Plastica e Metalli",
+  "colore": "giallo",
+  "regole": [
+   {
+    "polarita": "ammesso",
+    "testo": "Bottiglie e flaconi in plastica, buste in plastica",
+    "dettaglio": null,
+    "origine": "estrazione"
+   },
+   {
+    "polarita": "ammesso",
+    "testo": "Confezioni e vaschette monouso in plastica o polistirolo per alimenti",
+    "dettaglio": null,
+    "origine": "estrazione"
+   },
+   {
+    "polarita": "ammesso",
+    "testo": "Piatti, bicchieri e bicchierini da caffè in plastica anche sporchi",
+    "dettaglio": null,
+    "origine": "estrazione"
+   },
+   {
+    "polarita": "ammesso",
+    "testo": "CCaffettiere, pentole, padelle in metallo",
+    "dettaglio": null,
+    "origine": "estrazione"
+   },
+   {
+    "polarita": "ammesso",
+    "testo": "Lattine per bevande, barattoli per conserve alimentari",
+    "dettaglio": null,
+    "origine": "estrazione"
+   },
+   {
+    "polarita": "ammesso",
+    "testo": "Bombolette spray non pericolose",
+    "dettaglio": "(non etichettate T e F)",
+    "origine": "estrazione"
+   },
+   {
+    "polarita": "ammesso",
+    "testo": "Coperchi, fogli e vaschette monouso di alluminio",
+    "dettaglio": null,
+    "origine": "estrazione"
+   },
+   {
+    "polarita": "ammesso",
+    "testo": "Tubetti vuoti, chiavi, lucchetti e catene, posate in metallo",
+    "dettaglio": null,
+    "origine": "estrazione"
+   },
+   {
+    "polarita": "ammesso",
+    "testo": "Grucce in plastica o metallo per abiti",
+    "dettaglio": null,
+    "origine": "estrazione"
+   },
+   {
+    "polarita": "ammesso",
+    "testo": "Latta e lattine per olio, tappi",
+    "dettaglio": null,
+    "origine": "estrazione"
+   },
+   {
+    "polarita": "ammesso",
+    "testo": "Pellicole per alimenti, scatole in metallo",
+    "dettaglio": null,
+    "origine": "estrazione"
+   }
+  ],
+  "note": [
+   "Piatti e bicchieri in plastica possono essere anche sporchi ma svuotati di ogni residuo"
+  ],
+  "immagini_informative": [
+   "https://www.asianapoli.it/wp-content/uploads/2024/09/info-plastica.png"
+  ],
+  "sha256": "0387e7d5ad1da6b0c2d2a1111086959b292644c03337eb09bed4e357acd99742",
+  "recuperato_il": "2026-09-13T17:18:58.464956+00:00",
+  "versione_estrattore": "napoli-0.1",
+  "assenza_esclusioni_verificata": true
+ },
+ {
+  "url": "https://www.asianapoli.it/servizi/materiali-da-differenziare/carta-e-cartone/",
+  "nome_frazione": "Carta e Cartone",
+  "colore": "blu",
+  "regole": [
+   {
+    "polarita": "ammesso",
+    "testo": "Quaderni, libri, buste da lettera",
+    "dettaglio": null,
+    "origine": "estrazione"
+   },
+   {
+    "polarita": "ammesso",
+    "testo": "Fogli di carta",
+    "dettaglio": null,
+    "origine": "estrazione"
+   },
+   {
+    "polarita": "ammesso",
+    "testo": "Sacchetti di carta",
+    "dettaglio": null,
+    "origine": "estrazione"
+   },
+   {
+    "polarita": "ammesso",
+    "testo": "Scatole",
+    "dettaglio": null,
+    "origine": "estrazione"
+   },
+   {
+    "polarita": "ammesso",
+    "testo": "Cartoni di pizza senza residui di cibo",
+    "dettaglio": null,
+    "origine": "estrazione"
+   },
+   {
+    "polarita": "ammesso",
+    "testo": "Giornali, riviste",
+    "dettaglio": null,
+    "origine": "estrazione"
+   },
+   {
+    "polarita": "ammesso",
+    "testo": "Scatole per alimenti",
+    "dettaglio": null,
+    "origine": "estrazione"
+   },
+   {
+    "polarita": "ammesso",
+    "testo": "Confezioni in carta e cartoncino per giocattoli e abbigliamento",
+    "dettaglio": null,
+    "origine": "estrazione"
+   },
+   {
+    "polarita": "ammesso",
+    "testo": "Confezioni in tetrapak",
+    "dettaglio": null,
+    "origine": "estrazione"
+   },
+   {
+    "polarita": "ammesso",
+    "testo": "Cartoni di provenienza domestica",
+    "dettaglio": null,
+    "origine": "estrazione"
+   },
+   {
+    "polarita": "ammesso",
+    "testo": "Carta asciugamani",
+    "dettaglio": null,
+    "origine": "estrazione"
+   },
+   {
+    "polarita": "ammesso",
+    "testo": "Carta da regalo",
+    "dettaglio": null,
+    "origine": "estrazione"
+   }
+  ],
+  "note": [
+   "Riduci l’ingombro di scatole e scatoloni, piegandoli"
+  ],
+  "immagini_informative": [
+   "https://www.asianapoli.it/wp-content/uploads/2024/09/info-carta.png"
+  ],
+  "sha256": "45f655a0982df67e41d70316cd07365d9e0237adba49d441d1c4303811bcf4a2",
+  "recuperato_il": "2026-09-13T17:19:00.107393+00:00",
+  "versione_estrattore": "napoli-0.1",
+  "assenza_esclusioni_verificata": true
+ },
+ {
+  "url": "https://www.asianapoli.it/servizi/materiali-da-differenziare/vetro/",
+  "nome_frazione": "Vetro",
+  "colore": "verde",
+  "regole": [
+   {
+    "polarita": "ammesso",
+    "testo": "Bottiglie",
+    "dettaglio": null,
+    "origine": "estrazione"
+   },
+   {
+    "polarita": "ammesso",
+    "testo": "Bottiglie rotte",
+    "dettaglio": null,
+    "origine": "estrazione"
+   },
+   {
+    "polarita": "ammesso",
+    "testo": "Bottigliette per bibite",
+    "dettaglio": null,
+    "origine": "estrazione"
+   },
+   {
+    "polarita": "ammesso",
+    "testo": "Barattoli e Vasetti",
+    "dettaglio": null,
+    "origine": "estrazione"
+   },
+   {
+    "polarita": "escluso",
+    "testo": "Lastre di vetro",
+    "dettaglio": null,
+    "origine": "estrazione"
+   },
+   {
+    "polarita": "escluso",
+    "testo": "Tazze e tazzine",
+    "dettaglio": null,
+    "origine": "estrazione"
+   },
+   {
+    "polarita": "escluso",
+    "testo": "Bicchieri",
+    "dettaglio": null,
+    "origine": "estrazione"
+   },
+   {
+    "polarita": "escluso",
+    "testo": "Pirofile",
+    "dettaglio": null,
+    "origine": "estrazione"
+   },
+   {
+    "polarita": "escluso",
+    "testo": "Piatti",
+    "dettaglio": null,
+    "origine": "estrazione"
+   }
+  ],
+  "note": [
+   "Svuotare gli imballaggi in vetro e metterli sfusi nei contenitori"
+  ],
+  "immagini_informative": [],
+  "sha256": "78305feee8b398f55651a24b195918b7c03c5db7e3d5ef814a5f7d77928d3076",
+  "recuperato_il": "2026-09-13T17:19:01.734066+00:00",
+  "versione_estrattore": "napoli-0.1",
+  "assenza_esclusioni_verificata": false
+ },
+ {
+  "url": "https://www.asianapoli.it/servizi/materiali-da-differenziare/non-riciclabile/",
+  "nome_frazione": "Non riciclabile",
+  "colore": null,
+  "regole": [],
+  "note": [
+   "Riduci il consumo dei materiali non riciclabili differenzia tutto il resto"
+  ],
+  "immagini_informative": [
+   "https://www.asianapoli.it/wp-content/uploads/2024/09/info-non-riciclabile.png"
+  ],
+  "sha256": "21cd78f349c72e0c3ddd58bbc6700136003f4cb3e0db7938b7da9fd41d0083ca",
+  "recuperato_il": "2026-09-13T17:19:03.379502+00:00",
+  "versione_estrattore": "napoli-0.1",
+  "assenza_esclusioni_verificata": false
+ },
+ {
+  "url": "https://www.asianapoli.it/servizi/materiali-da-differenziare/altre-raccolte/",
+  "nome_frazione": "Altri servizi",
+  "colore": null,
+  "regole": [],
+  "note": [],
+  "immagini_informative": [],
+  "sha256": "aa99449ddcfdd390af7646fcc96e3d8c0a0b26ed328ad5e2e9c116304f1d415c",
+  "recuperato_il": "2026-09-13T17:19:05.007423+00:00",
+  "versione_estrattore": "napoli-0.1",
+  "assenza_esclusioni_verificata": false
+ }
+]
