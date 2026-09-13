@@ -4,7 +4,7 @@ Assistente per la raccolta differenziata che gira interamente in locale. L'utent
 
 Progetto universitario. Comuni del prototipo: **Napoli** (ASIA) e **Torino** (AMIAT).
 
-## Stato attuale (v0.9.1)
+## Stato attuale (v0.10.0)
 
 Il quadro completo è in [docs/diario.md](docs/diario.md).
 
@@ -16,7 +16,7 @@ Il quadro completo è in [docs/diario.md](docs/diario.md).
 | Transform Torino | 324 voci normalizzate: 0 conflitti, 0 da revisionare |
 | Regole di categoria | 110 normalizzate e collegate alle destinazioni |
 | Revisione manuale | 32 decisioni prese (3,5% delle voci), nessuna aperta |
-| Load in SQLite | **Prossimo passo**: lo schema è definito, provato finora su un campione |
+| Load relazionale | Fatto: comuni, destinazioni, voci, condizioni, alias, regole, decisioni |
 | Serving (FTS5, embedding, ricerca ibrida) | Da fare |
 | Backend, frontend, modello | Da fare |
 
@@ -31,6 +31,7 @@ src/ecoscan/
   db/                schema.sql e script dimostrativo dello schema
 tests/               test di regressione e unitari
 data/revisioni/      decisioni manuali sulle voci incerte (versionate)
+data/riferimento/    destinazioni: canale, colore, flussi di materiale (versionati)
 data/grezzo/         output degli estrattori (versionati)
 data/sorgenti/       documenti ufficiali scaricati (NON versionati, vedi docs/fonti.md)
 data/cache/          cache HTML dell'estrattore Napoli (NON versionata)
@@ -51,6 +52,8 @@ uv run ecoscan-napoli           # Napoli: estrazione completa (584 voci, ~15 min
 uv run ecoscan-ispeziona        # riepiloga il grezzo di Napoli già estratto
 uv run ecoscan-transform        # normalizza le voci dei due comuni -> data/normalizzato/
 uv run ecoscan-regole           # normalizza le regole di categoria e le collega alle destinazioni
+uv run ecoscan-carica           # ricostruisce data/ecoscan.db dai file normalizzati
+uv run ecoscan-carica --verifica # solo i controlli di coerenza, senza scrivere
 
 uv run pytest                   # i test Torino si saltano se il PDF non è presente
 uv run ecoscan-demo             # carica i dati nello schema ed esegue interrogazioni di esempio
@@ -83,7 +86,8 @@ I nuovi moduli vanno in `src/ecoscan/`; per renderli eseguibili basta aggiungere
 | `etl/esegui_transform.py` | Comando che mette insieme Transform, profili e revisioni |
 | `etl/normalizza_regole.py` | Collega le regole di categoria alle destinazioni dei comuni |
 | `percorsi.py` | Radice del progetto e cartelle dati |
-| `db/schema.sql`, `db/demo.py` | Schema SQLite e dimostrazione su un campione (precede il Load) |
+| `db/schema.sql` | Schema del livello relazionale |
+| `db/carica.py` | Load: ricostruisce il database dai file normalizzati |
 
 ## Documentazione
 

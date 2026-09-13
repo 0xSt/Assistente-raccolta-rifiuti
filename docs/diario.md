@@ -38,7 +38,7 @@ Va aggiornato **a ogni cambiamento sostanziale**, non a ogni riga di codice. In 
 | Transform Napoli | Eseguito: 584 grezze → 1 scartata, 5 fuse, **578 normalizzate**. 0 conflitti, 0 da revisionare |
 | Transform Torino | Eseguito: **324 normalizzate**, 0 conflitti, 0 da revisionare |
 | Regole nel normalizzato | Fatto: **110 regole** collegate alle destinazioni (Napoli 50 su 4, Torino 60 su 9) |
-| Schema dati (SQLite) | Definito e verificato con un campione: il Load vero è il prossimo passo |
+| Load relazionale | Fatto: `ecoscan-carica` ricostruisce `data/ecoscan.db` dai file normalizzati |
 | Regole di categoria — Napoli | Completo per quanto la fonte pubblica: 38 ammessi, 11 esclusi (5 Vetro estratti + 6 Umido trascritti a mano), 2 assenze verificate |
 | Regole di categoria — Torino | Estratte: 10 schede, 30 ammessi, 27 esclusi |
 | Revisione manuale | **Completa**: 32 decisioni prese (16 per comune), 0 aperte, 0 voci da revisionare |
@@ -100,6 +100,9 @@ Formato: decisione, motivazione, stato.
 | D32 | Nelle pagine frazione la raccolta dipende dalla polarità: ammessi dai `<strong>`, esclusi dagli `<li>` | Il markup delle due sezioni è diverso; cercare solo i `<strong>` restituiva zero esclusioni in silenzio | Accettata |
 | D45 | Le decisioni manuali stanno in CSV versionati (`data/revisioni/<comune>.csv`) che il Transform applica a ogni esecuzione | Il Transform riscrive il normalizzato da zero: una correzione fatta lì andrebbe persa. Così le decisioni sono riproducibili, tracciabili in git e numerabili nella relazione | Accettata |
 | D46 | Una decisione riferita a uno slug inesistente fa fallire l'esecuzione | Se la fonte cambia, la decisione va rivista, non ignorata in silenzio | Accettata |
+| D49 | I metadati delle destinazioni (canale, colore, flussi) stanno in `data/riferimento/destinazioni.csv`, versionato | Erano cablati in uno script dimostrativo: sono dati curati a mano, come le trascrizioni, e vanno trattati come tali | Accettata |
+| D50 | Il caricamento verifica che ogni destinazione usata sia dichiarata **e** che ogni destinazione dichiarata sia usata | Il primo controllo blocca i dati zoppi, il secondo impedisce al file di riferimento di divergere dai dati. Entrambi si controllano solo sui comuni presenti | Accettata |
+| D51 | `demo.py` rimosso, sostituito da `carica.py` | La dimostrazione dello schema su un campione non serve più ora che esiste il caricamento vero | Accettata |
 | D48 | La coerenza della documentazione è verificata dai test, non dalla memoria | Un promemoria si dimentica; un test rosso blocca. I test coprono solo ciò che è verificabile meccanicamente: il resto resta responsabilità di chi scrive | Accettata |
 | D47 | Lo slug di Torino deriva dal nome della voce, non dalla posizione nel PDF | Le decisioni restano valide anche se l'estrazione cambia l'ordine delle voci | Accettata |
 | D43 | La corrispondenza scheda/frazione → destinazione è dichiarata esplicitamente, in un punto solo, e verificata contro le destinazioni che compaiono nelle voci | I nomi non coincidono ("Carta e Cartone" nella frazione, "Carta e Cartoncino" nelle voci): una regola agganciata a un contenitore inesistente non verrebbe mai raggiunta dalla ricerca | Accettata |
@@ -137,7 +140,7 @@ Ordinate per priorità.
    - *Napoli*: 5 esclusioni per il Vetro estratte, 6 per l'Umido trascritte a mano dall'immagine, Plastica e Carta verificate come prive di esclusioni.
    - *Torino*: **fatto in v0.6.0**. 10 schede, 30 ammessi, 27 esclusi. Da fare: portare queste regole nel livello normalizzato e collegarle alle destinazioni.
 2. ~~Esclusioni mancanti per Umido, Plastica e Carta (Napoli)~~ **Chiuso**: Stef ha letto le tre immagini. Solo l'Umido ha una sezione di esclusioni (6 voci + un avviso generale), trascritte in `data/sorgenti/manuale/napoli_esclusioni.csv`. Plastica e Carta non pubblicano esclusioni: registrate come assenze verificate.
-3. **Caricamento del normalizzato nello schema SQLite.** Finora provato solo con un campione. Ora ci sono anche le regole: `data/normalizzato/regole.jsonl`.
+3. **Serving**: indice FTS5 a trigrammi e vettori, da costruire sopra il livello relazionale.
 4. ~~Pagine "Non riciclabile" e "Altre raccolte" di Napoli~~ **Chiuso**: sono davvero prive di elenchi, hanno solo una frase di invito. Non è un difetto dell'estrattore.
 5. **Serving**: indici FTS5 a trigrammi, embedding, ricerca ibrida con RRF.
 6. **Valutazione**: set di foto etichettate e metriche (riconoscimento, destinazione per comune, latenza su CPU). Mai iniziata, ed è ciò che distingue un prototipo da un lavoro difendibile.
@@ -161,6 +164,14 @@ Cose imparate che non sono decisioni, ma che conviene ricordare.
 ---
 
 ## Cronologia
+
+### v0.10.0 — 12/09/2026
+
+**Aggiunto.** Load relazionale: `db/carica.py` e comando `ecoscan-carica`. Ricostruzione totale del database a ogni esecuzione, con due controlli che bloccano il caricamento invece di produrre dati zoppi (destinazione usata ma non dichiarata; destinazione dichiarata ma mai usata). Schema riscritto sui dati normalizzati reali: comune, flusso, destinazione con alias e flussi, voce con condizioni e alias, destinazioni alternative ordinate, regola, decisione di revisione, traccia del caricamento. 12 test.
+
+**Aggiunto.** `data/riferimento/destinazioni.csv`: canale, colore e flussi delle 27 destinazioni dei due comuni. Erano cablati in `demo.py`, che è stato rimosso.
+
+**Verificato sul database.** Il caso dei due livelli di evidenza a Torino: "Cartone da pizza" con condizione *pulito* va nella carta, con *sporco* + *solo se compostabile certificato* nell'organico; e la regola di categoria esclude dalla carta "carta con residui di cibo".
 
 ### v0.9.1 — 12/09/2026
 

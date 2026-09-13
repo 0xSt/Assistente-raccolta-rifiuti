@@ -1,0 +1,28 @@
+comune,nome,canale,colore,flussi,alias_di,note
+Napoli,Organico,raccolta_ordinaria,marrone,organico,,
+Napoli,Plastica e Metalli,raccolta_ordinaria,giallo,plastica|metalli,,
+Napoli,Carta e Cartoncino,raccolta_ordinaria,blu,carta,,
+Napoli,Vetro,raccolta_ordinaria,verde,vetro,,
+Napoli,Non Riciclabile,raccolta_ordinaria,,residuo,,
+Napoli,Cartone,,,,Carta e Cartoncino,variante usata da una sola voce del dizionario
+Napoli,Contenitore Abiti Usati,contenitore_dedicato,,tessili,,
+Napoli,Contenitore Farmaco,contenitore_dedicato,,farmaci,,
+Napoli,Contenitore Pile,contenitore_dedicato,,pile,,
+Napoli,Isola Ecologica Estesa,centro_raccolta,,,,accetta più tipologie della ridotta
+Napoli,Isola Ecologica Ridotta,centro_raccolta,,,,
+Napoli,Ecopunto Ingombranti,raccolta_itinerante,,ingombranti,,
+Napoli,Ecopunto Elettrodomestici,raccolta_itinerante,,raee,,
+Napoli,Ecoisole RAEE R4,raccolta_itinerante,,raee,,piccoli elettrodomestici (raggruppamento R4)
+Napoli,Ecopunto oli vegetali esausti,raccolta_itinerante,,oli,,
+Napoli,Numero Verde Gratuito,ritiro_domicilio,,ingombranti,,prenotazione telefonica del ritiro
+Torino,organico,raccolta_ordinaria,marrone,organico,,
+Torino,imballaggi_plastica,raccolta_ordinaria,grigio chiaro,plastica,,solo imballaggi
+Torino,carta_e_cartone,raccolta_ordinaria,giallo,carta,,
+Torino,vetro_e_imballaggi_metallo,raccolta_ordinaria,blu,vetro|metalli,,vetro e metalli insieme
+Torino,rifiuto_non_recuperabile,raccolta_ordinaria,grigio,residuo,,
+Torino,abiti,contenitore_dedicato,,tessili,,
+Torino,farmaci,contenitore_dedicato,,farmaci,,
+Torino,pile,contenitore_dedicato,,pile,,
+Torino,olio_esausto,contenitore_dedicato,,oli,,
+Torino,centro_di_raccolta,centro_raccolta,,,,otto centri in città
+Torino,rifiuti_ingombranti,ritiro_domicilio,,ingombranti,,ritiro gratuito su prenotazione

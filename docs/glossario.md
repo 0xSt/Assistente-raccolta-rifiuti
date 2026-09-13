@@ -17,7 +17,8 @@ pulire, separare, riconciliare. È qui che si prendono le decisioni interpretati
 questo è separato dall'estrazione: si può rieseguire cambiando le regole, senza riscaricare.
 
 **Load (caricamento)** — Scrivere i dati normalizzati nel database di destinazione.
-Nel progetto è ancora da fare.
+Qui avviene per **ricostruzione totale**: il database è cancellato e rifatto da zero a ogni
+esecuzione, perché è un artefatto derivato e la verità sta nei file normalizzati.
 
 **Livello grezzo** — Copia fedele di ciò che la fonte dice, con URL o pagina, data,
 hash SHA-256 e versione dell'estrattore. Non si interpreta e non si corregge: serve a
@@ -102,6 +103,10 @@ cosa non ci va (`escluso`) o aggiunge un'istruzione (`nota`).
 **Revisione manuale** — Decisione presa da una persona sulle voci che il Transform non sa
 risolvere da solo. Sta in un CSV versionato e viene riapplicata a ogni esecuzione, così non
 va persa quando le regole cambiano.
+
+**Dato di riferimento** — Dato curato a mano che non viene da nessuna fonte esterna e che
+serve a interpretare gli altri: qui canale, colore e flussi delle destinazioni. Versionato
+come il codice.
 
 **Corrispondenza (mapping)** — Tabella che collega i nomi usati da una fonte a quelli del
 modello normalizzato. Qui collega il nome della scheda alla destinazione: "Carta e Cartone"
