@@ -30,6 +30,7 @@ from urllib.parse import urljoin, urlparse
 import requests
 from bs4 import BeautifulSoup
 
+from ecoscan.etl.trascrizioni import applica as applica_trascrizioni
 from ecoscan.percorsi import CACHE, GREZZO
 
 from ecoscan.etl.napoli_qualita import normalizza_spazi, problemi_qualita, split_destinazioni
@@ -378,6 +379,7 @@ def estrai(out: Path, f: Fetcher, limite: int | None = None) -> None:
         if (snap := f.get(url)):
             frazioni.append({**parse_pagina_frazione(snap.html, url), "sha256": snap.sha256,
                              "recuperato_il": snap.recuperato_il, "versione_estrattore": VERSIONE_ESTRATTORE})
+    frazioni = applica_trascrizioni(frazioni)
     (out / "napoli_frazioni.json").write_text(json.dumps(frazioni, ensure_ascii=False, indent=1), encoding="utf-8")
 
     # Controlli di completezza: falliscono in modo esplicito invece di produrre dati parziali
@@ -391,15 +393,18 @@ def estrai(out: Path, f: Fetcher, limite: int | None = None) -> None:
     for fr in frazioni:
         ammessi = sum(1 for r in fr["regole"] if r["polarita"] == "ammesso")
         esclusi = sum(1 for r in fr["regole"] if r["polarita"] == "escluso")
-        print(f"  {fr['nome_frazione']}: {ammessi} ammessi, {esclusi} esclusi, colore {fr['colore']}")
+        manuali = sum(1 for r in fr["regole"] if r.get("origine") == "trascrizione_manuale")
+        extra = f" (di cui {manuali} trascritti a mano)" if manuali else ""
+        print(f"  {fr['nome_frazione']}: {ammessi} ammessi, {esclusi} esclusi{extra}, colore {fr['colore']}")
     # una frazione con ammessi ma senza esclusi indica un markup non gestito, non una fonte muta
     mute = [f for f in frazioni if any(r["polarita"] == "ammesso" for r in f["regole"])
-            and not any(r["polarita"] == "escluso" for r in f["regole"])]
+            and not any(r["polarita"] == "escluso" for r in f["regole"])
+            and not f.get("assenza_esclusioni_verificata")]
     con_immagine = [f["nome_frazione"] for f in mute if f["immagini_informative"]]
     senza_spiegazione = [f["nome_frazione"] for f in mute if not f["immagini_informative"]]
     if con_immagine:
-        print(f"NOTA: {con_immagine} non hanno esclusioni testuali, ma hanno un'immagine informativa: "
-              "le esclusioni sono disegnate dentro l'immagine, non estraibili come testo.")
+        print(f"NOTA: {con_immagine} non hanno esclusioni testuali ma hanno un'immagine informativa: "
+              "da verificare a occhio e trascrivere in data/sorgenti/manuale/napoli_esclusioni.csv")
     if senza_spiegazione:
         print(f"ATTENZIONE: {senza_spiegazione} hanno ammessi ma nessun escluso e nessuna immagine "
               "informativa: probabile markup non gestito.")

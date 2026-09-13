@@ -88,6 +88,14 @@ contenitore dedicato, centro di raccolta, raccolta itinerante, ritiro a domicili
 Serve a confrontare raggruppamenti diversi: "Vetro e imballaggi in metallo" a Torino è
 vetro+metalli, "Plastica e Metalli" a Napoli è plastica+metalli.
 
+**Trascrizione manuale** — Dato presente nella fonte ma non estraibile da uno script
+(qui: testo dentro un'immagine), letto a occhio e messo in un file versionato. Nel database
+porta un'origine distinta, perché è affidabile ma non riproducibile automaticamente.
+
+**Assenza verificata** — Registrazione del fatto che una fonte *non* contiene una certa
+informazione. Distingue "controllato, non c'è" da "non ancora controllato", e serve a non
+far scattare avvisi dove non c'è nulla da fare.
+
 **Polarità** — Se una regola di categoria dice cosa va nel contenitore (`ammesso`),
 cosa non ci va (`escluso`) o aggiunge un'istruzione (`nota`).
 

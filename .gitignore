@@ -1,5 +1,7 @@
 # Documenti sorgente di terzi: si scaricano dai link in docs/fonti.md, non si versionano
-data/sorgenti/
+data/sorgenti/*
+# ...ma le trascrizioni manuali sono lavoro nostro e vanno versionate
+!data/sorgenti/manuale/
 # Livello normalizzato: si rigenera con ecoscan-transform
 data/normalizzato/
 # Cache HTML dell'estrattore

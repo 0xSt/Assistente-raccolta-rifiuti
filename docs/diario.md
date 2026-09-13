@@ -28,7 +28,7 @@ Va aggiornato **a ogni cambiamento sostanziale**, non a ogni riga di codice. In 
 | Transform Napoli | Eseguito: 574 voci normalizzate, 0 conflitti, 15 da revisionare |
 | Transform Torino | Eseguito: 324 voci normalizzate, 0 conflitti, 16 da revisionare |
 | Schema dati (SQLite) | Definito e verificato con Torino completo e un campione di Napoli |
-| Regole di categoria — Napoli | Ammessi: 38 su 4 frazioni. Esclusi: solo Vetro (5). Sulle altre le esclusioni sono dentro un'immagine |
+| Regole di categoria — Napoli | Completo per quanto la fonte pubblica: 38 ammessi, 11 esclusi (5 Vetro estratti + 6 Umido trascritti a mano), 2 assenze verificate |
 | Regole di categoria — Torino | Estratte: 10 schede, 30 ammessi, 27 esclusi |
 | Revisione manuale | **Da fare**: 31 voci segnalate |
 | Serving (FTS5, embedding, ricerca ibrida) | Da fare |
@@ -87,6 +87,8 @@ Formato: decisione, motivazione, stato.
 | D22 | Le descrizioni delle destinazioni non si estraggono dalle pagine voce | Sono identiche su tutte le voci che usano quella destinazione: proprietà della destinazione | Accettata |
 | D23 | Il campo avvertenza ha priorità sul testo ricavato dallo slug | L'avvertenza conserva accenti e apostrofi, lo slug li perde ("l'ago" → "lago") | Accettata |
 | D32 | Nelle pagine frazione la raccolta dipende dalla polarità: ammessi dai `<strong>`, esclusi dagli `<li>` | Il markup delle due sezioni è diverso; cercare solo i `<strong>` restituiva zero esclusioni in silenzio | Accettata |
+| D41 | I dati presenti nella fonte ma non estraibili si trascrivono a mano in un CSV versionato, con `origine: trascrizione_manuale` | Affidabile ma non riproducibile da uno script: va distinto da ciò che l'estrattore ricava da solo, e se domani la fonte lo pubblica come testo si sa quali righe sostituire | Accettata |
+| D42 | Le **assenze verificate** si registrano come dato | "Questa frazione non pubblica esclusioni" è un'informazione, diversa da "non le abbiamo ancora cercate": spegne l'avviso solo dove è stato fatto il controllo | Accettata |
 | D38 | A Torino il ruolo di ogni riga è dato dal **font**, non dalla posizione (Bold 12 titolo, Light 8 celle, Medium 8 frase delle esclusioni) | Più robusto delle coordinate: regge le schede con impaginato diverso | Accettata |
 | D39 | Le frasi del riquadro si classificano in *elenco* ("X, Y e Z NON vanno...") e *avvertenza* ("Non gettare l'olio negli scarichi"); una forma non riconosciuta fa fallire l'estrazione | Solo la prima elenca oggetti esclusi; separare anche la seconda produrrebbe esclusioni inventate | Accettata |
 | D40 | Una cella più lunga di 120 caratteri rivela un paragrafo, non una griglia: la scheda non produce ammessi | Farmaci, Oli esausti e Ingombranti sono schede descrittive senza elenco di oggetti | Accettata |
@@ -114,10 +116,10 @@ Formato: decisione, motivazione, stato.
 Ordinate per priorità.
 
 1. **Regole di categoria.**
-   - *Napoli*: estrattore corretto, ma **la fonte web dà le esclusioni solo per il Vetro** (5 voci). Su Umido, Plastica e Carta la sezione "NO" non esiste: le esclusioni sono disegnate dentro `info-<frazione>.png`. Da decidere come recuperarle (vedi punto 3).
+   - *Napoli*: **chiuso**. 5 esclusioni per il Vetro estratte, 6 per l'Umido trascritte a mano dall'immagine, Plastica e Carta verificate come prive di esclusioni.
    - *Torino*: **fatto in v0.6.0**. 10 schede, 30 ammessi, 27 esclusi. Da fare: portare queste regole nel livello normalizzato e collegarle alle destinazioni.
 2. **Revisione manuale di 31 voci** (15 Napoli, 16 Torino). Serve prima un meccanismo: le decisioni vanno in file CSV versionati (`data/revisioni/<comune>.csv`) che il Transform applica in coda, altrimenti si perdono a ogni riesecuzione.
-3. **Esclusioni mancanti per Umido, Plastica e Carta (Napoli).** Due strade: (a) l'opuscolo PDF `Asia_Opuscolo_A5_new-1.pdf`, mai consultato, che probabilmente contiene gli stessi elenchi come testo; (b) far leggere le immagini `info-*.png` a Gemma 4 offline, poche immagini, una volta sola. La prima è preferibile perché resta testuale e verificabile.
+3. ~~Esclusioni mancanti per Umido, Plastica e Carta (Napoli)~~ **Chiuso**: Stef ha letto le tre immagini. Solo l'Umido ha una sezione di esclusioni (6 voci + un avviso generale), trascritte in `data/sorgenti/manuale/napoli_esclusioni.csv`. Plastica e Carta non pubblicano esclusioni: registrate come assenze verificate.
 4. **Asterischi.** 6 voci a Napoli (insetticida, trielina, smalto, solventi, spray, sostanze chimiche etichettate T e/o F: sono rifiuti pericolosi) e 1 a Torino rimandano a note non estratte. Per Torino la nota è nel PDF a pagina 21; per Napoli va cercata sul sito.
 5. **Caricamento del normalizzato nello schema SQLite.** Finora provato solo con un campione.
 6. ~~Pagine "Non riciclabile" e "Altre raccolte" di Napoli~~ **Chiuso**: sono davvero prive di elenchi, hanno solo una frase di invito. Non è un difetto dell'estrattore.
@@ -134,7 +136,7 @@ Cose imparate che non sono decisioni, ma che conviene ricordare.
 
 - **I conflitti sono una diagnosi del Transform, non dei dati.** Su 898 voci, tutti e 6 i conflitti iniziali erano difetti delle regole: separazioni sbagliate, materiale letto come sinonimo, codice escluso dalla chiave. Corretti quelli, restano zero. Le due fonti, dove si sovrappongono, sono internamente coerenti.
 - **Le due fonti hanno difficoltà speculari.** A Torino l'ostacolo è l'estrazione (destinazione codificata in colori e icone), ma i dati sono puliti. A Napoli l'estrazione è facile e i dati sono sporchi. La scelta di due formati complementari ha dato il contrasto giusto.
-- **ASIA scrive le esclusioni come testo solo per il Vetro.** Sulle altre frazioni sono grafica dentro `info-<frazione>.png`. Una fonte può essere incompleta *per come è pubblicata*, non per come la leggiamo: il controllo che distingue i due casi è ciò che ha permesso di capirlo in un giro solo.
+- **ASIA pubblica poche esclusioni, e quasi solo come grafica.** Testo solo per il Vetro; dentro l'immagine per l'Umido; per Plastica e Carta non esistono proprio. Torino ne pubblica 27 contro le 11 di Napoli: la stessa informazione, con profondità molto diversa. Una fonte può essere incompleta *per come è pubblicata*, non per come la leggiamo: il controllo che distingue i due casi è ciò che ha permesso di capirlo in un giro solo.
 - **Le esclusioni spiegano il dizionario.** La pagina del vetro di Napoli esclude bicchieri, piatti, pirofile e lastre: esattamente le voci che nel dizionario finiscono nel non riciclabile. Ciò che sembrava incoerenza è una regola dichiarata.
 - **Divergenze fra comuni utili da citare**: bicchiere di vetro (Napoli non riciclabile, Torino vetro); tappo di sughero (Napoli organico, Torino centro di raccolta o organico); pentole e padelle (Napoli plastica e metalli, Torino centro di raccolta). Una convergenza: il vetro dei profumi non è riciclabile in entrambi.
 - **Trappole già incontrate, da non ripetere**: i nodi di testo frammentati di Elementor; il match di "ecc" dentro "appare**cc**hi"; gli slug che finiscono con un numero che è un codice materiale e non un contatore; un test che passava solo perché la fixture era più semplice della realtà.
@@ -142,6 +144,12 @@ Cose imparate che non sono decisioni, ma che conviene ricordare.
 ---
 
 ## Cronologia
+
+### v0.6.1 — 12/09/2026
+
+**Aggiunto.** Modulo `trascrizioni.py` e file `data/sorgenti/manuale/napoli_esclusioni.csv`: le esclusioni dell'Umido, leggibili solo dentro un'immagine, sono state trascritte a mano da Stef e vengono unite alle regole estratte con `origine: trascrizione_manuale`. Registrate come **assenze verificate** anche Plastica e Carta, che non pubblicano esclusioni: l'avviso ora si accende solo dove il controllo non è stato fatto. 5 test.
+
+**Corretto.** `.gitignore`: `data/sorgenti/` escludeva anche le trascrizioni manuali, che sono lavoro nostro. Ora l'esclusione è per contenuto (`data/sorgenti/*`) con eccezione della cartella `manuale/`.
 
 ### v0.6.0 — 12/09/2026
 

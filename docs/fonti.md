@@ -42,6 +42,16 @@ Ricognizione del 12/09/2026 (`python etl/extract_napoli.py --recon`, eseguita da
 | https://www.asianapoli.it/comunicazione/educazione-ambientale/domande-frequenti/ | FAQ (oggetti in metallo piccoli/grandi, plastica non imballaggio) | Condizioni da trasformare in note |
 | https://www.asianapoli.it/wp-content/uploads/2025/10/Asia_Opuscolo_A5_new-1.pdf | Guida completa in PDF | **Non ancora consultata** |
 
+## Dati trascritti a mano
+
+`data/sorgenti/manuale/napoli_esclusioni.csv` — esclusioni leggibili solo dentro le immagini informative delle pagine frazione di ASIA. Lette a occhio e trascritte alla lettera il 12/09/2026. Ogni riga porta l'URL della pagina di provenienza. Nel database avranno `origine: trascrizione_manuale`.
+
+| Frazione | Esito della lettura |
+|---|---|
+| Umido/Organico | 6 esclusioni + 1 avviso generale ("NON METTERE NESSUN OGGETTO IN PLASTICA") |
+| Plastica e Metalli | nessuna sezione di esclusioni nell'immagine |
+| Carta e Cartone | nessuna sezione di esclusioni nell'immagine |
+
 ## Fonti consultate solo per scegliere il secondo comune (nessun dato usato)
 
 | Città | URL | Esito |

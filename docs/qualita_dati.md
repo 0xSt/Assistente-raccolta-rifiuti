@@ -47,7 +47,7 @@ Ogni problema diventa una riga della tabella `problema_qualita` durante il caric
 | Refusi | "CCaffettiere" | Codice `refuso` |
 | Spaziatura e maiuscole incoerenti | "Bambù (in Grandi Quantità )", "calcinacci" | Normalizzazione |
 | Dettaglio separato dal testo | "Bombolette spray non pericolose" + "(non etichettate T e F)" dopo un `<br>` | Campo `dettaglio` della regola |
-| Esclusioni pubblicate solo come immagine | `info-plastica.png`, `info-umido.png`, `info-carta.png`: solo il Vetro ha l'elenco testuale | Rilevate come `immagini_informative`; recupero da decidere |
+| Esclusioni pubblicate solo come immagine | solo il Vetro ha l'elenco testuale | Rilevate come `immagini_informative`; l'Umido è stato trascritto a mano, Plastica e Carta non ne hanno |
 | Ammessi ed esclusi con markup diverso | ammessi: `<img>` + `<strong>`; esclusi: `<ul><li>` | Raccolta separata per polarità (corretto in v0.5.0) |
 | Etichette grafiche "SI"/"NO" lette come note | nota "NO" nella pagina del Vetro | Filtrate |
 | Lista non affidabile | "Puoi inoltre conferire in questo contenitore" quasi identica su voci diverse | Usata solo per le avvertenze |
