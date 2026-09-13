@@ -27,6 +27,10 @@ risalire alla fonte esatta di ogni dato.
 **Livello normalizzato** — Le stesse informazioni portate al modello comune fra i comuni:
 nome pulito, condizioni, alias, destinazioni, avvertenza. È il livello su cui si ragiona.
 
+**Scheda** — Unità restituita dalla ricerca. Una voce produce più schede (una per il nome
+con le sue condizioni, una per ciascun alias); anche ogni regola ammessa o esclusa è una
+scheda. Schede diverse possono puntare alla stessa voce.
+
 **Livello di serving** — Le strutture costruite per rispondere in fretta: indice testuale,
 vettori, viste. Si rigenera dal normalizzato e si può buttare via.
 

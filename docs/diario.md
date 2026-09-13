@@ -39,6 +39,7 @@ Va aggiornato **a ogni cambiamento sostanziale**, non a ogni riga di codice. In 
 | Transform Torino | Eseguito: **324 normalizzate**, 0 conflitti, 0 da revisionare |
 | Regole nel normalizzato | Fatto: **110 regole** collegate alle destinazioni (Napoli 50 su 4, Torino 60 su 9) |
 | Load relazionale | Fatto: `ecoscan-carica` ricostruisce `data/ecoscan.db` dai file normalizzati |
+| Serving — indice lessicale | Fatto: `ecoscan-indicizza`, 417 schede su Torino |
 | Regole di categoria — Napoli | Completo per quanto la fonte pubblica: 38 ammessi, 11 esclusi (5 Vetro estratti + 6 Umido trascritti a mano), 2 assenze verificate |
 | Regole di categoria — Torino | Estratte: 10 schede, 30 ammessi, 27 esclusi |
 | Revisione manuale | **Completa**: 32 decisioni prese (16 per comune), 0 aperte, 0 voci da revisionare |
@@ -100,6 +101,9 @@ Formato: decisione, motivazione, stato.
 | D32 | Nelle pagine frazione la raccolta dipende dalla polarità: ammessi dai `<strong>`, esclusi dagli `<li>` | Il markup delle due sezioni è diverso; cercare solo i `<strong>` restituiva zero esclusioni in silenzio | Accettata |
 | D45 | Le decisioni manuali stanno in CSV versionati (`data/revisioni/<comune>.csv`) che il Transform applica a ogni esecuzione | Il Transform riscrive il normalizzato da zero: una correzione fatta lì andrebbe persa. Così le decisioni sono riproducibili, tracciabili in git e numerabili nella relazione | Accettata |
 | D46 | Una decisione riferita a uno slug inesistente fa fallire l'esecuzione | Se la fonte cambia, la decisione va rivista, non ignorata in silenzio | Accettata |
+| D52 | La ricerca riduce ogni termine alla radice togliendo la vocale finale alle parole lunghe | Con i trigrammi il termine deve essere una sottostringa: "bicchiere" non troverebbe "Bicchieri". È l'alternativa allo stemming, che FTS5 non offre per l'italiano | Accettata |
+| D53 | Ricerca prima in AND, poi in OR se non trova nulla | La precisione viene prima, ma nessun candidato è peggio di candidati imperfetti: la scelta finale è comunque del modello fra opzioni reali | Accettata |
+| D54 | Delle regole si indicizza solo `testo`, non `dettaglio` | Per gli esclusi di Torino il dettaglio è la frase intera: indicizzarla renderebbe ogni oggetto escluso raggiungibile con le parole di tutti gli altri | Accettata |
 | D49 | I metadati delle destinazioni (canale, colore, flussi) stanno in `data/riferimento/destinazioni.csv`, versionato | Erano cablati in uno script dimostrativo: sono dati curati a mano, come le trascrizioni, e vanno trattati come tali | Accettata |
 | D50 | Il caricamento verifica che ogni destinazione usata sia dichiarata **e** che ogni destinazione dichiarata sia usata | Il primo controllo blocca i dati zoppi, il secondo impedisce al file di riferimento di divergere dai dati. Entrambi si controllano solo sui comuni presenti | Accettata |
 | D51 | `demo.py` rimosso, sostituito da `carica.py` | La dimostrazione dello schema su un campione non serve più ora che esiste il caricamento vero | Accettata |
@@ -140,7 +144,7 @@ Ordinate per priorità.
    - *Napoli*: 5 esclusioni per il Vetro estratte, 6 per l'Umido trascritte a mano dall'immagine, Plastica e Carta verificate come prive di esclusioni.
    - *Torino*: **fatto in v0.6.0**. 10 schede, 30 ammessi, 27 esclusi. Da fare: portare queste regole nel livello normalizzato e collegarle alle destinazioni.
 2. ~~Esclusioni mancanti per Umido, Plastica e Carta (Napoli)~~ **Chiuso**: Stef ha letto le tre immagini. Solo l'Umido ha una sezione di esclusioni (6 voci + un avviso generale), trascritte in `data/sorgenti/manuale/napoli_esclusioni.csv`. Plastica e Carta non pubblicano esclusioni: registrate come assenze verificate.
-3. **Serving**: indice FTS5 a trigrammi e vettori, da costruire sopra il livello relazionale.
+3. **Serving, parte vettoriale**: embedding con EmbeddingGemma e fusione RRF con l'indice lessicale.
 4. ~~Pagine "Non riciclabile" e "Altre raccolte" di Napoli~~ **Chiuso**: sono davvero prive di elenchi, hanno solo una frase di invito. Non è un difetto dell'estrattore.
 5. **Serving**: indici FTS5 a trigrammi, embedding, ricerca ibrida con RRF.
 6. **Valutazione**: set di foto etichettate e metriche (riconoscimento, destinazione per comune, latenza su CPU). Mai iniziata, ed è ciò che distingue un prototipo da un lavoro difendibile.
@@ -165,6 +169,14 @@ Cose imparate che non sono decisioni, ma che conviene ricordare.
 ---
 
 ## Cronologia
+
+### v0.11.0 — 12/09/2026
+
+**Aggiunto.** Livello di serving lessicale: `db/indicizza.py` e comando `ecoscan-indicizza`. Costruisce le **schede** (una voce genera una scheda per il nome con le sue condizioni e una per ogni alias; ogni regola ammessa o esclusa ne genera una) e le indicizza con FTS5 a trigrammi. Ricerca filtrata per comune, con filtro opzionale per livello di evidenza. 14 test.
+
+**Osservato provando la ricerca sui dati reali.** Tre correzioni sono nate dalle prove, non dal progetto: senza riduzione alla radice "bicchiere di vetro" non trovava "Bicchieri di vetro"; la ricerca in solo AND restituiva zero risultati troppo spesso; indicizzare il `dettaglio` delle regole faceva emergere "lampadine" cercando "ceramica", perché la frase intera è condivisa da tutti gli esclusi della stessa scheda.
+
+**Limite noto.** A Torino "tetrapak" non trova nulla: la fonte scrive "Tetra Pak" con lo spazio, e con i trigrammi la sottostringa non combacia. A Napoli funziona perché esiste l'alias. È esattamente il caso che la ricerca semantica dovrà coprire.
 
 ### v0.10.1 — 12/09/2026
 

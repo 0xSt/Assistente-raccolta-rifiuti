@@ -4,7 +4,7 @@ Assistente per la raccolta differenziata che gira interamente in locale. L'utent
 
 Progetto universitario. Comuni del prototipo: **Napoli** (ASIA) e **Torino** (AMIAT).
 
-## Stato attuale (v0.10.1)
+## Stato attuale (v0.11.0)
 
 Il quadro completo è in [docs/diario.md](docs/diario.md).
 
@@ -17,7 +17,8 @@ Il quadro completo è in [docs/diario.md](docs/diario.md).
 | Regole di categoria | 110 normalizzate e collegate alle destinazioni |
 | Revisione manuale | 32 decisioni prese (3,5% delle voci), nessuna aperta |
 | Load relazionale | Fatto: comuni, destinazioni, voci, condizioni, alias, regole, decisioni |
-| Serving (FTS5, embedding, ricerca ibrida) | Da fare |
+| Serving — indice lessicale | Fatto: schede, FTS5 a trigrammi, ricerca per comune |
+| Serving — embedding e ricerca ibrida | Da fare |
 | Backend, frontend, modello | Da fare |
 
 ## Struttura
@@ -54,6 +55,8 @@ uv run ecoscan-transform        # normalizza le voci dei due comuni -> data/norm
 uv run ecoscan-regole           # normalizza le regole di categoria e le collega alle destinazioni
 uv run ecoscan-carica           # ricostruisce data/ecoscan.db dai file normalizzati
 uv run ecoscan-carica --verifica # solo i controlli di coerenza, senza scrivere
+uv run ecoscan-indicizza        # costruisce l'indice lessicale FTS5 sopra il database
+uv run ecoscan-indicizza --cerca "bicchiere di vetro" --comune Torino   # prova la ricerca
 
 uv run pytest                   # i test Torino si saltano se il PDF non è presente
 uv run ecoscan-demo             # carica i dati nello schema ed esegue interrogazioni di esempio
@@ -94,6 +97,7 @@ I nuovi moduli vanno in `src/ecoscan/`; per renderli eseguibili basta aggiungere
 | `percorsi.py` | Radice del progetto e cartelle dati |
 | `db/schema.sql` | Schema del livello relazionale |
 | `db/carica.py` | Load: ricostruisce il database dai file normalizzati |
+| `db/indicizza.py` | Schede ricercabili, indice FTS5 a trigrammi e ricerca lessicale |
 
 ## Documentazione
 
