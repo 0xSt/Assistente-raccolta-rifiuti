@@ -75,3 +75,21 @@ def test_file_di_decisioni_presenti_e_validi(comune):
     decisioni = rev.carica(comune)
     assert decisioni, f"nessuna decisione caricata per {comune}"
     assert all(d["azione"] in rev.AZIONI for lista in decisioni.values() for d in lista)
+
+
+@pytest.mark.parametrize("comune, attese", [("napoli", 16), ("torino", 16)])
+def test_tutte_le_decisioni_sono_chiuse(comune, attese):
+    """Nessuna voce deve restare `da_decidere`: se ne compare una, va affrontata."""
+    decisioni = rev.carica(comune)
+    assert sum(len(v) for v in decisioni.values()) == attese
+    aperte = [slug for slug, lista in decisioni.items()
+              if any(d["azione"] == "da_decidere" for d in lista)]
+    assert not aperte, f"decisioni ancora aperte per {comune}: {aperte}"
+
+
+def test_ogni_decisione_ha_una_motivazione():
+    # la nota è ciò che rende la decisione difendibile a distanza di mesi
+    for comune in ("napoli", "torino"):
+        senza_nota = [slug for slug, lista in rev.carica(comune).items()
+                      for d in lista if not d["nota"]]
+        assert not senza_nota, f"decisioni senza motivazione in {comune}: {senza_nota}"

@@ -31,7 +31,7 @@ Va aggiornato **a ogni cambiamento sostanziale**, non a ogni riga di codice. In 
 | Schema dati (SQLite) | Definito e verificato con Torino completo e un campione di Napoli |
 | Regole di categoria — Napoli | Completo per quanto la fonte pubblica: 38 ammessi, 11 esclusi (5 Vetro estratti + 6 Umido trascritti a mano), 2 assenze verificate |
 | Regole di categoria — Torino | Estratte: 10 schede, 30 ammessi, 27 esclusi |
-| Revisione manuale | Meccanismo pronto. Torino: 16 decisioni prese, 0 aperte. Napoli: 10 prese, 6 aperte (asterischi) |
+| Revisione manuale | **Completa**: 32 decisioni prese (16 per comune), 0 aperte, 0 voci da revisionare |
 | Serving (FTS5, embedding, ricerca ibrida) | Da fare |
 | Backend, frontend, modello | Da fare |
 
@@ -124,15 +124,14 @@ Ordinate per priorità.
 1. **Regole di categoria.**
    - *Napoli*: **chiuso**. 5 esclusioni per il Vetro estratte, 6 per l'Umido trascritte a mano dall'immagine, Plastica e Carta verificate come prive di esclusioni.
    - *Torino*: **fatto in v0.6.0**. 10 schede, 30 ammessi, 27 esclusi. Da fare: portare queste regole nel livello normalizzato e collegarle alle destinazioni.
-2. **Sei decisioni aperte a Napoli**, tutte marcate `da_decidere`: le voci con l'asterisco (insetticida, trielina, smalto, solventi, spray, sostanze chimiche etichettate T e/o F). Sono rifiuti pericolosi: serve trovare sul sito il testo della nota a cui l'asterisco rimanda e inserirlo come avvertenza.
-3. ~~Esclusioni mancanti per Umido, Plastica e Carta (Napoli)~~ **Chiuso**: Stef ha letto le tre immagini. Solo l'Umido ha una sezione di esclusioni (6 voci + un avviso generale), trascritte in `data/sorgenti/manuale/napoli_esclusioni.csv`. Plastica e Carta non pubblicano esclusioni: registrate come assenze verificate.
-4. **Caricamento del normalizzato nello schema SQLite.** Finora provato solo con un campione. Ora ci sono anche le regole: `data/normalizzato/regole.jsonl`.
-5. **Rieseguire `ecoscan-napoli` e `ecoscan-regole`** per avere anche le regole di Napoli nel normalizzato, con la verifica delle destinazioni attiva (richiede le voci normalizzate di entrambi i comuni).
-6. ~~Pagine "Non riciclabile" e "Altre raccolte" di Napoli~~ **Chiuso**: sono davvero prive di elenchi, hanno solo una frase di invito. Non è un difetto dell'estrattore.
-7. **Serving**: indici FTS5 a trigrammi, embedding, ricerca ibrida con RRF.
-8. **Valutazione**: set di foto etichettate e metriche (riconoscimento, destinazione per comune, latenza su CPU). Mai iniziata, ed è ciò che distingue un prototipo da un lavoro difendibile.
-9. **Dove conferire**: 363 voci su 584 a Napoli rimandano a isole ecologiche o ecopunti. Prima o poi l'agente deve dire *dove* si trovano.
-10. **Opuscolo PDF di Napoli** (`Asia_Opuscolo_A5_new-1.pdf`): mai consultato, potrebbe contenere regole assenti dal sito.
+2. ~~Esclusioni mancanti per Umido, Plastica e Carta (Napoli)~~ **Chiuso**: Stef ha letto le tre immagini. Solo l'Umido ha una sezione di esclusioni (6 voci + un avviso generale), trascritte in `data/sorgenti/manuale/napoli_esclusioni.csv`. Plastica e Carta non pubblicano esclusioni: registrate come assenze verificate.
+3. **Caricamento del normalizzato nello schema SQLite.** Finora provato solo con un campione. Ora ci sono anche le regole: `data/normalizzato/regole.jsonl`.
+4. **Rieseguire `ecoscan-napoli` e `ecoscan-regole`** per avere anche le regole di Napoli nel normalizzato, con la verifica delle destinazioni attiva (richiede le voci normalizzate di entrambi i comuni).
+5. ~~Pagine "Non riciclabile" e "Altre raccolte" di Napoli~~ **Chiuso**: sono davvero prive di elenchi, hanno solo una frase di invito. Non è un difetto dell'estrattore.
+6. **Serving**: indici FTS5 a trigrammi, embedding, ricerca ibrida con RRF.
+7. **Valutazione**: set di foto etichettate e metriche (riconoscimento, destinazione per comune, latenza su CPU). Mai iniziata, ed è ciò che distingue un prototipo da un lavoro difendibile.
+8. **Dove conferire**: 363 voci su 584 a Napoli rimandano a isole ecologiche o ecopunti. Prima o poi l'agente deve dire *dove* si trovano.
+9. **Opuscolo PDF di Napoli** (`Asia_Opuscolo_A5_new-1.pdf`): mai consultato, potrebbe contenere regole assenti dal sito.
 
 ---
 
@@ -140,6 +139,7 @@ Ordinate per priorità.
 
 Cose imparate che non sono decisioni, ma che conviene ricordare.
 
+- **L'asterisco di Napoli non rimanda a niente.** Sei voci lo portano nel nome ma nessuna pagina ha una nota corrispondente: è un residuo tipografico della fonte, verificato il 12/09/2026. Registrato nelle decisioni, così non lo si ricerca una seconda volta.
 - **I conflitti sono una diagnosi del Transform, non dei dati.** Su 898 voci, tutti e 6 i conflitti iniziali erano difetti delle regole: separazioni sbagliate, materiale letto come sinonimo, codice escluso dalla chiave. Corretti quelli, restano zero. Le due fonti, dove si sovrappongono, sono internamente coerenti.
 - **Le due fonti hanno difficoltà speculari.** A Torino l'ostacolo è l'estrazione (destinazione codificata in colori e icone), ma i dati sono puliti. A Napoli l'estrazione è facile e i dati sono sporchi. La scelta di due formati complementari ha dato il contrasto giusto.
 - **ASIA pubblica poche esclusioni, e quasi solo come grafica.** Testo solo per il Vetro; dentro l'immagine per l'Umido; per Plastica e Carta non esistono proprio. Torino ne pubblica 27 contro le 11 di Napoli: la stessa informazione, con profondità molto diversa. Una fonte può essere incompleta *per come è pubblicata*, non per come la leggiamo: il controllo che distingue i due casi è ciò che ha permesso di capirlo in un giro solo.
@@ -150,6 +150,14 @@ Cose imparate che non sono decisioni, ma che conviene ricordare.
 ---
 
 ## Cronologia
+
+### v0.8.1 — 12/09/2026
+
+**Chiuso.** Le sei decisioni aperte di Napoli: Stef ha verificato che l'asterisco nel nome non rimanda ad alcuna nota nella pagina. È un residuo tipografico della fonte, non un'informazione perduta. Decisioni portate a `conferma` con la motivazione e la data della verifica.
+
+**Aggiunto.** Due test di igiene sulle decisioni: nessuna può restare `da_decidere`, e ognuna deve avere una motivazione scritta.
+
+**Risultato.** 898 voci, 32 decisioni manuali (3,6%), 0 voci da revisionare, 0 conflitti.
 
 ### v0.8.0 — 12/09/2026
 
