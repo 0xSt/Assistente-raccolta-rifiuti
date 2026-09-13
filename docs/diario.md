@@ -10,6 +10,16 @@ Altri documenti, che restano separati perché sono cataloghi di riferimento e no
 
 ## Come si aggiorna
 
+L'aggiornamento non è affidato alla buona volontà: `tests/test_documentazione.py` fallisce se
+la versione in `pyproject.toml` non ha una voce nella cronologia qui sotto, se un comando o un
+modulo non è documentato nel README, se la numerazione delle decisioni ha buchi o doppioni, se
+una decisione è priva di stato, o se manca un termine essenziale dal glossario. Un test rosso
+si nota; un promemoria no.
+
+Restano a carico di chi scrive le cose che una macchina non può verificare: che la motivazione
+di una decisione sia vera, che una questione aperta sia ancora aperta, che i numeri citati
+corrispondano all'ultima esecuzione.
+
 Va aggiornato **a ogni cambiamento sostanziale**, non a ogni riga di codice. In pratica:
 
 - una **modifica** entra in "Cronologia" quando cambia il comportamento del sistema o i dati prodotti;
@@ -90,6 +100,7 @@ Formato: decisione, motivazione, stato.
 | D32 | Nelle pagine frazione la raccolta dipende dalla polarità: ammessi dai `<strong>`, esclusi dagli `<li>` | Il markup delle due sezioni è diverso; cercare solo i `<strong>` restituiva zero esclusioni in silenzio | Accettata |
 | D45 | Le decisioni manuali stanno in CSV versionati (`data/revisioni/<comune>.csv`) che il Transform applica a ogni esecuzione | Il Transform riscrive il normalizzato da zero: una correzione fatta lì andrebbe persa. Così le decisioni sono riproducibili, tracciabili in git e numerabili nella relazione | Accettata |
 | D46 | Una decisione riferita a uno slug inesistente fa fallire l'esecuzione | Se la fonte cambia, la decisione va rivista, non ignorata in silenzio | Accettata |
+| D48 | La coerenza della documentazione è verificata dai test, non dalla memoria | Un promemoria si dimentica; un test rosso blocca. I test coprono solo ciò che è verificabile meccanicamente: il resto resta responsabilità di chi scrive | Accettata |
 | D47 | Lo slug di Torino deriva dal nome della voce, non dalla posizione nel PDF | Le decisioni restano valide anche se l'estrazione cambia l'ordine delle voci | Accettata |
 | D43 | La corrispondenza scheda/frazione → destinazione è dichiarata esplicitamente, in un punto solo, e verificata contro le destinazioni che compaiono nelle voci | I nomi non coincidono ("Carta e Cartone" nella frazione, "Carta e Cartoncino" nelle voci): una regola agganciata a un contenitore inesistente non verrebbe mai raggiunta dalla ricerca | Accettata |
 | D44 | Le celle e gli elenchi delle regole **non** si spezzano in oggetti singoli | "Piatti, bicchieri e bicchierini da caffè in plastica anche sporchi": separare perderebbe la qualificazione comune, lo stesso errore corretto in D27b. Trigrammi ed embedding lavorano bene sul testo intero | Accettata |
@@ -150,6 +161,12 @@ Cose imparate che non sono decisioni, ma che conviene ricordare.
 ---
 
 ## Cronologia
+
+### v0.9.1 — 12/09/2026
+
+**Aggiunto.** `tests/test_documentazione.py`: sette controlli che impediscono alla documentazione di restare indietro (versione presente nella cronologia e nello stato, comandi e moduli documentati, decisioni numerate senza buchi e con uno stato valido, termini essenziali nel glossario). Il primo giro ha subito trovato quattro moduli mai citati: è nata la mappa dei moduli nel README.
+
+**Pulizia.** Rimossa la costante `NEGAZIONE` in `transform_comune.py`, non più usata dopo il passaggio alla gestione della negazione dentro le condizioni inline. Verificato che non esistono altre funzioni o costanti pubbliche mai richiamate.
 
 ### v0.9.0 — 12/09/2026
 

@@ -4,7 +4,7 @@ Assistente per la raccolta differenziata che gira interamente in locale. L'utent
 
 Progetto universitario. Comuni del prototipo: **Napoli** (ASIA) e **Torino** (AMIAT).
 
-## Stato attuale (v0.9.0)
+## Stato attuale (v0.9.1)
 
 Il quadro completo è in [docs/diario.md](docs/diario.md).
 
@@ -67,6 +67,24 @@ uv add --dev <pacchetto>        # dipendenza solo di sviluppo
 
 I nuovi moduli vanno in `src/ecoscan/`; per renderli eseguibili basta aggiungere una riga in `[project.scripts]` che punti a una funzione `main()`.
 
+## Mappa dei moduli
+
+| Modulo | Cosa fa |
+|---|---|
+| `etl/extract_torino.py` | Legge l'elenco A-Z del Rifiutologo: destinazioni dai marcatori vettoriali |
+| `etl/extract_torino_regole.py` | Legge le schede per frazione (pagine 8-12): ammessi ed esclusi |
+| `etl/extract_napoli.py` | Scarica e legge il dizionario ASIA e le pagine frazione |
+| `etl/napoli_qualita.py` | Pulizia dei testi e rilevamento dei difetti delle voci di Napoli |
+| `etl/trascrizioni.py` | Dati leggibili solo a occhio (testo dentro immagini) e assenze verificate |
+| `etl/ispeziona_napoli.py` | Riepilogo del grezzo di Napoli, senza riscaricare nulla |
+| `etl/transform_comune.py` | Motore del Transform: condizioni, alias, deduplicazione |
+| `etl/transform_napoli.py`, `etl/transform_torino.py` | Regole specifiche di ciascun comune (`Profilo`) |
+| `etl/revisioni.py` | Decisioni manuali, applicate a ogni riesecuzione |
+| `etl/esegui_transform.py` | Comando che mette insieme Transform, profili e revisioni |
+| `etl/normalizza_regole.py` | Collega le regole di categoria alle destinazioni dei comuni |
+| `percorsi.py` | Radice del progetto e cartelle dati |
+| `db/schema.sql`, `db/demo.py` | Schema SQLite e dimostrazione su un campione (precede il Load) |
+
 ## Documentazione
 
 - **[docs/diario.md](docs/diario.md)**: il file da leggere per primo. Stato del progetto, decisioni prese e perché, questioni aperte, annotazioni e cronologia delle modifiche.
@@ -75,3 +93,5 @@ I nuovi moduli vanno in `src/ecoscan/`; per renderli eseguibili basta aggiungere
 - [docs/qualita_dati.md](docs/qualita_dati.md): catalogo dei difetti di ciascuna fonte
 
 Diario e glossario si tengono aggiornati man mano: il diario a ogni modifica sostanziale o decisione, il glossario quando entra in gioco un termine nuovo.
+
+Non è affidato alla memoria: `tests/test_documentazione.py` fallisce se la versione corrente non ha una voce nella cronologia del diario, se un comando o un modulo non è documentato, se la numerazione delle decisioni ha buchi o doppioni, o se manca un termine essenziale dal glossario.

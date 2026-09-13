@@ -119,9 +119,6 @@ CONDIZIONI_LOCUZIONE = [
     (r"privat[ao] di cannula ago e dosatore", "privata di cannula, ago e dosatore"),
 ]
 
-NEGAZIONE = re.compile(r"\bnon\s+$", re.IGNORECASE)
-
-
 def _estrai_condizioni_inline(nome: str, profilo: "Profilo") -> tuple[str, list[str]]:
     """Rimuove dal nome le parole-condizione, gestendo la negazione ('non utilizzabili')."""
     trovate, testo = [], nome
