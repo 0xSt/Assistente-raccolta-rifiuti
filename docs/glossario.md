@@ -198,9 +198,16 @@ può usarla senza interpretarne il testo.
 
 ## Strumenti
 
-**sqlite-vec** — Estensione che aggiunge a SQLite la ricerca per similarità fra vettori.
-Scelta al posto di un vector database separato: con poche migliaia di vettori la ricerca
-esaustiva è già istantanea e non serve un altro container.
+**Qdrant** — Database vettoriale usato nel progetto. Conserva le schede con il loro vettore
+e un payload di metadati, e filtra per comune *durante* la ricerca. Si usa come container o,
+nei test, in modalità in-process senza server.
+
+**Payload** — I metadati associati a un vettore in Qdrant. Qui: comune, livello, tipo e
+testo. Non contiene la destinazione, che sta solo nel relazionale.
+
+**Modalità locale (in-process)** — Implementazione Python di Qdrant dentro il processo che
+la usa, senza server. Comoda per test e prototipi; apre la cartella in esclusiva e non ha
+dashboard.
 
 **uv** — Gestore di ambienti e dipendenze Python usato nel progetto. `uv sync` prepara
 l'ambiente da `uv.lock`, `uv run` esegue un comando dentro quell'ambiente.

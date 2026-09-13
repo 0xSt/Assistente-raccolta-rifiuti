@@ -40,7 +40,7 @@ Va aggiornato **a ogni cambiamento sostanziale**, non a ogni riga di codice. In 
 | Regole nel normalizzato | Fatto: **110 regole** collegate alle destinazioni (Napoli 50 su 4, Torino 60 su 9) |
 | Load relazionale | Fatto: `ecoscan-carica` ricostruisce `data/ecoscan.db` dai file normalizzati |
 | Serving — indice lessicale | Fatto: 1072 schede sui due comuni |
-| Serving — vettori e ricerca ibrida | Fatto: EmbeddingGemma su Ollama, fusione RRF |
+| Serving — vettori e ricerca ibrida | Fatto: **Qdrant** (denso), EmbeddingGemma su Ollama, fusione RRF con FTS5 |
 | Regole di categoria — Napoli | Completo per quanto la fonte pubblica: 38 ammessi, 11 esclusi (5 Vetro estratti + 6 Umido trascritti a mano), 2 assenze verificate |
 | Regole di categoria — Torino | Estratte: 10 schede, 30 ammessi, 27 esclusi |
 | Revisione manuale | **Completa**: 32 decisioni prese (16 per comune), 0 aperte, 0 voci da revisionare |
@@ -80,7 +80,7 @@ Formato: decisione, motivazione, stato.
 | # | Decisione | Motivazione | Stato |
 |---|---|---|---|
 | D11 | Nessun catalogo canonico degli oggetti per ora (`oggetto_canonico_id` facoltativo) | Evitare l'entity resolution nel prototipo senza chiudere la porta | Accettata |
-| D12 | Un solo file SQLite: FTS5 + vettori con **sqlite-vec**, nessun vector database separato | ~3000 vettori a 256 dimensioni sono 3 MB: la ricerca esaustiva è sotto il millisecondo. Un indice approssimato serve a milioni di vettori, non a migliaia, e un container in più competerebbe per la RAM con il modello | Accettata |
+| D12 | Un solo file SQLite: FTS5 + vettori con sqlite-vec | Superata da D59: il criterio era la sola efficienza, ma per un progetto universitario conta anche che l'architettura sia leggibile e la tecnologia appropriata | Superata da D59 |
 | D34 | **Il corpus resta testuale: solo la query è multimodale.** Nessuna indicizzazione di immagini | Gemma 4 è generativo e non produce vettori confrontabili; servirebbe un modello CLIP in più. Le immagini delle fonti sono stilizzate e rappresentano categorie, e l'informazione che decide la risposta è testuale e locale, non visiva | Accettata |
 | D35 | Nessuna descrizione visiva generata da Gemma per ora | Rimandata da Stef: costa una notte di calcolo e va valutata, non data per buona. Resta come possibile sviluppo | Rimandata |
 | D36 | Load a ricostruzione totale, in tre passaggi separati (relazionale, lessicale, vettoriale) | La verità sta nei file normalizzati, il database è un artefatto derivato: più semplice di una logica di aggiornamento e idempotente | Accettata |
@@ -102,7 +102,10 @@ Formato: decisione, motivazione, stato.
 | D32 | Nelle pagine frazione la raccolta dipende dalla polarità: ammessi dai `<strong>`, esclusi dagli `<li>` | Il markup delle due sezioni è diverso; cercare solo i `<strong>` restituiva zero esclusioni in silenzio | Accettata |
 | D45 | Le decisioni manuali stanno in CSV versionati (`data/revisioni/<comune>.csv`) che il Transform applica a ogni esecuzione | Il Transform riscrive il normalizzato da zero: una correzione fatta lì andrebbe persa. Così le decisioni sono riproducibili, tracciabili in git e numerabili nella relazione | Accettata |
 | D46 | Una decisione riferita a uno slug inesistente fa fallire l'esecuzione | Se la fonte cambia, la decisione va rivista, non ignorata in silenzio | Accettata |
-| D55 | Vettori conservati come BLOB float32 normalizzati in SQLite, ricerca esaustiva in NumPy: **niente sqlite-vec** | ~1100 schede a 768 dimensioni sono ~3 MB e la ricerca costa meno di un millisecondo. L'estensione aggiungerebbe una dipendenza senza guadagno. Precisa D12, che la dava per scontata | Accettata |
+| D55 | Vettori in SQLite come BLOB, ricerca esaustiva in NumPy | Superata da D59: la scelta era corretta sul piano prestazionale ma non su quello architetturale | Superata da D59 |
+| D59 | **Qdrant** come database vettoriale, SQLite per il relazionale: due store con ruoli distinti | Qdrant trova i candidati, SQLite dà la risposta. Il filtro per comune diventa una condizione applicata *dentro* la query e non un passaggio successivo, quindi il vincolo D7 è strutturale. Si incastra con l'architettura multi-container (D1) e la dashboard serve anche per la relazione. Con ~1100 vettori le prestazioni non discriminavano: la scelta è di architettura, non di velocità | Accettata |
+| D60 | Client configurabile con `ECOSCAN_QDRANT`: URL → server, percorso → modalità in-process | I test girano senza container e senza rete, lo sviluppo non richiede Docker acceso, la consegna usa il server. Una riga di configurazione, tre modi di lavorare | Accettata |
+| D61 | Nel payload di Qdrant solo ciò che serve a cercare e filtrare; destinazioni, condizioni e provenienza restano in SQLite | Duplicare la regola nel payload significherebbe avere due verità. La risposta viene sempre dal relazionale (D9) | Accettata |
 | D56 | Il vettorizzatore è dietro un'interfaccia (`Vettorizzatore`) | Permette i test senza rete e il cambio di modello senza toccare la ricerca | Accettata |
 | D57 | Un vettore si ricalcola solo se il testo della scheda è cambiato (impronta SHA-256) | Il calcolo è la parte lenta della pipeline: rieseguire dopo una modifica parziale deve costare poco | Accettata |
 | D58 | Prompt distinti per documento e interrogazione, come previsto da EmbeddingGemma | Il modello è addestrato con quei prefissi: usarli migliora il recupero e non costa nulla | Accettata |
@@ -149,12 +152,13 @@ Ordinate per priorità.
    - *Napoli*: 5 esclusioni per il Vetro estratte, 6 per l'Umido trascritte a mano dall'immagine, Plastica e Carta verificate come prive di esclusioni.
    - *Torino*: **fatto in v0.6.0**. 10 schede, 30 ammessi, 27 esclusi. Da fare: portare queste regole nel livello normalizzato e collegarle alle destinazioni.
 2. ~~Esclusioni mancanti per Umido, Plastica e Carta (Napoli)~~ **Chiuso**: Stef ha letto le tre immagini. Solo l'Umido ha una sezione di esclusioni (6 voci + un avviso generale), trascritte in `data/sorgenti/manuale/napoli_esclusioni.csv`. Plastica e Carta non pubblicano esclusioni: registrate come assenze verificate.
-3. **Valutazione**: set di foto etichettate e misura del retrieval (lessicale, semantico, ibrido). È il passo che rende dicibile qualcosa di quantitativo.
-4. ~~Pagine "Non riciclabile" e "Altre raccolte" di Napoli~~ **Chiuso**: sono davvero prive di elenchi, hanno solo una frase di invito. Non è un difetto dell'estrattore.
-5. **Serving**: indici FTS5 a trigrammi, embedding, ricerca ibrida con RRF.
-6. **Valutazione**: set di foto etichettate e metriche (riconoscimento, destinazione per comune, latenza su CPU). Mai iniziata, ed è ciò che distingue un prototipo da un lavoro difendibile.
-7. **Dove conferire**: 363 voci su 584 a Napoli rimandano a isole ecologiche o ecopunti. Prima o poi l'agente deve dire *dove* si trovano.
-8. **Opuscolo PDF di Napoli** (`Asia_Opuscolo_A5_new-1.pdf`): mai consultato, potrebbe contenere regole assenti dal sito.
+3. **BM25 sparso in Qdrant** (FastEmbed, stemmer italiano): sostituirebbe il trucco della radice con uno stemming vero e permetterebbe la fusione RRF interamente lato Qdrant. FTS5 resta come termine di paragone nella valutazione.
+4. **Valutazione**: set di foto etichettate e misura del retrieval (lessicale, semantico, ibrido). È il passo che rende dicibile qualcosa di quantitativo.
+5. ~~Pagine "Non riciclabile" e "Altre raccolte" di Napoli~~ **Chiuso**: sono davvero prive di elenchi, hanno solo una frase di invito. Non è un difetto dell'estrattore.
+6. **Serving**: indici FTS5 a trigrammi, embedding, ricerca ibrida con RRF.
+7. **Valutazione**: set di foto etichettate e metriche (riconoscimento, destinazione per comune, latenza su CPU). Mai iniziata, ed è ciò che distingue un prototipo da un lavoro difendibile.
+8. **Dove conferire**: 363 voci su 584 a Napoli rimandano a isole ecologiche o ecopunti. Prima o poi l'agente deve dire *dove* si trovano.
+9. **Opuscolo PDF di Napoli** (`Asia_Opuscolo_A5_new-1.pdf`): mai consultato, potrebbe contenere regole assenti dal sito.
 
 ---
 
@@ -175,6 +179,14 @@ Cose imparate che non sono decisioni, ma che conviene ricordare.
 ---
 
 ## Cronologia
+
+### v0.13.0 — 12/09/2026
+
+**Modificato.** Vettori migrati da SQLite a **Qdrant**. `db/vettorizza.py` riscritto: collezione `schede`, vettore denso da EmbeddingGemma, payload con comune, livello, tipo e testo, filtro per comune applicato dentro la query. Il client si configura con `ECOSCAN_QDRANT`: un URL punta al server, un percorso attiva la modalità in-process usata dai test. Aggiunto `docker-compose.yml` con il servizio Qdrant e il relativo healthcheck. 10 test, nessuna dipendenza da Docker o dalla rete.
+
+**Perché.** La scelta precedente (BLOB in SQLite più ricerca esaustiva in NumPy) era difendibile sul piano prestazionale ma non su quello architetturale, e per un progetto universitario conta che la tecnologia sia appropriata al problema. Il guadagno concreto è il filtro per comune dentro la ricerca: il vincolo D7 smette di dipendere dalla disciplina di chi scrive la query.
+
+**Verificato prima di decidere.** La modalità locale di `qdrant-client` regge filtro sul payload, vettori sparsi e fusione RRF nativa, quindi i test restano veloci e senza infrastruttura. Limiti: è una reimplementazione Python, apre la cartella in esclusiva e non ha dashboard.
 
 ### v0.12.0 — 12/09/2026
 

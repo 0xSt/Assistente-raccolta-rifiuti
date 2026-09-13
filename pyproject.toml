@@ -1,6 +1,6 @@
 [project]
 name = "ecoscan-local"
-version = "0.12.0"
+version = "0.13.0"
 description = "Assistente locale per la raccolta differenziata: ETL da fonti comunali, schema dati e retrieval ibrido"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -9,7 +9,7 @@ dependencies = [
     "requests>=2.31",
     "beautifulsoup4>=4.12",
     "lxml>=5.0",
-    "numpy>=1.26",
+    "qdrant-client>=1.12",
 ]
 
 [project.scripts]
@@ -24,7 +24,7 @@ ecoscan-indicizza = "ecoscan.db.indicizza:main"
 ecoscan-carica = "ecoscan.db.carica:main"
 
 [dependency-groups]
-dev = ["pytest>=8.0"]
+dev = ["pytest>=8.0", "numpy>=1.26"]
 
 [build-system]
 requires = ["hatchling"]
