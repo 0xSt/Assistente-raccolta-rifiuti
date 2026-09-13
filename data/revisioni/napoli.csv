@@ -1,0 +1,17 @@
+slug,azione,valore,nota
+cassetta-audio-e-video,non_separare,,"audio e video è un attributo della cassetta, non due oggetti"
+fiore-secco-e-reciso,non_separare,,"secco e reciso sono due aggettivi dello stesso fiore"
+biro-e-pena-a-sfera,alias,Penna a sfera,"separazione corretta; refuso della fonte: pena -> penna"
+cd-e-cd-rom,conferma,,due supporti distinti
+colla-e-collante,conferma,,due prodotti distinti
+cuffia-e-cuffiette,conferma,,due oggetti distinti
+giornale-e-rivista,conferma,,due oggetti distinti
+scarpa-e-scarpone-usati,conferma,,due oggetti distinti
+sapone-in-pezzi-e-saponette,conferma,,due formati distinti
+apparecchi-per-misurare-la-pressione-termometri-digitali-apparecchi-per-aerosol,conferma,,tre apparecchi distinti
+insetticida-barattoli-pieni-o-con-tracce,da_decidere,,"asterisco: trovare sul sito il testo della nota (rifiuto pericoloso)"
+trielina-contenitore-pieno-o-con-tracce,da_decidere,,asterisco: idem
+smalto-etichettato-t-e-o-f-contenitore-pieno-o-con-tracce,da_decidere,,asterisco: idem
+solventie-etichettatio-t-e-o-f-contenitore-pieno-o-con-tracce,da_decidere,,"asterisco: idem; la fonte ha anche due refusi (Solventie, Etichettatio)"
+sostanza-chimica-etichettata-t-e-o-f-contenitore-pieno-o-con-tracce,da_decidere,,asterisco: idem
+spray-etichettato-t-e-o-f-contenitore-pieno-o-con-tracce,da_decidere,,asterisco: idem

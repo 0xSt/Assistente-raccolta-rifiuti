@@ -14,7 +14,11 @@ from dataclasses import asdict
 from pathlib import Path
 
 import csv
+from collections import Counter
 
+from ecoscan.etl.napoli_qualita import slugify_wp
+
+from ecoscan.etl import revisioni as rev
 from ecoscan.etl.ispeziona_napoli import carica
 from ecoscan.etl.transform_comune import deduplica, trasforma_voce
 from ecoscan.etl.transform_napoli import PROFILO_NAPOLI
@@ -25,17 +29,34 @@ PROFILI = {"napoli": PROFILO_NAPOLI, "torino": PROFILO_TORINO}
 
 
 def carica_torino(percorso: Path) -> list[dict]:
-    """Il grezzo di Torino è un CSV: lo porta alla stessa forma del JSONL di Napoli."""
+    """Il grezzo di Torino è un CSV: lo porta alla stessa forma del JSONL di Napoli.
+
+    Lo slug è derivato dal nome, non dalla posizione: le decisioni di revisione restano
+    valide anche se l'estrazione cambia l'ordine delle voci.
+    """
     if not percorso.is_file():
         raise SystemExit(f"File non trovato: {percorso}\nLancia prima: uv run ecoscan-torino")
+    voci, visti = [], Counter()
     with open(percorso, encoding="utf-8") as fh:
-        return [{"slug": f"pagina-{r['pagina']}-{i}", "nome_originale": r["voce_originale"],
-                 "destinazioni": r["destinazioni_alternative"].split("|"), "avvertenza": None}
-                for i, r in enumerate(csv.DictReader(fh))]
+        for r in csv.DictReader(fh):
+            base = slugify_wp(r["voce_originale"])
+            visti[base] += 1
+            slug = base if visti[base] == 1 else f"{base}-{visti[base]}"
+            voci.append({"slug": slug, "nome_originale": r["voce_originale"],
+                         "destinazioni": r["destinazioni_alternative"].split("|"),
+                         "avvertenza": None, "pagina": r["pagina"]})
+    return voci
 
 
-def esegui(voci_grezze: list[dict], profilo):
-    trasformate = [v for v in (trasforma_voce(r, profilo) for r in voci_grezze) if v is not None]
+def esegui(voci_grezze: list[dict], profilo, decisioni: dict[str, list[dict]] | None = None):
+    decisioni = decisioni or {}
+    rev.verifica_slug(decisioni, {r["slug"] for r in voci_grezze}, profilo.comune)
+    trasformate = []
+    for record in voci_grezze:
+        prese = decisioni.get(record["slug"], [])
+        voce = trasforma_voce(record, profilo, separa=not rev.vietata_separazione(prese))
+        if voce is not None and (voce := rev.applica(voce, prese)) is not None:
+            trasformate.append(voce)
     scartate = len(voci_grezze) - len(trasformate)
     unite, conflitti = deduplica(trasformate)
     return unite, conflitti, scartate
@@ -60,8 +81,10 @@ def rapporto(grezze: list[dict], unite, conflitti, scartate: int, verbose: bool 
         for v in gruppo:
             print(f"      {v.slug}: {' + '.join(v.destinazioni)}")
 
+    risolte = sum(1 for v in unite if any(m.startswith("risolto a mano") for m in v.motivi))
     da_rev = [v for v in unite if v.da_revisionare]
-    print(f"\n## Da revisionare: {len(da_rev)}")
+    print(f"\n## Risolte da revisioni manuali: {risolte}")
+    print(f"## Da revisionare: {len(da_rev)}")
     for motivo, n in Counter(m for v in da_rev for m in v.motivi).most_common():
         print(f"  {n:4d}  {motivo}")
     if verbose:
@@ -86,7 +109,8 @@ def main() -> None:
         else:
             sorgente = args.file or GREZZO / "torino" / "torino_voci_raw.csv"
             grezze = carica_torino(sorgente)
-        unite, conflitti, scartate = esegui(grezze, PROFILI[comune])
+        decisioni = rev.carica(comune)
+        unite, conflitti, scartate = esegui(grezze, PROFILI[comune], decisioni)
         out = args.out or DATI / "normalizzato" / f"{comune}_voci.jsonl"
         out.parent.mkdir(parents=True, exist_ok=True)
         with open(out, "w", encoding="utf-8") as fh:

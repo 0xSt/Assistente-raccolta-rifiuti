@@ -31,7 +31,7 @@ Va aggiornato **a ogni cambiamento sostanziale**, non a ogni riga di codice. In 
 | Schema dati (SQLite) | Definito e verificato con Torino completo e un campione di Napoli |
 | Regole di categoria — Napoli | Completo per quanto la fonte pubblica: 38 ammessi, 11 esclusi (5 Vetro estratti + 6 Umido trascritti a mano), 2 assenze verificate |
 | Regole di categoria — Torino | Estratte: 10 schede, 30 ammessi, 27 esclusi |
-| Revisione manuale | **Da fare**: 31 voci segnalate |
+| Revisione manuale | Meccanismo pronto. Torino: 16 decisioni prese, 0 aperte. Napoli: 10 prese, 6 aperte (asterischi) |
 | Serving (FTS5, embedding, ricerca ibrida) | Da fare |
 | Backend, frontend, modello | Da fare |
 
@@ -88,6 +88,9 @@ Formato: decisione, motivazione, stato.
 | D22 | Le descrizioni delle destinazioni non si estraggono dalle pagine voce | Sono identiche su tutte le voci che usano quella destinazione: proprietà della destinazione | Accettata |
 | D23 | Il campo avvertenza ha priorità sul testo ricavato dallo slug | L'avvertenza conserva accenti e apostrofi, lo slug li perde ("l'ago" → "lago") | Accettata |
 | D32 | Nelle pagine frazione la raccolta dipende dalla polarità: ammessi dai `<strong>`, esclusi dagli `<li>` | Il markup delle due sezioni è diverso; cercare solo i `<strong>` restituiva zero esclusioni in silenzio | Accettata |
+| D45 | Le decisioni manuali stanno in CSV versionati (`data/revisioni/<comune>.csv`) che il Transform applica a ogni esecuzione | Il Transform riscrive il normalizzato da zero: una correzione fatta lì andrebbe persa. Così le decisioni sono riproducibili, tracciabili in git e numerabili nella relazione | Accettata |
+| D46 | Una decisione riferita a uno slug inesistente fa fallire l'esecuzione | Se la fonte cambia, la decisione va rivista, non ignorata in silenzio | Accettata |
+| D47 | Lo slug di Torino deriva dal nome della voce, non dalla posizione nel PDF | Le decisioni restano valide anche se l'estrazione cambia l'ordine delle voci | Accettata |
 | D43 | La corrispondenza scheda/frazione → destinazione è dichiarata esplicitamente, in un punto solo, e verificata contro le destinazioni che compaiono nelle voci | I nomi non coincidono ("Carta e Cartone" nella frazione, "Carta e Cartoncino" nelle voci): una regola agganciata a un contenitore inesistente non verrebbe mai raggiunta dalla ricerca | Accettata |
 | D44 | Le celle e gli elenchi delle regole **non** si spezzano in oggetti singoli | "Piatti, bicchieri e bicchierini da caffè in plastica anche sporchi": separare perderebbe la qualificazione comune, lo stesso errore corretto in D27b. Trigrammi ed embedding lavorano bene sul testo intero | Accettata |
 | D41 | I dati presenti nella fonte ma non estraibili si trascrivono a mano in un CSV versionato, con `origine: trascrizione_manuale` | Affidabile ma non riproducibile da uno script: va distinto da ciò che l'estrattore ricava da solo, e se domani la fonte lo pubblica come testo si sa quali righe sostituire | Accettata |
@@ -121,16 +124,15 @@ Ordinate per priorità.
 1. **Regole di categoria.**
    - *Napoli*: **chiuso**. 5 esclusioni per il Vetro estratte, 6 per l'Umido trascritte a mano dall'immagine, Plastica e Carta verificate come prive di esclusioni.
    - *Torino*: **fatto in v0.6.0**. 10 schede, 30 ammessi, 27 esclusi. Da fare: portare queste regole nel livello normalizzato e collegarle alle destinazioni.
-2. **Revisione manuale di 31 voci** (15 Napoli, 16 Torino). Serve prima un meccanismo: le decisioni vanno in file CSV versionati (`data/revisioni/<comune>.csv`) che il Transform applica in coda, altrimenti si perdono a ogni riesecuzione.
+2. **Sei decisioni aperte a Napoli**, tutte marcate `da_decidere`: le voci con l'asterisco (insetticida, trielina, smalto, solventi, spray, sostanze chimiche etichettate T e/o F). Sono rifiuti pericolosi: serve trovare sul sito il testo della nota a cui l'asterisco rimanda e inserirlo come avvertenza.
 3. ~~Esclusioni mancanti per Umido, Plastica e Carta (Napoli)~~ **Chiuso**: Stef ha letto le tre immagini. Solo l'Umido ha una sezione di esclusioni (6 voci + un avviso generale), trascritte in `data/sorgenti/manuale/napoli_esclusioni.csv`. Plastica e Carta non pubblicano esclusioni: registrate come assenze verificate.
-4. **Asterischi.** 6 voci a Napoli (insetticida, trielina, smalto, solventi, spray, sostanze chimiche etichettate T e/o F: sono rifiuti pericolosi) e 1 a Torino rimandano a note non estratte. Per Torino la nota è nel PDF a pagina 21; per Napoli va cercata sul sito.
-5. **Caricamento del normalizzato nello schema SQLite.** Finora provato solo con un campione. Ora ci sono anche le regole: `data/normalizzato/regole.jsonl`.
-6. **Rieseguire `ecoscan-napoli` e `ecoscan-regole`** per avere anche le regole di Napoli nel normalizzato, con la verifica delle destinazioni attiva (richiede le voci normalizzate di entrambi i comuni).
-7. ~~Pagine "Non riciclabile" e "Altre raccolte" di Napoli~~ **Chiuso**: sono davvero prive di elenchi, hanno solo una frase di invito. Non è un difetto dell'estrattore.
-8. **Serving**: indici FTS5 a trigrammi, embedding, ricerca ibrida con RRF.
-9. **Valutazione**: set di foto etichettate e metriche (riconoscimento, destinazione per comune, latenza su CPU). Mai iniziata, ed è ciò che distingue un prototipo da un lavoro difendibile.
-10. **Dove conferire**: 363 voci su 584 a Napoli rimandano a isole ecologiche o ecopunti. Prima o poi l'agente deve dire *dove* si trovano.
-11. **Opuscolo PDF di Napoli** (`Asia_Opuscolo_A5_new-1.pdf`): mai consultato, potrebbe contenere regole assenti dal sito.
+4. **Caricamento del normalizzato nello schema SQLite.** Finora provato solo con un campione. Ora ci sono anche le regole: `data/normalizzato/regole.jsonl`.
+5. **Rieseguire `ecoscan-napoli` e `ecoscan-regole`** per avere anche le regole di Napoli nel normalizzato, con la verifica delle destinazioni attiva (richiede le voci normalizzate di entrambi i comuni).
+6. ~~Pagine "Non riciclabile" e "Altre raccolte" di Napoli~~ **Chiuso**: sono davvero prive di elenchi, hanno solo una frase di invito. Non è un difetto dell'estrattore.
+7. **Serving**: indici FTS5 a trigrammi, embedding, ricerca ibrida con RRF.
+8. **Valutazione**: set di foto etichettate e metriche (riconoscimento, destinazione per comune, latenza su CPU). Mai iniziata, ed è ciò che distingue un prototipo da un lavoro difendibile.
+9. **Dove conferire**: 363 voci su 584 a Napoli rimandano a isole ecologiche o ecopunti. Prima o poi l'agente deve dire *dove* si trovano.
+10. **Opuscolo PDF di Napoli** (`Asia_Opuscolo_A5_new-1.pdf`): mai consultato, potrebbe contenere regole assenti dal sito.
 
 ---
 
@@ -148,6 +150,14 @@ Cose imparate che non sono decisioni, ma che conviene ricordare.
 ---
 
 ## Cronologia
+
+### v0.8.0 — 12/09/2026
+
+**Aggiunto.** Meccanismo di revisione manuale (`revisioni.py`) e file `data/revisioni/napoli.csv` e `torino.csv`. Il Transform legge le decisioni e le applica: `non_separare` disattiva la separazione già in fase di trasformazione, le altre azioni agiscono sulla voce prodotta. Una decisione su uno slug inesistente ferma l'esecuzione. 10 test.
+
+**Deciso.** Torino: 16 decisioni, di cui 3 separazioni annullate ("Foglie e fiori secchi", "Termometri digitali e a mercurio", "Polistirolo per alimenti e piccoli imballaggi") e la nota a piè di pagina degli oli vegetali agganciata come avvertenza. Nessuna voce resta da revisionare. Napoli: 10 decisioni prese, 6 lasciate aperte come `da_decidere` (le voci con asterisco).
+
+**Modificato.** Lo slug di Torino ora deriva dal nome della voce invece che dalla posizione nel PDF.
 
 ### v0.7.0 — 12/09/2026
 

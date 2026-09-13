@@ -258,7 +258,8 @@ class VoceNormalizzata:
                          *sorted(self.condizioni)])
 
 
-def trasforma_voce(record: dict, profilo: "Profilo | None" = None) -> VoceNormalizzata | None:
+def trasforma_voce(record: dict, profilo: "Profilo | None" = None,
+                   separa: bool = True) -> VoceNormalizzata | None:
     profilo = profilo or Profilo(comune="?")
     nome = normalizza_spazi(record["nome_originale"])
     if senza_accenti(nome).lower() in profilo.nomi_da_scartare:
@@ -295,7 +296,7 @@ def trasforma_voce(record: dict, profilo: "Profilo | None" = None) -> VoceNormal
     nome, inline = _estrai_condizioni_inline(nome, profilo)
     condizioni.extend(inline)
 
-    if (componenti := separa_voce_composta(nome, profilo)):
+    if separa and (componenti := separa_voce_composta(nome, profilo)):
         alias.extend(componenti[1:])
         nome = componenti[0]
         motivi.append("voce composta separata: verificare gli alias")

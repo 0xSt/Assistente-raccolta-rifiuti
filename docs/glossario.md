@@ -99,6 +99,10 @@ far scattare avvisi dove non c'è nulla da fare.
 **Polarità** — Se una regola di categoria dice cosa va nel contenitore (`ammesso`),
 cosa non ci va (`escluso`) o aggiunge un'istruzione (`nota`).
 
+**Revisione manuale** — Decisione presa da una persona sulle voci che il Transform non sa
+risolvere da solo. Sta in un CSV versionato e viene riapplicata a ogni esecuzione, così non
+va persa quando le regole cambiano.
+
 **Corrispondenza (mapping)** — Tabella che collega i nomi usati da una fonte a quelli del
 modello normalizzato. Qui collega il nome della scheda alla destinazione: "Carta e Cartone"
 nella pagina frazione è "Carta e Cartoncino" nelle voci.

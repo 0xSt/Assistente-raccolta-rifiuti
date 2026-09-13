@@ -4,7 +4,7 @@ Assistente per la raccolta differenziata che gira interamente in locale. L'utent
 
 Progetto universitario. Comuni del prototipo: **Napoli** (ASIA) e **Torino** (AMIAT).
 
-## Stato attuale (v0.7.0)
+## Stato attuale (v0.8.0)
 
 Il quadro completo è in [docs/diario.md](docs/diario.md).
 
@@ -27,6 +27,7 @@ src/ecoscan/
   etl/               estrattori (grezzo), motore del Transform e profili per comune
   db/                schema.sql e script dimostrativo dello schema
 tests/               test di regressione e unitari
+data/revisioni/      decisioni manuali sulle voci incerte (versionate)
 data/grezzo/         output degli estrattori (versionati)
 data/sorgenti/       documenti ufficiali scaricati (NON versionati, vedi docs/fonti.md)
 data/cache/          cache HTML dell'estrattore Napoli (NON versionata)
