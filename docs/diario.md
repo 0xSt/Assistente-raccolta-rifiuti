@@ -105,6 +105,9 @@ Formato: decisione, motivazione, stato.
 | D55 | Vettori in SQLite come BLOB, ricerca esaustiva in NumPy | Superata da D59: la scelta era corretta sul piano prestazionale ma non su quello architetturale | Superata da D59 |
 | D59 | **Qdrant** come database vettoriale, SQLite per il relazionale: due store con ruoli distinti | Qdrant trova i candidati, SQLite dà la risposta. Il filtro per comune diventa una condizione applicata *dentro* la query e non un passaggio successivo, quindi il vincolo D7 è strutturale. Si incastra con l'architettura multi-container (D1) e la dashboard serve anche per la relazione. Con ~1100 vettori le prestazioni non discriminavano: la scelta è di architettura, non di velocità | Accettata |
 | D60 | Client configurabile con `ECOSCAN_QDRANT`: URL → server, percorso → modalità in-process | I test girano senza container e senza rete, lo sviluppo non richiede Docker acceso, la consegna usa il server. Una riga di configurazione, tre modi di lavorare | Accettata |
+| D62 | Le impostazioni stanno in un file `.env` alla radice, con `.env.example` versionato come modello | Le variabili impostate a mano nel terminale valgono per una finestra sola e si dimenticano: un valore mancante fa scrivere i vettori nel posto sbagliato senza errori. Un file rende la configurazione esplicita e riproducibile | Accettata |
+| D63 | Le variabili d'ambiente vere hanno la precedenza sul `.env` | È ciò che permette a un container di sovrascrivere un valore senza modificare il file su disco | Accettata |
+| D64 | I comandi stampano in testa le impostazioni in uso | Il modo più rapido per accorgersi che una variabile non era quella che si credeva | Accettata |
 | D61 | Nel payload di Qdrant solo ciò che serve a cercare e filtrare; destinazioni, condizioni e provenienza restano in SQLite | Duplicare la regola nel payload significherebbe avere due verità. La risposta viene sempre dal relazionale (D9) | Accettata |
 | D56 | Il vettorizzatore è dietro un'interfaccia (`Vettorizzatore`) | Permette i test senza rete e il cambio di modello senza toccare la ricerca | Accettata |
 | D57 | Un vettore si ricalcola solo se il testo della scheda è cambiato (impronta SHA-256) | Il calcolo è la parte lenta della pipeline: rieseguire dopo una modifica parziale deve costare poco | Accettata |
@@ -179,6 +182,12 @@ Cose imparate che non sono decisioni, ma che conviene ricordare.
 ---
 
 ## Cronologia
+
+### v0.13.1 — 12/09/2026
+
+**Aggiunto.** Configurazione centralizzata: `src/ecoscan/configurazione.py` legge le impostazioni dal file `.env` alla radice (modello versionato in `.env.example`, caricato da `percorsi.py` prima di ogni altro modulo). Le variabili d'ambiente vere restano prioritarie. I comandi stampano le impostazioni in uso, compresa la modalità di Qdrant. 7 test, fra cui uno che verifica che ogni variabile letta dal codice sia documentata nel modello.
+
+**Perché.** Impostare `ECOSCAN_QDRANT` a mano vale per una finestra sola: dimenticarlo avrebbe indicizzato i vettori nella cartella locale invece che nel container, senza nessun errore visibile.
 
 ### v0.13.0 — 12/09/2026
 

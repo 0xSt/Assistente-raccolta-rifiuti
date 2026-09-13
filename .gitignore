@@ -14,3 +14,6 @@ __pycache__/
 # Database e indici: si rigenerano con ecoscan-carica, ecoscan-indicizza e ecoscan-vettorizza
 *.db
 data/qdrant/
+
+# Impostazioni locali: il modello versionato è .env.example
+.env

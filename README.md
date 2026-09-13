@@ -4,7 +4,7 @@ Assistente per la raccolta differenziata che gira interamente in locale. L'utent
 
 Progetto universitario. Comuni del prototipo: **Napoli** (ASIA) e **Torino** (AMIAT).
 
-## Stato attuale (v0.13.0)
+## Stato attuale (v0.13.1)
 
 Il quadro completo è in [docs/diario.md](docs/diario.md).
 
@@ -27,6 +27,7 @@ Il quadro completo è in [docs/diario.md](docs/diario.md).
 ```
 pyproject.toml       dipendenze, comandi e configurazione di pytest
 docker-compose.yml   servizi di supporto (Qdrant)
+.env.example         modello delle impostazioni; copialo in .env
 uv.lock              versioni bloccate (da versionare)
 src/ecoscan/
   percorsi.py        radice del progetto e cartelle dati
@@ -62,7 +63,6 @@ uv run ecoscan-indicizza --cerca "bicchiere di vetro" --comune Torino   # prova 
 
 ollama pull embeddinggemma      # una volta sola, serve per i vettori
 docker compose up -d qdrant     # database vettoriale (dashboard: localhost:6333/dashboard)
-export ECOSCAN_QDRANT=http://localhost:6333     # senza questa variabile si usa data/qdrant
 uv run ecoscan-vettorizza       # indicizza le schede su Qdrant
 uv run ecoscan-vettorizza --cerca "contenitore del latte" --comune Napoli  # ricerca ibrida
 
@@ -87,6 +87,23 @@ uv add --dev <pacchetto>        # dipendenza solo di sviluppo
 
 I nuovi moduli vanno in `src/ecoscan/`; per renderli eseguibili basta aggiungere una riga in `[project.scripts]` che punti a una funzione `main()`.
 
+## Configurazione
+
+Le impostazioni stanno nel file `.env` alla radice del progetto. Non è versionato: si crea
+dal modello all'inizio, una volta sola.
+
+```
+copy .env.example .env       (prompt dei comandi)
+cp .env.example .env         (bash)
+```
+
+Dentro trovi dove sta Qdrant, l'endpoint di Ollama, il modello di embedding e la dimensione
+dei lotti. Le variabili d'ambiente vere, se impostate, hanno la precedenza sul file: serve a
+Docker per sovrascrivere un valore senza modificare nulla su disco.
+
+Ogni comando che le usa stampa in testa le impostazioni in uso, così si vede subito se
+Qdrant sta in modalità `server` o `in-process`.
+
 ## Mappa dei moduli
 
 | Modulo | Cosa fa |
@@ -102,7 +119,8 @@ I nuovi moduli vanno in `src/ecoscan/`; per renderli eseguibili basta aggiungere
 | `etl/revisioni.py` | Decisioni manuali, applicate a ogni riesecuzione |
 | `etl/esegui_transform.py` | Comando che mette insieme Transform, profili e revisioni |
 | `etl/normalizza_regole.py` | Collega le regole di categoria alle destinazioni dei comuni |
-| `percorsi.py` | Radice del progetto e cartelle dati |
+| `percorsi.py` | Radice del progetto, cartelle dati, caricamento del `.env` |
+| `configurazione.py` | Impostazioni lette dal `.env`, con i valori predefiniti |
 | `db/schema.sql` | Schema del livello relazionale |
 | `db/carica.py` | Load: ricostruisce il database dai file normalizzati |
 | `db/indicizza.py` | Schede ricercabili, indice FTS5 a trigrammi e ricerca lessicale |

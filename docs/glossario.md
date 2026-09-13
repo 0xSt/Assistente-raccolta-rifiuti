@@ -198,6 +198,10 @@ può usarla senza interpretarne il testo.
 
 ## Strumenti
 
+**File `.env`** — File di testo alla radice del progetto con le impostazioni locali
+(`chiave=valore`). Non è versionato: `.env.example` ne è il modello. Evita di dover
+impostare variabili a mano nel terminale, dove valgono per una sola finestra.
+
 **Qdrant** — Database vettoriale usato nel progetto. Conserva le schede con il loro vettore
 e un payload di metadati, e filtra per comune *durante* la ricerca. Si usa come container o,
 nei test, in modalità in-process senza server.

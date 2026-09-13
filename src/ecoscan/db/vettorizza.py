@@ -8,7 +8,8 @@ regola finale, condizioni, avvertenze e provenienza restano nel relazionale (D9)
 il vincolo è strutturale: è una condizione sul payload applicata durante la ricerca, non un
 filtro a posteriori che si può dimenticare.
 
-**Client configurabile.** `ECOSCAN_QDRANT` decide dove si punta:
+**Client configurabile.** Le impostazioni stanno nel file `.env` (modello: `.env.example`).
+`ECOSCAN_QDRANT` decide dove si punta:
   - un URL (``http://localhost:6333``) usa il server, cioè il motore vero in Rust;
   - un percorso usa la modalità in-process, che non richiede né rete né container.
 La modalità locale è una reimplementazione Python pensata per prototipi e test: regge
@@ -24,7 +25,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import sqlite3
 import time
 import urllib.error
@@ -34,14 +34,12 @@ from typing import Iterable, Protocol, Sequence
 
 from qdrant_client import QdrantClient, models
 
+from ecoscan import configurazione as conf
 from ecoscan.db.indicizza import cerca as cerca_lessicale
 from ecoscan.percorsi import DATI
 
 DB = DATI / "ecoscan.db"
-QDRANT_LOCALE = DATI / "qdrant"
 COLLEZIONE = "schede"
-MODELLO = "embeddinggemma"
-OLLAMA = os.environ.get("ECOSCAN_OLLAMA", "http://localhost:11434/api/embed")
 NOME_VETTORE = "denso"
 
 
@@ -64,7 +62,8 @@ class VettorizzatoreOllama:
     correttamente migliora il recupero e non costa nulla.
     """
 
-    def __init__(self, modello: str = MODELLO, url: str = OLLAMA):
+    def __init__(self, modello: str | None = None, url: str | None = None):
+        modello, url = modello or conf.MODELLO_EMBEDDING, url or conf.OLLAMA
         self.nome, self.url = modello, url
         self._dimensione: int | None = None
 
@@ -99,7 +98,7 @@ def e_locale(qdrant: QdrantClient) -> bool:
 
 def apri_qdrant(destinazione: str | None = None) -> QdrantClient:
     """URL -> server; percorso -> modalità in-process. Default: `ECOSCAN_QDRANT`, poi data/qdrant."""
-    destinazione = destinazione or os.environ.get("ECOSCAN_QDRANT") or str(QDRANT_LOCALE)
+    destinazione = destinazione or conf.QDRANT
     if destinazione.startswith(("http://", "https://")):
         return QdrantClient(url=destinazione)
     Path(destinazione).parent.mkdir(parents=True, exist_ok=True)
@@ -133,7 +132,8 @@ def schede_da_indicizzare(db: sqlite3.Connection) -> list[dict]:
 
 
 def indicizza(qdrant: QdrantClient, schede: Iterable[dict], vettorizzatore: Vettorizzatore,
-              lotto: int = 32, avanzamento=print) -> int:
+              lotto: int | None = None, avanzamento=print) -> int:
+    lotto = lotto or conf.LOTTO_EMBEDDING
     schede = list(schede)
     if not schede:
         return 0
@@ -214,7 +214,7 @@ def main() -> None:
     ap = argparse.ArgumentParser(description="Indicizza le schede su Qdrant e prova la ricerca.")
     ap.add_argument("--db", type=Path, default=DB)
     ap.add_argument("--qdrant", help="URL del server oppure percorso per la modalità locale")
-    ap.add_argument("--modello", default=MODELLO)
+    ap.add_argument("--modello", default=None, help="sovrascrive ECOSCAN_MODELLO_EMBEDDING")
     ap.add_argument("--cerca", help="esegue una ricerca invece di indicizzare")
     ap.add_argument("--comune", default="Napoli")
     ap.add_argument("-k", type=int, default=5)
@@ -223,6 +223,8 @@ def main() -> None:
     if not args.db.is_file():
         raise SystemExit(f"Database non trovato: {args.db}\nLancia prima: uv run ecoscan-carica")
 
+    impostazioni = conf.riepilogo()
+    print("Impostazioni: " + " | ".join(f"{k}={v}" for k, v in impostazioni.items()))
     vettorizzatore = VettorizzatoreOllama(args.modello)
     qdrant = apri_qdrant(args.qdrant)
     with sqlite3.connect(args.db) as db:
