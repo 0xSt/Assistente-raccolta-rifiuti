@@ -23,7 +23,7 @@ Regola: ogni dato nel database deve risalire a una riga di questa pagina (tabell
 
 ### Napoli: ASIA Napoli, sito web
 
-Estrazione completa eseguita il 12/09/2026: **584 voci** dalla sitemap e **6 pagine frazione**. I dati Napoli in `src/ecoscan/db/demo.py` restano un campione trascritto, in attesa del caricamento del grezzo completo.
+Estrazione completa eseguita il 12/09/2026: **584 voci** dalla sitemap e **6 pagine frazione** (38 regole ammesse, 5 esclusioni testuali per il Vetro). I dati Napoli in `src/ecoscan/db/demo.py` restano un campione trascritto: la demo dello schema precede il Load vero.
 
 Ricognizione del 12/09/2026 (`python etl/extract_napoli.py --recon`, eseguita da Stef):
 - la **sitemap XML è disponibile** e contiene **584 URL di voce**: è la strategia di scoperta usata;

@@ -18,7 +18,7 @@ Ogni problema diventa una riga della tabella `problema_qualita` durante il caric
 ### Esito del Transform di Torino (324 voci)
 
 - **0 conflitti**. L'unico conflitto iniziale ("Involucro cioccolatini") era dovuto alle parentesi con il materiale, classificate erroneamente come sinonimi.
-- 16 voci da revisionare: 15 separazioni di voci composte (la maggior parte corrette, es. "Giornali e riviste") e 1 asterisco.
+- 16 voci segnalate, tutte decise a mano: 13 separazioni confermate, 3 annullate, 1 nota a piè di pagina agganciata come avvertenza. Nessuna resta aperta.
 - Le condizioni di Torino stanno quasi sempre tra parentesi, al contrario di Napoli.
 
 ### Regole di categoria di Torino (pagine 8-12)
@@ -57,11 +57,11 @@ Ogni problema diventa una riga della tabella `problema_qualita` durante il caric
 - I 21 `slug_duplicato` erano **falsi positivi**: quasi tutti sono voci "Simbolo" il cui slug finisce con il codice del materiale (`simbolo-fe-40`), non con il contatore di WordPress.
 - Il dizionario pubblico contiene una voce di prova: `test-di-esempio`, "Test di esempio", con tre destinazioni reali. Scartata dal Transform.
 
-### Esito del Transform (574 voci normalizzate)
+### Esito del Transform (578 voci normalizzate)
 
 - **0 conflitti**: nessuna contraddizione reale nella fonte. I 5 conflitti della prima esecuzione erano difetti del Transform, non dei dati.
-- 77 voci con almeno una condizione, 27 alias, 16 codici materiale.
-- 15 voci da revisionare a mano: 9 separazioni di voci composte da verificare, 6 asterischi che rimandano a una nota non estratta.
+- 84 voci con almeno una condizione, 28 alias, 20 codici materiale, 5 fuse nella deduplicazione.
+- 16 voci segnalate, tutte decise a mano: 8 separazioni confermate, 2 annullate, 1 alias corretto, 6 asterischi verificati come residui tipografici. Nessuna resta aperta.
 - Refuso della fonte gestito: "biodegratabile" per "biodegradabile".
 
 ### Numeri dell'estrazione completa (12/09/2026, 584 voci)

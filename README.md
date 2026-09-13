@@ -4,18 +4,21 @@ Assistente per la raccolta differenziata che gira interamente in locale. L'utent
 
 Progetto universitario. Comuni del prototipo: **Napoli** (ASIA) e **Torino** (AMIAT).
 
-## Stato attuale (v0.8.1)
+## Stato attuale (v0.9.0)
 
 Il quadro completo è in [docs/diario.md](docs/diario.md).
 
 | Componente | Stato |
 |---|---|
-| Estrattore Torino (PDF) | Funzionante: 324 voci, verificato sul PDF reale |
-| Estrattore Napoli (HTML) | **Completato**: 584 voci estratte, tutte con destinazione |
-| Schema dati normalizzato (SQLite) | Definito e verificato con Torino completo + campione Napoli |
-| Transform Napoli (condizioni, alias, dedup) | Eseguito su 574 voci: 0 conflitti, 15 da revisionare |
-| Transform Torino | Eseguito su 324 voci: 0 conflitti, 16 da revisionare |
-| Retrieval ibrido, backend, frontend, modello | Da fare |
+| Extract Torino (PDF) | 324 voci dall'elenco A-Z + 10 schede di regole |
+| Extract Napoli (HTML) | 584 voci dal dizionario + 6 pagine frazione |
+| Transform Napoli | 578 voci normalizzate: 0 conflitti, 0 da revisionare |
+| Transform Torino | 324 voci normalizzate: 0 conflitti, 0 da revisionare |
+| Regole di categoria | 110 normalizzate e collegate alle destinazioni |
+| Revisione manuale | 32 decisioni prese (3,5% delle voci), nessuna aperta |
+| Load in SQLite | **Prossimo passo**: lo schema è definito, provato finora su un campione |
+| Serving (FTS5, embedding, ricerca ibrida) | Da fare |
+| Backend, frontend, modello | Da fare |
 
 ## Struttura
 
