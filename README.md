@@ -4,7 +4,7 @@ Assistente per la raccolta differenziata che gira interamente in locale. L'utent
 
 Progetto universitario. Comuni del prototipo: **Napoli** (ASIA) e **Torino** (AMIAT).
 
-## Stato attuale (v0.6.1)
+## Stato attuale (v0.7.0)
 
 Il quadro completo è in [docs/diario.md](docs/diario.md).
 
@@ -45,7 +45,8 @@ uv run ecoscan-torino-regole    # Torino, regole di categoria dalle pagine 8-12
 uv run ecoscan-napoli --recon   # Napoli: ricognizione, poche pagine
 uv run ecoscan-napoli           # Napoli: estrazione completa (584 voci, ~15 minuti)
 uv run ecoscan-ispeziona        # riepiloga il grezzo di Napoli già estratto
-uv run ecoscan-transform        # normalizza entrambi i comuni -> data/normalizzato/
+uv run ecoscan-transform        # normalizza le voci dei due comuni -> data/normalizzato/
+uv run ecoscan-regole           # normalizza le regole di categoria e le collega alle destinazioni
 
 uv run pytest                   # i test Torino si saltano se il PDF non è presente
 uv run ecoscan-demo             # carica i dati nello schema ed esegue interrogazioni di esempio

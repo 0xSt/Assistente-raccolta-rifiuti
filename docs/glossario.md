@@ -99,6 +99,10 @@ far scattare avvisi dove non c'è nulla da fare.
 **Polarità** — Se una regola di categoria dice cosa va nel contenitore (`ammesso`),
 cosa non ci va (`escluso`) o aggiunge un'istruzione (`nota`).
 
+**Corrispondenza (mapping)** — Tabella che collega i nomi usati da una fonte a quelli del
+modello normalizzato. Qui collega il nome della scheda alla destinazione: "Carta e Cartone"
+nella pagina frazione è "Carta e Cartoncino" nelle voci.
+
 **Frazione** — Come le aziende chiamano la categoria di raccolta. Nel progetto si usa
 "destinazione" per il dato e "frazione" quando si cita la fonte.
 

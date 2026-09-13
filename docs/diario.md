@@ -27,6 +27,7 @@ Va aggiornato **a ogni cambiamento sostanziale**, non a ogni riga di codice. In 
 | Estrattore Napoli (HTML) | Completo: 584 voci dal dizionario, 6 pagine frazione |
 | Transform Napoli | Eseguito: 574 voci normalizzate, 0 conflitti, 15 da revisionare |
 | Transform Torino | Eseguito: 324 voci normalizzate, 0 conflitti, 16 da revisionare |
+| Regole nel normalizzato | Fatto: collegate alle destinazioni. Torino 60 regole su 9 destinazioni; Napoli da rieseguire |
 | Schema dati (SQLite) | Definito e verificato con Torino completo e un campione di Napoli |
 | Regole di categoria — Napoli | Completo per quanto la fonte pubblica: 38 ammessi, 11 esclusi (5 Vetro estratti + 6 Umido trascritti a mano), 2 assenze verificate |
 | Regole di categoria — Torino | Estratte: 10 schede, 30 ammessi, 27 esclusi |
@@ -87,6 +88,8 @@ Formato: decisione, motivazione, stato.
 | D22 | Le descrizioni delle destinazioni non si estraggono dalle pagine voce | Sono identiche su tutte le voci che usano quella destinazione: proprietà della destinazione | Accettata |
 | D23 | Il campo avvertenza ha priorità sul testo ricavato dallo slug | L'avvertenza conserva accenti e apostrofi, lo slug li perde ("l'ago" → "lago") | Accettata |
 | D32 | Nelle pagine frazione la raccolta dipende dalla polarità: ammessi dai `<strong>`, esclusi dagli `<li>` | Il markup delle due sezioni è diverso; cercare solo i `<strong>` restituiva zero esclusioni in silenzio | Accettata |
+| D43 | La corrispondenza scheda/frazione → destinazione è dichiarata esplicitamente, in un punto solo, e verificata contro le destinazioni che compaiono nelle voci | I nomi non coincidono ("Carta e Cartone" nella frazione, "Carta e Cartoncino" nelle voci): una regola agganciata a un contenitore inesistente non verrebbe mai raggiunta dalla ricerca | Accettata |
+| D44 | Le celle e gli elenchi delle regole **non** si spezzano in oggetti singoli | "Piatti, bicchieri e bicchierini da caffè in plastica anche sporchi": separare perderebbe la qualificazione comune, lo stesso errore corretto in D27b. Trigrammi ed embedding lavorano bene sul testo intero | Accettata |
 | D41 | I dati presenti nella fonte ma non estraibili si trascrivono a mano in un CSV versionato, con `origine: trascrizione_manuale` | Affidabile ma non riproducibile da uno script: va distinto da ciò che l'estrattore ricava da solo, e se domani la fonte lo pubblica come testo si sa quali righe sostituire | Accettata |
 | D42 | Le **assenze verificate** si registrano come dato | "Questa frazione non pubblica esclusioni" è un'informazione, diversa da "non le abbiamo ancora cercate": spegne l'avviso solo dove è stato fatto il controllo | Accettata |
 | D38 | A Torino il ruolo di ogni riga è dato dal **font**, non dalla posizione (Bold 12 titolo, Light 8 celle, Medium 8 frase delle esclusioni) | Più robusto delle coordinate: regge le schede con impaginato diverso | Accettata |
@@ -121,12 +124,13 @@ Ordinate per priorità.
 2. **Revisione manuale di 31 voci** (15 Napoli, 16 Torino). Serve prima un meccanismo: le decisioni vanno in file CSV versionati (`data/revisioni/<comune>.csv`) che il Transform applica in coda, altrimenti si perdono a ogni riesecuzione.
 3. ~~Esclusioni mancanti per Umido, Plastica e Carta (Napoli)~~ **Chiuso**: Stef ha letto le tre immagini. Solo l'Umido ha una sezione di esclusioni (6 voci + un avviso generale), trascritte in `data/sorgenti/manuale/napoli_esclusioni.csv`. Plastica e Carta non pubblicano esclusioni: registrate come assenze verificate.
 4. **Asterischi.** 6 voci a Napoli (insetticida, trielina, smalto, solventi, spray, sostanze chimiche etichettate T e/o F: sono rifiuti pericolosi) e 1 a Torino rimandano a note non estratte. Per Torino la nota è nel PDF a pagina 21; per Napoli va cercata sul sito.
-5. **Caricamento del normalizzato nello schema SQLite.** Finora provato solo con un campione.
-6. ~~Pagine "Non riciclabile" e "Altre raccolte" di Napoli~~ **Chiuso**: sono davvero prive di elenchi, hanno solo una frase di invito. Non è un difetto dell'estrattore.
-7. **Serving**: indici FTS5 a trigrammi, embedding, ricerca ibrida con RRF.
-8. **Valutazione**: set di foto etichettate e metriche (riconoscimento, destinazione per comune, latenza su CPU). Mai iniziata, ed è ciò che distingue un prototipo da un lavoro difendibile.
-9. **Dove conferire**: 363 voci su 584 a Napoli rimandano a isole ecologiche o ecopunti. Prima o poi l'agente deve dire *dove* si trovano.
-10. **Opuscolo PDF di Napoli** (`Asia_Opuscolo_A5_new-1.pdf`): mai consultato, potrebbe contenere regole assenti dal sito.
+5. **Caricamento del normalizzato nello schema SQLite.** Finora provato solo con un campione. Ora ci sono anche le regole: `data/normalizzato/regole.jsonl`.
+6. **Rieseguire `ecoscan-napoli` e `ecoscan-regole`** per avere anche le regole di Napoli nel normalizzato, con la verifica delle destinazioni attiva (richiede le voci normalizzate di entrambi i comuni).
+7. ~~Pagine "Non riciclabile" e "Altre raccolte" di Napoli~~ **Chiuso**: sono davvero prive di elenchi, hanno solo una frase di invito. Non è un difetto dell'estrattore.
+8. **Serving**: indici FTS5 a trigrammi, embedding, ricerca ibrida con RRF.
+9. **Valutazione**: set di foto etichettate e metriche (riconoscimento, destinazione per comune, latenza su CPU). Mai iniziata, ed è ciò che distingue un prototipo da un lavoro difendibile.
+10. **Dove conferire**: 363 voci su 584 a Napoli rimandano a isole ecologiche o ecopunti. Prima o poi l'agente deve dire *dove* si trovano.
+11. **Opuscolo PDF di Napoli** (`Asia_Opuscolo_A5_new-1.pdf`): mai consultato, potrebbe contenere regole assenti dal sito.
 
 ---
 
@@ -144,6 +148,12 @@ Cose imparate che non sono decisioni, ma che conviene ricordare.
 ---
 
 ## Cronologia
+
+### v0.7.0 — 12/09/2026
+
+**Aggiunto.** `normalizza_regole.py` e comando `ecoscan-regole`: porta le regole di categoria dal grezzo al normalizzato collegandole alle destinazioni dei rispettivi comuni. Torino: 60 regole (30 ammessi, 27 esclusi, 3 note) su 9 destinazioni. Un controllo verifica che ogni destinazione citata esista fra quelle usate dalle voci, e l'esecuzione si ferma se compare una scheda senza corrispondenza. 7 test.
+
+**Deciso.** I testi delle regole non si spezzano in oggetti singoli (D44): sarebbe lo stesso errore di separazione già corretto sulle voci composte.
 
 ### v0.6.1 — 12/09/2026
 
