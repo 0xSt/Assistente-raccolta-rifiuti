@@ -138,3 +138,17 @@ def test_parser_pagina_frazione():
     assert ammessi["Bottiglie e flaconi in plastica"] is None
     assert ammessi["Bombolette spray non pericolose"] == "(non etichettate T e F)"  # dettaglio dopo <br>
     assert any("svuotati di ogni residuo" in n for n in fr["note"])
+
+
+def test_in_cache_riconosce_le_pagine_gia_scaricate(tmp_path):
+    """Serve a stimare quanto durerà l'estrazione prima di cominciare."""
+    import hashlib
+
+    from ecoscan.etl.extract_napoli import Fetcher
+
+    f = Fetcher.__new__(Fetcher)          # senza rete: interessa solo la cache su disco
+    f.cache = tmp_path
+    url = "https://www.asianapoli.it/dove-lo-butto/specchio/"
+    assert not f.in_cache(url)
+    (tmp_path / f"{hashlib.sha1(url.encode()).hexdigest()[:16]}.json").write_text("{}")
+    assert f.in_cache(url)

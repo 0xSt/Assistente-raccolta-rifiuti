@@ -4,7 +4,7 @@ Assistente per la raccolta differenziata che gira interamente in locale. L'utent
 
 Progetto universitario. Comuni del prototipo: **Napoli** (ASIA) e **Torino** (AMIAT).
 
-## Stato attuale (v0.10.0)
+## Stato attuale (v0.10.1)
 
 Il quadro completo è in [docs/diario.md](docs/diario.md).
 
@@ -48,7 +48,7 @@ uv sync                         # prepara l'ambiente da uv.lock
 uv run ecoscan-torino           # Torino, dizionario A-Z: metti prima il PDF in data/sorgenti/
 uv run ecoscan-torino-regole    # Torino, regole di categoria dalle pagine 8-12
 uv run ecoscan-napoli --recon   # Napoli: ricognizione, poche pagine
-uv run ecoscan-napoli           # Napoli: estrazione completa (584 voci, ~15 minuti)
+uv run ecoscan-napoli           # Napoli: estrazione completa (584 voci)
 uv run ecoscan-ispeziona        # riepiloga il grezzo di Napoli già estratto
 uv run ecoscan-transform        # normalizza le voci dei due comuni -> data/normalizzato/
 uv run ecoscan-regole           # normalizza le regole di categoria e le collega alle destinazioni
@@ -58,6 +58,12 @@ uv run ecoscan-carica --verifica # solo i controlli di coerenza, senza scrivere
 uv run pytest                   # i test Torino si saltano se il PDF non è presente
 uv run ecoscan-demo             # carica i dati nello schema ed esegue interrogazioni di esempio
 ```
+
+La prima estrazione di Napoli scarica 584 pagine con una pausa di 1,5 secondi fra una e
+l'altra, quindi dura circa **15 minuti**; stampa l'avanzamento ogni 25 voci. Le esecuzioni
+successive leggono da `data/cache/` e durano pochi secondi. Due conseguenze pratiche:
+la cache non va cancellata senza motivo, e conviene **versionare il grezzo prodotto**
+(`data/grezzo/napoli/`), così chi parte da un clone pulito non riscarica nulla.
 
 Ogni comando accetta `--help`. I percorsi sono relativi alla radice del progetto, quindi funzionano da qualsiasi cartella; `ECOSCAN_RADICE` permette di forzarla (utile nei container).
 

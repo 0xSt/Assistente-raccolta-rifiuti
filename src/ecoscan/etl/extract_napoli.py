@@ -72,6 +72,7 @@ class Fetcher:
         self.sessione = requests.Session()
         self.sessione.headers["User-Agent"] = USER_AGENT
         self.pausa, self._ultimo = pausa, 0.0
+        self.da_cache = self.scaricate = 0
         self.robots = robotparser.RobotFileParser()
         r = self.sessione.get(urljoin(BASE, "/robots.txt"), timeout=30)  # errori di rete: eccezione esplicita
         if r.status_code == 404:
@@ -81,11 +82,16 @@ class Fetcher:
         else:
             raise RuntimeError(f"robots.txt non leggibile (HTTP {r.status_code}): interrompo per prudenza")
 
+    def in_cache(self, url: str) -> bool:
+        return (self.cache / f"{hashlib.sha1(url.encode()).hexdigest()[:16]}.json").exists()
+
     def get(self, url: str) -> Snapshot | None:
         chiave = hashlib.sha1(url.encode()).hexdigest()[:16]
         meta_p, html_p = self.cache / f"{chiave}.json", self.cache / f"{chiave}.html"
         if meta_p.exists():
+            self.da_cache += 1
             return Snapshot(**json.loads(meta_p.read_text()), html=html_p.read_text(encoding="utf-8"))
+        self.scaricate += 1
         if not self.robots.can_fetch(USER_AGENT, url):
             raise PermissionError(f"robots.txt non consente {url}")
         attesa = self.pausa - (time.monotonic() - self._ultimo)
@@ -341,8 +347,19 @@ def estrai(out: Path, f: Fetcher, limite: int | None = None) -> None:
     indice = {r["slug"]: split_destinazioni(r["testo"]) for r in parse_liste(f.get(DIZIONARIO).html, DIZIONARIO)
               if r["colonna"] == "Contenitore" and r["testo"]}
     avvertenze: dict[str, str] = {}
+    da_fare = urls[:limite]
+    nuove = sum(1 for u in da_fare if not f.in_cache(u))
+    if nuove:
+        print(f"Da scaricare: {nuove} pagine su {len(da_fare)} "
+              f"(~{nuove * f.pausa / 60:.0f} minuti); le altre sono in cache")
+    inizio = time.monotonic()
     records = []
-    for url in urls[:limite]:
+    for n, url in enumerate(da_fare, start=1):
+        if n % 25 == 0 or n == len(da_fare):
+            trascorso = time.monotonic() - inizio
+            rimanenti = (len(da_fare) - n) * (trascorso / n)
+            print(f"  {n}/{len(da_fare)} voci ({f.da_cache} da cache, {f.scaricate} scaricate)"
+                  f" — stimati {rimanenti / 60:.0f} min alla fine", flush=True)
         snap = f.get(url)
         if not snap:
             print(f"  ! non scaricata: {url}")

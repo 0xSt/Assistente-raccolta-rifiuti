@@ -159,11 +159,18 @@ Cose imparate che non sono decisioni, ma che conviene ricordare.
 - **ASIA pubblica poche esclusioni, e quasi solo come grafica.** Testo solo per il Vetro; dentro l'immagine per l'Umido; per Plastica e Carta non esistono proprio. Torino ne pubblica 27 contro le 11 di Napoli: la stessa informazione, con profondità molto diversa. Una fonte può essere incompleta *per come è pubblicata*, non per come la leggiamo: il controllo che distingue i due casi è ciò che ha permesso di capirlo in un giro solo.
 - **Le esclusioni spiegano il dizionario.** La pagina del vetro di Napoli esclude bicchieri, piatti, pirofile e lastre: esattamente le voci che nel dizionario finiscono nel non riciclabile. Ciò che sembrava incoerenza è una regola dichiarata.
 - **Divergenze fra comuni utili da citare**: bicchiere di vetro (Napoli non riciclabile, Torino vetro); tappo di sughero (Napoli organico, Torino centro di raccolta o organico); pentole e padelle (Napoli plastica e metalli, Torino centro di raccolta). Una convergenza: il vetro dei profumi non è riciclabile in entrambi.
+- **Un processo lungo senza avanzamento sembra rotto.** L'estrazione di Napoli dura 15 minuti e non stampava nulla: Stef l'ha giustamente creduta bloccata. Vale per ogni comando che superi qualche secondo.
 - **Trappole già incontrate, da non ripetere**: i nodi di testo frammentati di Elementor; il match di "ecc" dentro "appare**cc**hi"; gli slug che finiscono con un numero che è un codice materiale e non un contatore; un test che passava solo perché la fixture era più semplice della realtà.
 
 ---
 
 ## Cronologia
+
+### v0.10.1 — 12/09/2026
+
+**Corretto.** L'estrazione di Napoli non dava segno di vita per 15 minuti e sembrava bloccata. Ora stima in anticipo quante pagine mancano davvero (distinguendo cache e scaricamenti) e stampa l'avanzamento ogni 25 voci con il tempo residuo.
+
+**Annotato.** Il grezzo di Napoli conviene versionarlo, come già quello di Torino: chi parte da un clone pulito non deve ripagare i 15 minuti di scaricamento.
 
 ### v0.10.0 — 12/09/2026
 
