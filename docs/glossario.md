@@ -181,6 +181,9 @@ vetro" sono quasi identici e vanno in contenitori diversi.
 **Ricerca ibrida** — Lessicale e semantica in parallelo, risultati fusi. Scelta del
 progetto proprio perché i due difetti sono complementari.
 
+**Normalizzazione di un vettore** — Riportarlo a lunghezza 1, così il coseno fra due
+vettori si calcola con un semplice prodotto scalare.
+
 **RRF (Reciprocal Rank Fusion)** — Metodo per fondere due classifiche usando la posizione
 dei risultati invece dei punteggi, che non sono confrontabili fra loro.
 

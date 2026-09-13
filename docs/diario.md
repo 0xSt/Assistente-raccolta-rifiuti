@@ -39,7 +39,8 @@ Va aggiornato **a ogni cambiamento sostanziale**, non a ogni riga di codice. In 
 | Transform Torino | Eseguito: **324 normalizzate**, 0 conflitti, 0 da revisionare |
 | Regole nel normalizzato | Fatto: **110 regole** collegate alle destinazioni (Napoli 50 su 4, Torino 60 su 9) |
 | Load relazionale | Fatto: `ecoscan-carica` ricostruisce `data/ecoscan.db` dai file normalizzati |
-| Serving — indice lessicale | Fatto: `ecoscan-indicizza`, 417 schede su Torino |
+| Serving — indice lessicale | Fatto: 1072 schede sui due comuni |
+| Serving — vettori e ricerca ibrida | Fatto: EmbeddingGemma su Ollama, fusione RRF |
 | Regole di categoria — Napoli | Completo per quanto la fonte pubblica: 38 ammessi, 11 esclusi (5 Vetro estratti + 6 Umido trascritti a mano), 2 assenze verificate |
 | Regole di categoria — Torino | Estratte: 10 schede, 30 ammessi, 27 esclusi |
 | Revisione manuale | **Completa**: 32 decisioni prese (16 per comune), 0 aperte, 0 voci da revisionare |
@@ -101,6 +102,10 @@ Formato: decisione, motivazione, stato.
 | D32 | Nelle pagine frazione la raccolta dipende dalla polarità: ammessi dai `<strong>`, esclusi dagli `<li>` | Il markup delle due sezioni è diverso; cercare solo i `<strong>` restituiva zero esclusioni in silenzio | Accettata |
 | D45 | Le decisioni manuali stanno in CSV versionati (`data/revisioni/<comune>.csv`) che il Transform applica a ogni esecuzione | Il Transform riscrive il normalizzato da zero: una correzione fatta lì andrebbe persa. Così le decisioni sono riproducibili, tracciabili in git e numerabili nella relazione | Accettata |
 | D46 | Una decisione riferita a uno slug inesistente fa fallire l'esecuzione | Se la fonte cambia, la decisione va rivista, non ignorata in silenzio | Accettata |
+| D55 | Vettori conservati come BLOB float32 normalizzati in SQLite, ricerca esaustiva in NumPy: **niente sqlite-vec** | ~1100 schede a 768 dimensioni sono ~3 MB e la ricerca costa meno di un millisecondo. L'estensione aggiungerebbe una dipendenza senza guadagno. Precisa D12, che la dava per scontata | Accettata |
+| D56 | Il vettorizzatore è dietro un'interfaccia (`Vettorizzatore`) | Permette i test senza rete e il cambio di modello senza toccare la ricerca | Accettata |
+| D57 | Un vettore si ricalcola solo se il testo della scheda è cambiato (impronta SHA-256) | Il calcolo è la parte lenta della pipeline: rieseguire dopo una modifica parziale deve costare poco | Accettata |
+| D58 | Prompt distinti per documento e interrogazione, come previsto da EmbeddingGemma | Il modello è addestrato con quei prefissi: usarli migliora il recupero e non costa nulla | Accettata |
 | D52 | La ricerca riduce ogni termine alla radice togliendo la vocale finale alle parole lunghe | Con i trigrammi il termine deve essere una sottostringa: "bicchiere" non troverebbe "Bicchieri". È l'alternativa allo stemming, che FTS5 non offre per l'italiano | Accettata |
 | D53 | Ricerca prima in AND, poi in OR se non trova nulla | La precisione viene prima, ma nessun candidato è peggio di candidati imperfetti: la scelta finale è comunque del modello fra opzioni reali | Accettata |
 | D54 | Delle regole si indicizza solo `testo`, non `dettaglio` | Per gli esclusi di Torino il dettaglio è la frase intera: indicizzarla renderebbe ogni oggetto escluso raggiungibile con le parole di tutti gli altri | Accettata |
@@ -144,7 +149,7 @@ Ordinate per priorità.
    - *Napoli*: 5 esclusioni per il Vetro estratte, 6 per l'Umido trascritte a mano dall'immagine, Plastica e Carta verificate come prive di esclusioni.
    - *Torino*: **fatto in v0.6.0**. 10 schede, 30 ammessi, 27 esclusi. Da fare: portare queste regole nel livello normalizzato e collegarle alle destinazioni.
 2. ~~Esclusioni mancanti per Umido, Plastica e Carta (Napoli)~~ **Chiuso**: Stef ha letto le tre immagini. Solo l'Umido ha una sezione di esclusioni (6 voci + un avviso generale), trascritte in `data/sorgenti/manuale/napoli_esclusioni.csv`. Plastica e Carta non pubblicano esclusioni: registrate come assenze verificate.
-3. **Serving, parte vettoriale**: embedding con EmbeddingGemma e fusione RRF con l'indice lessicale.
+3. **Valutazione**: set di foto etichettate e misura del retrieval (lessicale, semantico, ibrido). È il passo che rende dicibile qualcosa di quantitativo.
 4. ~~Pagine "Non riciclabile" e "Altre raccolte" di Napoli~~ **Chiuso**: sono davvero prive di elenchi, hanno solo una frase di invito. Non è un difetto dell'estrattore.
 5. **Serving**: indici FTS5 a trigrammi, embedding, ricerca ibrida con RRF.
 6. **Valutazione**: set di foto etichettate e metriche (riconoscimento, destinazione per comune, latenza su CPU). Mai iniziata, ed è ciò che distingue un prototipo da un lavoro difendibile.
@@ -164,11 +169,20 @@ Cose imparate che non sono decisioni, ma che conviene ricordare.
 - **Le esclusioni spiegano il dizionario.** La pagina del vetro di Napoli esclude bicchieri, piatti, pirofile e lastre: esattamente le voci che nel dizionario finiscono nel non riciclabile. Ciò che sembrava incoerenza è una regola dichiarata.
 - **Divergenze fra comuni utili da citare**: bicchiere di vetro (Napoli non riciclabile, Torino vetro); tappo di sughero (Napoli organico, Torino centro di raccolta o organico); pentole e padelle (Napoli plastica e metalli, Torino centro di raccolta). Una convergenza: il vetro dei profumi non è riciclabile in entrambi.
 - **Un processo lungo senza avanzamento sembra rotto.** L'estrazione di Napoli dura 15 minuti e non stampava nulla: Stef l'ha giustamente creduta bloccata. Vale per ogni comando che superi qualche secondo.
+- **In `.gitignore` non esistono commenti a fine riga.** `*.db  # nota` è un nome di file letterale: il database è finito in git per questo. Ora c'è un test che lo impedisce.
 - **Trappole già incontrate, da non ripetere**: i nodi di testo frammentati di Elementor; il match di "ecc" dentro "appare**cc**hi"; gli slug che finiscono con un numero che è un codice materiale e non un contatore; un test che passava solo perché la fixture era più semplice della realtà.
 
 ---
 
 ## Cronologia
+
+### v0.12.0 — 12/09/2026
+
+**Aggiunto.** Terzo e ultimo passaggio del Load: `db/vettorizza.py` e comando `ecoscan-vettorizza`. Embedding delle schede con EmbeddingGemma su Ollama, ricerca semantica esaustiva in NumPy, fusione RRF con l'indice lessicale. Il vettorizzatore sta dietro un'interfaccia, così i test girano senza rete. 10 test.
+
+**Corretto.** `data/ecoscan.db` era finito in git: in `.gitignore` il commento a fine riga (`*.db  # ...`) rendeva il pattern un nome di file letterale. Database tolto dal tracciamento e aggiunto un test che rifiuta i commenti a fine riga.
+
+**Allineato.** Adottata la copia del progetto di Stef, con il grezzo di Napoli (584 voci) ora versionato. Indice lessicale completo: 1072 schede (902 voci, 64 alias, 106 regole).
 
 ### v0.11.0 — 12/09/2026
 

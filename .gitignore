@@ -11,4 +11,5 @@ __pycache__/
 .venv/
 .uv-cache/
 *.egg-info/
-*.db  # data/ecoscan.db si rigenera con ecoscan-carica
+# Database e indici: si rigenerano con ecoscan-carica e ecoscan-indicizza
+*.db

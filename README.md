@@ -4,7 +4,7 @@ Assistente per la raccolta differenziata che gira interamente in locale. L'utent
 
 Progetto universitario. Comuni del prototipo: **Napoli** (ASIA) e **Torino** (AMIAT).
 
-## Stato attuale (v0.11.0)
+## Stato attuale (v0.12.0)
 
 Il quadro completo è in [docs/diario.md](docs/diario.md).
 
@@ -18,7 +18,8 @@ Il quadro completo è in [docs/diario.md](docs/diario.md).
 | Revisione manuale | 32 decisioni prese (3,5% delle voci), nessuna aperta |
 | Load relazionale | Fatto: comuni, destinazioni, voci, condizioni, alias, regole, decisioni |
 | Serving — indice lessicale | Fatto: schede, FTS5 a trigrammi, ricerca per comune |
-| Serving — embedding e ricerca ibrida | Da fare |
+| Serving — embedding e ricerca ibrida | Fatto: EmbeddingGemma su Ollama, fusione RRF |
+| Valutazione (foto etichettate, metriche) | Da fare |
 | Backend, frontend, modello | Da fare |
 
 ## Struttura
@@ -57,6 +58,10 @@ uv run ecoscan-carica           # ricostruisce data/ecoscan.db dai file normaliz
 uv run ecoscan-carica --verifica # solo i controlli di coerenza, senza scrivere
 uv run ecoscan-indicizza        # costruisce l'indice lessicale FTS5 sopra il database
 uv run ecoscan-indicizza --cerca "bicchiere di vetro" --comune Torino   # prova la ricerca
+
+ollama pull embeddinggemma      # una volta sola, serve per i vettori
+uv run ecoscan-vettorizza       # calcola i vettori delle schede (solo quelli mancanti)
+uv run ecoscan-vettorizza --cerca "contenitore del latte" --comune Napoli  # ricerca ibrida
 
 uv run pytest                   # i test Torino si saltano se il PDF non è presente
 uv run ecoscan-demo             # carica i dati nello schema ed esegue interrogazioni di esempio
@@ -98,6 +103,7 @@ I nuovi moduli vanno in `src/ecoscan/`; per renderli eseguibili basta aggiungere
 | `db/schema.sql` | Schema del livello relazionale |
 | `db/carica.py` | Load: ricostruisce il database dai file normalizzati |
 | `db/indicizza.py` | Schede ricercabili, indice FTS5 a trigrammi e ricerca lessicale |
+| `db/vettorizza.py` | Embedding delle schede, ricerca semantica e fusione RRF |
 
 ## Documentazione
 

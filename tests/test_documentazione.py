@@ -79,3 +79,11 @@ def test_il_glossario_copre_i_termini_ricorrenti():
                   "Condizione", "Alias", "Livello di evidenza", "Ricerca ibrida", "uv"]
     mancanti = [t for t in essenziali if f"**{t}**" not in glossario]
     assert not mancanti, f"termini assenti dal glossario: {mancanti}"
+
+
+def test_gitignore_senza_commenti_a_fine_riga():
+    """In .gitignore i commenti valgono solo a inizio riga: "*.db  # nota" diventa un nome
+    di file letterale, e il file NON viene ignorato. È già successo con data/ecoscan.db."""
+    righe = (RADICE / ".gitignore").read_text(encoding="utf-8").splitlines()
+    sospette = [r for r in righe if not r.lstrip().startswith("#") and "#" in r]
+    assert not sospette, f"commenti a fine riga in .gitignore: {sospette}"

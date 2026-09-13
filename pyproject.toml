@@ -1,6 +1,6 @@
 [project]
 name = "ecoscan-local"
-version = "0.11.0"
+version = "0.12.0"
 description = "Assistente locale per la raccolta differenziata: ETL da fonti comunali, schema dati e retrieval ibrido"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -9,6 +9,7 @@ dependencies = [
     "requests>=2.31",
     "beautifulsoup4>=4.12",
     "lxml>=5.0",
+    "numpy>=1.26",
 ]
 
 [project.scripts]
@@ -18,6 +19,7 @@ ecoscan-torino-regole = "ecoscan.etl.extract_torino_regole:main"
 ecoscan-transform = "ecoscan.etl.esegui_transform:main"
 ecoscan-regole = "ecoscan.etl.normalizza_regole:main"
 ecoscan-ispeziona = "ecoscan.etl.ispeziona_napoli:main"
+ecoscan-vettorizza = "ecoscan.db.vettorizza:main"
 ecoscan-indicizza = "ecoscan.db.indicizza:main"
 ecoscan-carica = "ecoscan.db.carica:main"
 
