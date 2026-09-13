@@ -27,6 +27,10 @@ risalire alla fonte esatta di ogni dato.
 **Livello normalizzato** — Le stesse informazioni portate al modello comune fra i comuni:
 nome pulito, condizioni, alias, destinazioni, avvertenza. È il livello su cui si ragiona.
 
+**Autorecupero** — Controllo di sanità di un indice vettoriale: si cerca il testo di una
+scheda e si pretende che ritrovi sé stessa al primo posto. Smaschera i casi in cui vettori e
+identificatori si sono disallineati, che i conteggi non rivelano.
+
 **Scheda** — Unità restituita dalla ricerca. Una voce produce più schede (una per il nome
 con le sue condizioni, una per ciascun alias); anche ogni regola ammessa o esclusa è una
 scheda. Schede diverse possono puntare alla stessa voce.

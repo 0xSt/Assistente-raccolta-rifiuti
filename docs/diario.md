@@ -108,6 +108,7 @@ Formato: decisione, motivazione, stato.
 | D62 | Le impostazioni stanno in un file `.env` alla radice, con `.env.example` versionato come modello | Le variabili impostate a mano nel terminale valgono per una finestra sola e si dimenticano: un valore mancante fa scrivere i vettori nel posto sbagliato senza errori. Un file rende la configurazione esplicita e riproducibile | Accettata |
 | D63 | Le variabili d'ambiente vere hanno la precedenza sul `.env`, **ma una variabile vuota conta come assente** | La precedenza serve a Docker; l'eccezione sul vuoto evita che un `ECOSCAN_X=` lasciato in giro faccia ignorare il file in silenzio | Accettata |
 | D64 | I comandi stampano in testa le impostazioni in uso | Il modo più rapido per accorgersi che una variabile non era quella che si credeva | Accettata |
+| D65 | L'indicizzazione si verifica con l'**autorecupero**, non solo con i conteggi | Conteggi e identificatori possono tornare anche con i vettori associati alle schede sbagliate. Cercare il testo di una scheda e pretendere che ritrovi sé stessa al primo posto è l'unico controllo che lega vettore e identificatore | Accettata |
 | D61 | Nel payload di Qdrant solo ciò che serve a cercare e filtrare; destinazioni, condizioni e provenienza restano in SQLite | Duplicare la regola nel payload significherebbe avere due verità. La risposta viene sempre dal relazionale (D9) | Accettata |
 | D56 | Il vettorizzatore è dietro un'interfaccia (`Vettorizzatore`) | Permette i test senza rete e il cambio di modello senza toccare la ricerca | Accettata |
 | D57 | Un vettore si ricalcola solo se il testo della scheda è cambiato (impronta SHA-256) | Il calcolo è la parte lenta della pipeline: rieseguire dopo una modifica parziale deve costare poco | Accettata |
@@ -183,6 +184,10 @@ Cose imparate che non sono decisioni, ma che conviene ricordare.
 ---
 
 ## Cronologia
+
+### v0.14.0 — 12/09/2026
+
+**Aggiunto.** `ecoscan-vettorizza --verifica`: sette controlli sull'indice vettoriale (numero di punti contro schede, conteggi per comune e livello, identificatori allineati, dimensione dei vettori, campi del payload, assenza della destinazione dal payload) più l'**autorecupero** su un campione. 3 test, fra cui uno che scambia due vettori lasciando i conteggi intatti: solo l'autorecupero se ne accorge.
 
 ### v0.13.2 — 12/09/2026
 

@@ -4,7 +4,7 @@ Assistente per la raccolta differenziata che gira interamente in locale. L'utent
 
 Progetto universitario. Comuni del prototipo: **Napoli** (ASIA) e **Torino** (AMIAT).
 
-## Stato attuale (v0.13.2)
+## Stato attuale (v0.14.0)
 
 Il quadro completo è in [docs/diario.md](docs/diario.md).
 
@@ -64,6 +64,7 @@ uv run ecoscan-indicizza --cerca "bicchiere di vetro" --comune Torino   # prova 
 ollama pull embeddinggemma      # una volta sola, serve per i vettori
 docker compose up -d qdrant     # database vettoriale (dashboard: localhost:6333/dashboard)
 uv run ecoscan-vettorizza       # indicizza le schede su Qdrant
+uv run ecoscan-vettorizza --verifica   # controlla che l'indicizzazione sia corretta
 uv run ecoscan-vettorizza --cerca "contenitore del latte" --comune Napoli  # ricerca ibrida
 
 uv run pytest                   # i test Torino si saltano se il PDF non è presente

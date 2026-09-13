@@ -208,6 +208,57 @@ def destinazioni(db: sqlite3.Connection, scheda_id: int) -> str | None:
     return (riga[0] or riga[1]) if riga else None
 
 
+# --------------------------------------------------------------------------- verifica
+
+def verifica(db: sqlite3.Connection, qdrant: QdrantClient, vettorizzatore: Vettorizzatore,
+             campione: int = 30) -> list[tuple[bool, str]]:
+    """Controlla che l'indicizzazione sia andata a buon fine. Restituisce (esito, descrizione).
+
+    Il controllo che conta davvero è l'ultimo: **autorecupero**. Si prende il testo di una
+    scheda e lo si cerca; se il primo risultato non è la scheda stessa, qualcosa non va fra
+    vettori e identificatori, anche se tutti i conteggi tornano.
+    """
+    esiti: list[tuple[bool, str]] = []
+    schede = schede_da_indicizzare(db)
+
+    if not qdrant.collection_exists(COLLEZIONE):
+        return [(False, f"la collezione '{COLLEZIONE}' non esiste: lancia ecoscan-vettorizza")]
+
+    punti_totali = qdrant.count(COLLEZIONE).count
+    esiti.append((punti_totali == len(schede),
+                  f"punti in Qdrant {punti_totali} = schede in SQLite {len(schede)}"))
+
+    for comune, in db.execute("SELECT nome FROM comune ORDER BY nome"):
+        for livello in (1, 2):
+            attesi = sum(1 for s in schede if s["comune"] == comune and s["livello"] == livello)
+            trovati = qdrant.count(COLLEZIONE, count_filter=filtro(comune, livello)).count
+            esiti.append((attesi == trovati, f"{comune} livello {livello}: {trovati} punti (attesi {attesi})"))
+
+    ids_sqlite = {s["id"] for s in schede}
+    ids_qdrant = {p.id for p in qdrant.scroll(COLLEZIONE, limit=len(schede) + 1, with_payload=False)[0]}
+    mancanti, estranei = ids_sqlite - ids_qdrant, ids_qdrant - ids_sqlite
+    esiti.append((not mancanti and not estranei,
+                  f"identificatori allineati (mancanti {len(mancanti)}, estranei {len(estranei)})"))
+
+    primo = qdrant.scroll(COLLEZIONE, limit=1, with_vectors=True)[0][0]
+    dimensione = len(primo.vector[NOME_VETTORE])
+    esiti.append((dimensione == vettorizzatore.dimensione,
+                  f"dimensione dei vettori {dimensione} = quella del modello {vettorizzatore.dimensione}"))
+    esiti.append((set(primo.payload) >= {"comune", "livello", "tipo", "testo"},
+                  f"payload con i campi attesi: {sorted(primo.payload)}"))
+    esiti.append(("destinazione" not in primo.payload,
+                  "la destinazione NON è nel payload: la risposta viene dal relazionale (D9)"))
+
+    passo = max(1, len(schede) // campione)
+    provini = schede[::passo][:campione]
+    centrati = sum(1 for s in provini
+                   if (r := cerca_semantica(qdrant, s["testo"], s["comune"], vettorizzatore, k=1))
+                   and r[0]["scheda_id"] == s["id"])
+    esiti.append((centrati == len(provini),
+                  f"autorecupero: {centrati}/{len(provini)} schede ritrovano sé stesse al primo posto"))
+    return esiti
+
+
 # --------------------------------------------------------------------------- comando
 
 def main() -> None:
@@ -216,6 +267,7 @@ def main() -> None:
     ap.add_argument("--qdrant", help="URL del server oppure percorso per la modalità locale")
     ap.add_argument("--modello", default=None, help="sovrascrive ECOSCAN_MODELLO_EMBEDDING")
     ap.add_argument("--cerca", help="esegue una ricerca invece di indicizzare")
+    ap.add_argument("--verifica", action="store_true", help="controlla l'indicizzazione senza rifarla")
     ap.add_argument("--comune", default="Napoli")
     ap.add_argument("-k", type=int, default=5)
     args = ap.parse_args()
@@ -245,6 +297,14 @@ def main() -> None:
                 print(f"  L{r['livello']} {r['testo'][:42]:42} -> "
                       f"{str(destinazioni(db, r['scheda_id']))[:26]:26} [{trovato}]")
             return
+
+        if args.verifica:
+            esiti = verifica(db, qdrant, vettorizzatore)
+            for ok, descrizione in esiti:
+                print(f"  {'OK  ' if ok else 'FALLITO'} {descrizione}")
+            falliti = [d for ok, d in esiti if not ok]
+            print(f"\n{len(esiti) - len(falliti)}/{len(esiti)} controlli superati")
+            raise SystemExit(1 if falliti else 0)
 
         n = indicizza(qdrant, schede_da_indicizzare(db), vettorizzatore)
         print(f"\nIndicizzate {n} schede nella collezione '{COLLEZIONE}'")

@@ -138,3 +138,37 @@ def test_ibrida_unisce_i_due_metodi(ambiente):
     risultati = cerca_ibrida(db, qdrant, "giornali", "Torino", v, k=3)
     assert risultati and any("lessicale" in r["posizioni"] for r in risultati)
     assert any("semantica" in r["posizioni"] for r in risultati)
+
+
+def test_verifica_passa_su_un_indice_corretto(ambiente):
+    from ecoscan.db.vettorizza import verifica
+    esiti = verifica(*ambiente, campione=4)
+    falliti = [d for ok, d in esiti if not ok]
+    assert not falliti, falliti
+
+
+def test_verifica_accorge_di_punti_mancanti(ambiente):
+    from qdrant_client import models
+
+    from ecoscan.db.vettorizza import COLLEZIONE, verifica
+    db, qdrant, v = ambiente
+    qdrant.delete(COLLEZIONE, points_selector=models.PointIdsList(points=[1]))
+    descrizioni = [d for ok, d in verifica(db, qdrant, v, campione=4) if not ok]
+    assert any("identificatori" in d for d in descrizioni)
+
+
+def test_verifica_accorge_di_vettori_sbagliati(ambiente):
+    """Conteggi giusti ma vettori scambiati: solo l'autorecupero se ne accorge."""
+    from qdrant_client import models
+
+    from ecoscan.db.vettorizza import COLLEZIONE, NOME_VETTORE, verifica
+    db, qdrant, v = ambiente
+    punti = qdrant.scroll(COLLEZIONE, limit=10, with_vectors=True, with_payload=True)[0]
+    scambiati = [models.PointStruct(id=punti[0].id, vector={NOME_VETTORE: punti[1].vector[NOME_VETTORE]},
+                                    payload=punti[0].payload),
+                 models.PointStruct(id=punti[1].id, vector={NOME_VETTORE: punti[0].vector[NOME_VETTORE]},
+                                    payload=punti[1].payload)]
+    qdrant.upsert(COLLEZIONE, points=scambiati)
+    descrizioni = [d for ok, d in verifica(db, qdrant, v, campione=10) if not ok]
+    assert any("autorecupero" in d for d in descrizioni)
+    assert not any("identificatori" in d for d in descrizioni)  # i conteggi tornano lo stesso
