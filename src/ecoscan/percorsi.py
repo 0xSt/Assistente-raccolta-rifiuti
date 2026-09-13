@@ -8,7 +8,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-from dotenv import load_dotenv
+from dotenv import dotenv_values
 
 
 def radice_progetto() -> Path:
@@ -23,11 +23,26 @@ def radice_progetto() -> Path:
 
 RADICE = radice_progetto()
 
-# Le impostazioni stanno nel file .env alla radice (vedi .env.example). Le variabili già
-# presenti nell'ambiente hanno la precedenza: è ciò che permette a Docker di sovrascriverle
-# senza toccare il file. ECOSCAN_RADICE fa eccezione e resta solo una variabile vera,
-# perché serve a trovare il .env stesso.
-load_dotenv(RADICE / ".env", override=False)
+def carica_impostazioni(radice: Path = RADICE) -> dict[str, str]:
+    """Porta nell'ambiente le impostazioni del file .env (vedi .env.example).
+
+    Una variabile già presente nell'ambiente vince sul file: è ciò che permette a Docker di
+    sovrascriverla senza toccare il disco. Una variabile presente ma **vuota** conta come
+    assente, altrimenti basterebbe un `ECOSCAN_X=` lasciato in giro per far ignorare il file
+    in silenzio.
+
+    ECOSCAN_RADICE fa eccezione e resta solo una variabile vera: serve a trovare il .env.
+    """
+    applicate = {}
+    for chiave, valore in dotenv_values(radice / ".env").items():
+        if valore is None or os.environ.get(chiave, "").strip():
+            continue
+        os.environ[chiave] = valore
+        applicate[chiave] = valore
+    return applicate
+
+
+carica_impostazioni()
 DATI = RADICE / "data"
 SORGENTI = DATI / "sorgenti"
 GREZZO = DATI / "grezzo"

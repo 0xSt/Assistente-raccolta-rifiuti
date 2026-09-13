@@ -15,10 +15,15 @@ CODICE = "from ecoscan import configurazione as c; import json; print(json.dumps
 
 
 def leggi_configurazione(cwd, ambiente=None):
+    """Legge la configurazione in un processo separato, con un ambiente ripulito.
+
+    Tutte le ECOSCAN_* ereditate vengono tolte: il test deve dipendere dal file, non da
+    come è configurata la macchina di chi lo esegue.
+    """
     import json
     import os
-    env = {**os.environ, **(ambiente or {})}
-    env.pop("ECOSCAN_QDRANT", None) if not (ambiente or {}).get("ECOSCAN_QDRANT") else None
+    env = {k: v for k, v in os.environ.items() if not k.startswith("ECOSCAN_")}
+    env.update(ambiente or {})
     uscita = subprocess.run([sys.executable, "-c", CODICE], cwd=cwd, capture_output=True,
                             text=True, env=env, check=True)
     return json.loads(uscita.stdout)
@@ -57,6 +62,14 @@ def test_l_ambiente_vince_sul_file(tmp_path):
     (tmp_path / ".env").write_text("ECOSCAN_QDRANT=http://dal-file:6333\n")
     letta = leggi_configurazione(tmp_path, {"ECOSCAN_QDRANT": "http://dall-ambiente:6333"})
     assert letta["qdrant"] == "http://dall-ambiente:6333"
+
+
+def test_una_variabile_vuota_non_zittisce_il_file(tmp_path):
+    """Un `ECOSCAN_X=` vuoto nell'ambiente non deve far ignorare il valore del file."""
+    (tmp_path / "pyproject.toml").write_text("[project]\nname='x'\n")
+    (tmp_path / ".env").write_text("ECOSCAN_LOTTO_EMBEDDING=8\n")
+    letta = leggi_configurazione(tmp_path, {"ECOSCAN_LOTTO_EMBEDDING": "   "})
+    assert letta["lotto"] == "8"
 
 
 def test_valore_non_numerico_segnalato(monkeypatch):

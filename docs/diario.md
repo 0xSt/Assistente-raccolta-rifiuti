@@ -106,7 +106,7 @@ Formato: decisione, motivazione, stato.
 | D59 | **Qdrant** come database vettoriale, SQLite per il relazionale: due store con ruoli distinti | Qdrant trova i candidati, SQLite dà la risposta. Il filtro per comune diventa una condizione applicata *dentro* la query e non un passaggio successivo, quindi il vincolo D7 è strutturale. Si incastra con l'architettura multi-container (D1) e la dashboard serve anche per la relazione. Con ~1100 vettori le prestazioni non discriminavano: la scelta è di architettura, non di velocità | Accettata |
 | D60 | Client configurabile con `ECOSCAN_QDRANT`: URL → server, percorso → modalità in-process | I test girano senza container e senza rete, lo sviluppo non richiede Docker acceso, la consegna usa il server. Una riga di configurazione, tre modi di lavorare | Accettata |
 | D62 | Le impostazioni stanno in un file `.env` alla radice, con `.env.example` versionato come modello | Le variabili impostate a mano nel terminale valgono per una finestra sola e si dimenticano: un valore mancante fa scrivere i vettori nel posto sbagliato senza errori. Un file rende la configurazione esplicita e riproducibile | Accettata |
-| D63 | Le variabili d'ambiente vere hanno la precedenza sul `.env` | È ciò che permette a un container di sovrascrivere un valore senza modificare il file su disco | Accettata |
+| D63 | Le variabili d'ambiente vere hanno la precedenza sul `.env`, **ma una variabile vuota conta come assente** | La precedenza serve a Docker; l'eccezione sul vuoto evita che un `ECOSCAN_X=` lasciato in giro faccia ignorare il file in silenzio | Accettata |
 | D64 | I comandi stampano in testa le impostazioni in uso | Il modo più rapido per accorgersi che una variabile non era quella che si credeva | Accettata |
 | D61 | Nel payload di Qdrant solo ciò che serve a cercare e filtrare; destinazioni, condizioni e provenienza restano in SQLite | Duplicare la regola nel payload significherebbe avere due verità. La risposta viene sempre dal relazionale (D9) | Accettata |
 | D56 | Il vettorizzatore è dietro un'interfaccia (`Vettorizzatore`) | Permette i test senza rete e il cambio di modello senza toccare la ricerca | Accettata |
@@ -177,11 +177,18 @@ Cose imparate che non sono decisioni, ma che conviene ricordare.
 - **Divergenze fra comuni utili da citare**: bicchiere di vetro (Napoli non riciclabile, Torino vetro); tappo di sughero (Napoli organico, Torino centro di raccolta o organico); pentole e padelle (Napoli plastica e metalli, Torino centro di raccolta). Una convergenza: il vetro dei profumi non è riciclabile in entrambi.
 - **Un processo lungo senza avanzamento sembra rotto.** L'estrazione di Napoli dura 15 minuti e non stampava nulla: Stef l'ha giustamente creduta bloccata. Vale per ogni comando che superi qualche secondo.
 - **In `.gitignore` non esistono commenti a fine riga.** `*.db  # nota` è un nome di file letterale: il database è finito in git per questo. Ora c'è un test che lo impedisce.
+- **Un test che dipende dall'ambiente di chi lo esegue non è un test.** `test_il_file_env_viene_letto` passava da me e falliva sul portatile di Stef, perché ereditava le variabili della macchina. Ora l'ambiente del sottoprocesso viene ripulito di tutte le `ECOSCAN_*`.
 - **Trappole già incontrate, da non ripetere**: i nodi di testo frammentati di Elementor; il match di "ecc" dentro "appare**cc**hi"; gli slug che finiscono con un numero che è un codice materiale e non un contatore; un test che passava solo perché la fixture era più semplice della realtà.
 
 ---
 
 ## Cronologia
+
+### v0.13.2 — 12/09/2026
+
+**Corretto.** `test_il_file_env_viene_letto` falliva sul portatile di Stef e passava qui: il sottoprocesso ereditava le variabili `ECOSCAN_*` della macchina. Ora l'ambiente del test viene ripulito, così il risultato dipende dal file e non da come è configurato il computer.
+
+**Corretto.** Il caricamento del `.env` ignorava una riga quando la variabile esisteva già nell'ambiente **anche se vuota**: `override=False` non distingue i due casi. Ora una variabile vuota conta come assente. Aggiunto un test di regressione.
 
 ### v0.13.1 — 12/09/2026
 

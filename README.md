@@ -4,7 +4,7 @@ Assistente per la raccolta differenziata che gira interamente in locale. L'utent
 
 Progetto universitario. Comuni del prototipo: **Napoli** (ASIA) e **Torino** (AMIAT).
 
-## Stato attuale (v0.13.1)
+## Stato attuale (v0.13.2)
 
 Il quadro completo è in [docs/diario.md](docs/diario.md).
 
@@ -98,8 +98,8 @@ cp .env.example .env         (bash)
 ```
 
 Dentro trovi dove sta Qdrant, l'endpoint di Ollama, il modello di embedding e la dimensione
-dei lotti. Le variabili d'ambiente vere, se impostate, hanno la precedenza sul file: serve a
-Docker per sovrascrivere un valore senza modificare nulla su disco.
+dei lotti. Le variabili d'ambiente vere, se impostate a un valore non vuoto, hanno la precedenza sul
+file: serve a Docker per sovrascrivere un valore senza modificare nulla su disco.
 
 Ogni comando che le usa stampa in testa le impostazioni in uso, così si vede subito se
 Qdrant sta in modalità `server` o `in-process`.
