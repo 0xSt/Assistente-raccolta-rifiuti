@@ -56,9 +56,14 @@ CREATE VIRTUAL TABLE scheda_fts USING fts5(
 """
 
 
-def testo_voce(nome: str, condizioni: list[str]) -> str:
-    """Nome e condizioni insieme: 'Cartone da pizza' + 'unto' si cercano come un'unica frase."""
-    return " ".join([nome, *condizioni]).strip()
+def testo_voce(nome: str, condizioni: list[str], codice: str | None = None) -> str:
+    """Nome, condizioni e codice materiale insieme, come un'unica frase da cercare.
+
+    Il codice serve per due ragioni: è la sigla che l'utente legge sull'imballaggio
+    ("PAP 21"), e senza di esso "Simbolo GL o GLS" sarebbe identico per i codici 70, 71 e 72,
+    rendendo le tre voci indistinguibili nella ricerca.
+    """
+    return " ".join([nome, *condizioni, codice or ""]).strip()
 
 
 def costruisci(db: sqlite3.Connection) -> dict[str, int]:
@@ -69,9 +74,10 @@ def costruisci(db: sqlite3.Connection) -> dict[str, int]:
     for voce_id, condizione in q("SELECT voce_id, condizione FROM voce_condizione ORDER BY condizione"):
         condizioni.setdefault(voce_id, []).append(condizione)
 
-    for voce_id, comune_id, nome in q("SELECT id, comune_id, nome FROM voce").fetchall():
+    for voce_id, comune_id, nome, codice in q(
+            "SELECT id, comune_id, nome, codice_materiale FROM voce").fetchall():
         q("INSERT INTO scheda (comune_id, livello, tipo, voce_id, testo) VALUES (?, 1, 'voce', ?, ?)",
-          (comune_id, voce_id, testo_voce(nome, condizioni.get(voce_id, []))))
+          (comune_id, voce_id, testo_voce(nome, condizioni.get(voce_id, []), codice)))
 
     for voce_id, comune_id, alias in q("""SELECT va.voce_id, v.comune_id, va.alias
                                           FROM voce_alias va JOIN voce v ON v.id = va.voce_id""").fetchall():

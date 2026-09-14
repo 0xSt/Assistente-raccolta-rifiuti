@@ -127,3 +127,11 @@ def test_dati_reali():
         risultati = cerca(reale, "capsula caffe plastica", "Torino")
         nomi = {r["nome"] for r in risultati}
         assert "Capsule del caffè in plastica" in nomi
+
+
+def test_il_codice_materiale_entra_nel_testo():
+    """Senza il codice, "Simbolo GL o GLS" sarebbe identico per i codici 70, 71 e 72:
+    tre voci con destinazioni diverse diventerebbero indistinguibili nella ricerca."""
+    from ecoscan.db.indicizza import testo_voce
+    assert testo_voce("Simbolo GL o GLS", [], "70") == "Simbolo GL o GLS 70"
+    assert testo_voce("Cartone da pizza", ["unto"], None) == "Cartone da pizza unto"

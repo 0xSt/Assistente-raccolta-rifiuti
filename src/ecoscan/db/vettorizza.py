@@ -144,7 +144,8 @@ def indicizza(qdrant: QdrantClient, schede: Iterable[dict], vettorizzatore: Vett
         gruppo = schede[n:n + lotto]
         vettori = vettorizzatore.vettorizza([s["testo"] for s in gruppo], "documento")
         qdrant.upsert(COLLEZIONE, points=[
-            models.PointStruct(id=s["id"], vector={NOME_VETTORE: v}, payload=s)
+            models.PointStruct(id=s["id"], vector={NOME_VETTORE: v},
+                               payload={k: valore for k, valore in s.items() if k != "id"})
             for s, v in zip(gruppo, vettori)])
         fatte = min(n + lotto, len(schede))
         trascorso = time.monotonic() - inizio
@@ -198,14 +199,25 @@ def cerca_ibrida(db: sqlite3.Connection, qdrant: QdrantClient, query: str, comun
 
 
 def destinazioni(db: sqlite3.Connection, scheda_id: int) -> str | None:
-    """La destinazione si legge sempre dal relazionale, mai dal payload (D9)."""
+    """Dove va (o dove NON va) ciò che la scheda descrive.
+
+    La polarità è parte della risposta: una regola `escluso` dice che l'oggetto **non** va in
+    quel contenitore. Mostrare solo il nome della destinazione ribalterebbe il significato.
+    Il dato si legge sempre dal relazionale, mai dal payload (D9).
+    """
     riga = db.execute("""
         SELECT (SELECT group_concat(d.nome, ' oppure ') FROM voce_destinazione vd
                   JOIN destinazione d ON d.id = vd.destinazione_id WHERE vd.voce_id = s.voce_id),
                (SELECT d.nome FROM destinazione d JOIN regola r ON r.destinazione_id = d.id
-                 WHERE r.id = s.regola_id)
+                 WHERE r.id = s.regola_id),
+               (SELECT r.polarita FROM regola r WHERE r.id = s.regola_id)
         FROM scheda s WHERE s.id = ?""", (scheda_id,)).fetchone()
-    return (riga[0] or riga[1]) if riga else None
+    if not riga:
+        return None
+    if riga[0]:
+        return riga[0]
+    prefisso = {"ammesso": "SI ", "escluso": "NO ", "nota": "nota: "}.get(riga[2], "")
+    return f"{prefisso}{riga[1]}" if riga[1] else None
 
 
 # --------------------------------------------------------------------------- verifica
@@ -249,11 +261,15 @@ def verifica(db: sqlite3.Connection, qdrant: QdrantClient, vettorizzatore: Vetto
     esiti.append(("destinazione" not in primo.payload,
                   "la destinazione NON è nel payload: la risposta viene dal relazionale (D9)"))
 
+    # due schede possono avere lo stesso testo (es. due regole con lo stesso oggetto escluso
+    # da contenitori diversi): in quel caso il pari merito è corretto, non un errore
     passo = max(1, len(schede) // campione)
     provini = schede[::passo][:campione]
-    centrati = sum(1 for s in provini
-                   if (r := cerca_semantica(qdrant, s["testo"], s["comune"], vettorizzatore, k=1))
-                   and r[0]["scheda_id"] == s["id"])
+    centrati = 0
+    for s in provini:
+        trovati = cerca_semantica(qdrant, s["testo"], s["comune"], vettorizzatore, k=1)
+        if trovati and (trovati[0]["scheda_id"] == s["id"] or trovati[0]["testo"] == s["testo"]):
+            centrati += 1
     esiti.append((centrati == len(provini),
                   f"autorecupero: {centrati}/{len(provini)} schede ritrovano sé stesse al primo posto"))
     return esiti

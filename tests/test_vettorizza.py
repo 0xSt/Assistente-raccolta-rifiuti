@@ -172,3 +172,28 @@ def test_verifica_accorge_di_vettori_sbagliati(ambiente):
     descrizioni = [d for ok, d in verifica(db, qdrant, v, campione=10) if not ok]
     assert any("autorecupero" in d for d in descrizioni)
     assert not any("identificatori" in d for d in descrizioni)  # i conteggi tornano lo stesso
+
+
+def test_la_polarita_e_parte_della_risposta(ambiente):
+    """Una regola `escluso` dice dove l'oggetto NON va: mostrarne solo la destinazione
+    ribalterebbe il significato."""
+    import sqlite3
+
+    from ecoscan.db.carica import carica
+    from ecoscan.db.indicizza import costruisci
+    from ecoscan.db.vettorizza import destinazioni
+
+    db = sqlite3.connect(":memory:")
+    regole = [{"comune": "Torino", "destinazione": "carta_e_cartone", "polarita": "escluso",
+               "testo": "scontrini", "dettaglio": None, "origine": "estrazione",
+               "fonte": "amiat", "riferimento": "pagina 8"},
+              {"comune": "Torino", "destinazione": "carta_e_cartone", "polarita": "ammesso",
+               "testo": "giornali", "dettaglio": None, "origine": "estrazione",
+               "fonte": "amiat", "riferimento": "pagina 8"}]
+    carica(db, DESTINAZIONI, VOCI, regole, {})
+    costruisci(db)
+    per_testo = {t: sid for sid, t in db.execute(
+        "SELECT id, testo FROM scheda WHERE regola_id IS NOT NULL")}
+    assert destinazioni(db, per_testo["scontrini"]) == "NO carta_e_cartone"
+    assert destinazioni(db, per_testo["giornali"]) == "SI carta_e_cartone"
+    db.close()

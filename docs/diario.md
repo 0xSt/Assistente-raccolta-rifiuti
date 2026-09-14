@@ -109,6 +109,8 @@ Formato: decisione, motivazione, stato.
 | D63 | Le variabili d'ambiente vere hanno la precedenza sul `.env`, **ma una variabile vuota conta come assente** | La precedenza serve a Docker; l'eccezione sul vuoto evita che un `ECOSCAN_X=` lasciato in giro faccia ignorare il file in silenzio | Accettata |
 | D64 | I comandi stampano in testa le impostazioni in uso | Il modo più rapido per accorgersi che una variabile non era quella che si credeva | Accettata |
 | D65 | L'indicizzazione si verifica con l'**autorecupero**, non solo con i conteggi | Conteggi e identificatori possono tornare anche con i vettori associati alle schede sbagliate. Cercare il testo di una scheda e pretendere che ritrovi sé stessa al primo posto è l'unico controllo che lega vettore e identificatore | Accettata |
+| D66 | Il codice materiale entra nel testo indicizzato | È la sigla che l'utente legge sull'imballaggio ("PAP 21"), e senza di esso "Simbolo GL o GLS" è identico per i codici 70, 71 e 72: tre voci con destinazioni diverse diventerebbero indistinguibili | Accettata |
+| D67 | La polarità è parte della risposta: una regola `escluso` si presenta come "NO <contenitore>" | Mostrare solo il nome della destinazione ribalta il significato: "Cartoni per bevande → imballaggi in plastica" leggeva come un'indicazione quando è un divieto | Accettata |
 | D61 | Nel payload di Qdrant solo ciò che serve a cercare e filtrare; destinazioni, condizioni e provenienza restano in SQLite | Duplicare la regola nel payload significherebbe avere due verità. La risposta viene sempre dal relazionale (D9) | Accettata |
 | D56 | Il vettorizzatore è dietro un'interfaccia (`Vettorizzatore`) | Permette i test senza rete e il cambio di modello senza toccare la ricerca | Accettata |
 | D57 | Un vettore si ricalcola solo se il testo della scheda è cambiato (impronta SHA-256) | Il calcolo è la parte lenta della pipeline: rieseguire dopo una modifica parziale deve costare poco | Accettata |
@@ -178,12 +180,25 @@ Cose imparate che non sono decisioni, ma che conviene ricordare.
 - **Divergenze fra comuni utili da citare**: bicchiere di vetro (Napoli non riciclabile, Torino vetro); tappo di sughero (Napoli organico, Torino centro di raccolta o organico); pentole e padelle (Napoli plastica e metalli, Torino centro di raccolta). Una convergenza: il vetro dei profumi non è riciclabile in entrambi.
 - **Un processo lungo senza avanzamento sembra rotto.** L'estrazione di Napoli dura 15 minuti e non stampava nulla: Stef l'ha giustamente creduta bloccata. Vale per ogni comando che superi qualche secondo.
 - **In `.gitignore` non esistono commenti a fine riga.** `*.db  # nota` è un nome di file letterale: il database è finito in git per questo. Ora c'è un test che lo impedisce.
+- **Una regola di esclusione mostrata senza polarità dice l'opposto del vero.** Nella prima prova di ricerca, "Cartoni per bevande (tipo Tetra Pak®) → imballaggi_plastica" sembrava un'indicazione di conferimento, mentre è la riga che li **esclude** dalla plastica. Vale per ogni punto in cui una regola verrà mostrata all'utente o passata al modello.
 - **Un test che dipende dall'ambiente di chi lo esegue non è un test.** `test_il_file_env_viene_letto` passava da me e falliva sul portatile di Stef, perché ereditava le variabili della macchina. Ora l'ambiente del sottoprocesso viene ripulito di tutte le `ECOSCAN_*`.
 - **Trappole già incontrate, da non ripetere**: i nodi di testo frammentati di Elementor; il match di "ecc" dentro "appare**cc**hi"; gli slug che finiscono con un numero che è un codice materiale e non un contatore; un test che passava solo perché la fixture era più semplice della realtà.
 
 ---
 
 ## Cronologia
+
+### v0.14.1 — 12/09/2026
+
+Tutte correzioni emerse dalle prime ricerche sui dati reali.
+
+**Corretto.** Il codice materiale non finiva nel testo indicizzato: "Simbolo GL o GLS" era identico per i codici 70, 71 e 72, e le tre voci erano indistinguibili. È anche la causa del `29/30` nell'autorecupero. Ora il codice fa parte del testo, ed è per giunta la sigla che si legge sull'imballaggio.
+
+**Corretto.** Le regole venivano mostrate con la sola destinazione, quindi un'esclusione sembrava un'indicazione: ora compaiono come `NO <contenitore>` o `SI <contenitore>`.
+
+**Corretto.** L'autorecupero segnalava come errore il pari merito fra schede con testo identico, che invece è corretto.
+
+**Corretto.** Versione di `qdrant-client` allineata al server del `docker-compose` (1.12), per togliere l'avviso di incompatibilità. Tolto dal payload l'identificatore, già presente come id del punto.
 
 ### v0.14.0 — 12/09/2026
 
