@@ -41,6 +41,8 @@ Va aggiornato **a ogni cambiamento sostanziale**, non a ogni riga di codice. In 
 | Load relazionale | Fatto: `ecoscan-carica` ricostruisce `data/ecoscan.db` dai file normalizzati |
 | Serving — indice lessicale | Fatto: 1072 schede sui due comuni |
 | Serving — vettori e ricerca ibrida | Fatto: **Qdrant** (denso), EmbeddingGemma su Ollama, fusione RRF con FTS5 |
+| Agente | Fatto: riconoscimento, cascata dei livelli, scelta vincolata, risposta. Indipendente da HTTP |
+| API, frontend, MLflow, Docker | Da fare |
 | Regole di categoria — Napoli | Completo per quanto la fonte pubblica: 38 ammessi, 11 esclusi (5 Vetro estratti + 6 Umido trascritti a mano), 2 assenze verificate |
 | Regole di categoria — Torino | Estratte: 10 schede, 30 ammessi, 27 esclusi |
 | Revisione manuale | **Completa**: 32 decisioni prese (16 per comune), 0 aperte, 0 voci da revisionare |
@@ -110,6 +112,11 @@ Formato: decisione, motivazione, stato.
 | D64 | I comandi stampano in testa le impostazioni in uso | Il modo più rapido per accorgersi che una variabile non era quella che si credeva | Accettata |
 | D65 | L'indicizzazione si verifica con l'**autorecupero**, non solo con i conteggi | Conteggi e identificatori possono tornare anche con i vettori associati alle schede sbagliate. Cercare il testo di una scheda e pretendere che ritrovi sé stessa al primo posto è l'unico controllo che lega vettore e identificatore | Accettata |
 | D66 | Il codice materiale entra nel testo indicizzato | È la sigla che l'utente legge sull'imballaggio ("PAP 21"), e senza di esso "Simbolo GL o GLS" è identico per i codici 70, 71 e 72: tre voci con destinazioni diverse diventerebbero indistinguibili | Accettata |
+| D70 | L'agente è un oggetto Python indipendente da FastAPI | Valutazione e test lo chiamano direttamente: se la logica stesse nelle rotte, misurarla richiederebbe di alzare un server | Accettata |
+| D71 | I prompt sono file versionati in `src/ecoscan/prompt/`, con versione dichiarata e impronta calcolata sul contenuto | Ogni risposta registra quale prompt l'ha prodotta; una modifica senza cambio di versione resta comunque visibile dall'impronta | Accettata |
+| D72 | `analizza` (dalla foto) e `rispondi` (dal riconoscimento) sono separati | Permette di valutare retrieval e scelta senza rieseguire il modello di visione su ogni foto, che su CPU è il passaggio più lento | Accettata |
+| D73 | Il chiarimento nasce dai dati, non dall'intuito del modello: se fra i candidati ci sono omonimi con destinazioni diverse, la condizione si chiede | "Capsule del caffè in plastica" con e senza residuo vanno in contenitori diversi e dalla foto non si distingue | Accettata |
+| D74 | Il contesto per il secondo giro torna al client ed è opaco | Backend senza stato, come deciso per il prototipo: niente sessioni da gestire e scadere | Accettata |
 | D69 | L'autorecupero accetta le prime 3 posizioni, non solo la prima | Le fonti contengono quasi sinonimi ("Televisore a tubo catodico" e "TV a tubo catodico") che si contendono legittimamente la testa della classifica. Fuori dalle prime posizioni, invece, c'è un vero disallineamento | Accettata |
 | D68 | Un controllo che fallisce deve dire **cosa** è fallito | L'autorecupero segnalava `29/30` senza indicare quale scheda: un avviso che non permette di agire costringe a indagare a mano ogni volta | Accettata |
 | D67 | La polarità è parte della risposta: una regola `escluso` si presenta come "NO <contenitore>" | Mostrare solo il nome della destinazione ribalta il significato: "Cartoni per bevande → imballaggi in plastica" leggeva come un'indicazione quando è un divieto | Accettata |
@@ -191,6 +198,16 @@ Cose imparate che non sono decisioni, ma che conviene ricordare.
 ---
 
 ## Cronologia
+
+### v0.15.0 — 12/09/2026
+
+**Aggiunto.** Il pacchetto `agente/`: tipi (`Riconoscimento`, `Candidato`, `Scelta`, `Risposta`), modello di visione dietro un'interfaccia con implementazione Ollama a output strutturato, recupero dei candidati per livello di evidenza arricchiti dal relazionale, e l'orchestrazione. 24 test con un modello finto programmabile e la ricerca vera.
+
+**Aggiunto.** I prompt come file versionati in `src/ecoscan/prompt/`, con versione e impronta; ogni risposta porta nel contesto le etichette dei prompt usati e il nome del modello.
+
+**Scelte di flusso.** La cascata prova prima le voci (livello 1) e poi le regole di categoria (livello 2); se nessuna delle due produce una scelta, la risposta è di livello 3 e dichiara che il comune non copre l'oggetto. Il chiarimento si attiva quando i candidati contengono omonimi con destinazioni diverse: è un segnale nei dati, non un'intuizione del modello.
+
+**Rifinitura dei test.** Il vettorizzatore finto è passato in `tests/conftest.py`, perché ora lo usano sia i test dell'indice sia quelli dell'agente.
 
 ### v0.14.3 — 12/09/2026
 

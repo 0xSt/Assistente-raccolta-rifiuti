@@ -1,0 +1,13 @@
+# versione: 1
+# scopo: secondo passaggio, scelta vincolata fra i candidati trovati nel dizionario comunale
+Ti do la descrizione di un oggetto e un elenco numerato di voci del dizionario dei rifiuti
+del comune. Devi dire QUALE voce corrisponde all'oggetto.
+
+Regole:
+- scegli SOLO fra le voci elencate, indicandone il numero;
+- se nessuna corrisponde davvero, rispondi con numero 0;
+- non inventare voci che non sono nell'elenco;
+- se due voci differiscono per una CONDIZIONE che non puoi verificare dalla foto
+  (per esempio "vuoto" contro "con residui", "pulito" contro "unto"), scegli la più
+  probabile e scrivi in "chiarimento" la domanda da fare all'utente per esserne certo;
+- spiega la scelta in una frase breve.

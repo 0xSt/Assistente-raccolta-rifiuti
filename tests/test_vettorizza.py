@@ -7,8 +7,9 @@ set di valutazione.
 """
 import sqlite3
 
-import numpy as np
 import pytest
+
+from tests.conftest import VettorizzatoreFinto
 
 from ecoscan.db.carica import carica
 from ecoscan.db.indicizza import costruisci
@@ -44,26 +45,6 @@ VOCI = [
     voce("Torino", "stracci", "Stracci e strofinacci", "rifiuto_non_recuperabile"),
     voce("Napoli", "giornale", "Giornale", "Carta e Cartoncino"),
 ]
-
-
-class VettorizzatoreFinto:
-    """Vettori deterministici dal testo: nessuna rete, risultati riproducibili."""
-
-    nome = "finto"
-    dimensione = 8
-
-    def __init__(self):
-        self.chiamate = 0
-
-    def vettorizza(self, testi, come="documento"):
-        self.chiamate += len(testi)
-        vettori = []
-        for t in testi:
-            nudo = (t.replace("task: search result | query: ", "")
-                     .replace("title: none | text: ", "").lower())
-            generatore = np.random.default_rng(abs(hash(nudo)) % 2**32)
-            vettori.append(generatore.normal(size=self.dimensione).tolist())
-        return vettori
 
 
 @pytest.fixture

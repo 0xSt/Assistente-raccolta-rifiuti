@@ -191,6 +191,13 @@ vettori si calcola con un semplice prodotto scalare.
 **RRF (Reciprocal Rank Fusion)** — Metodo per fondere due classifiche usando la posizione
 dei risultati invece dei punteggi, che non sono confrontabili fra loro.
 
+**Cascata dei livelli** — L'agente cerca prima fra le voci di dizionario (livello 1) e solo
+se non trova nulla fra le regole di categoria (livello 2). Se nessuno dei due produce una
+scelta, la risposta è di livello 3: il comune non copre quell'oggetto.
+
+**Chiarimento** — Domanda che l'agente fa invece di indovinare, quando fra i candidati ci
+sono voci omonime con destinazioni diverse e la condizione che le distingue non è visibile.
+
 **Scelta vincolata** — Chiedere al modello di scegliere fra candidati reali, o di
 rispondere "nessuno", invece di lasciarlo produrre un nome libero. Contiene le allucinazioni.
 

@@ -1,6 +1,6 @@
 [project]
 name = "ecoscan-local"
-version = "0.14.3"
+version = "0.15.0"
 description = "Assistente locale per la raccolta differenziata: ETL da fonti comunali, schema dati e retrieval ibrido"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -36,4 +36,5 @@ packages = ["src/ecoscan"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["."]   # per importare gli strumenti condivisi da tests/conftest.py
 addopts = "-q -p no:cacheprovider"

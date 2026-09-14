@@ -4,7 +4,7 @@ Assistente per la raccolta differenziata che gira interamente in locale. L'utent
 
 Progetto universitario. Comuni del prototipo: **Napoli** (ASIA) e **Torino** (AMIAT).
 
-## Stato attuale (v0.14.3)
+## Stato attuale (v0.15.0)
 
 Il quadro completo è in [docs/diario.md](docs/diario.md).
 
@@ -19,6 +19,8 @@ Il quadro completo è in [docs/diario.md](docs/diario.md).
 | Load relazionale | Fatto: comuni, destinazioni, voci, condizioni, alias, regole, decisioni |
 | Serving — indice lessicale | Fatto: schede, FTS5 a trigrammi, ricerca per comune |
 | Serving — embedding e ricerca ibrida | Fatto: Qdrant + EmbeddingGemma, fusione RRF con FTS5 |
+| Agente (riconoscimento, cascata, scelta, risposta) | Fatto: usabile senza HTTP |
+| API FastAPI, frontend, MLflow, Docker | Da fare |
 | Valutazione (foto etichettate, metriche) | Da fare |
 | Backend, frontend, modello | Da fare |
 
@@ -120,6 +122,11 @@ Qdrant sta in modalità `server` o `in-process`.
 | `etl/revisioni.py` | Decisioni manuali, applicate a ogni riesecuzione |
 | `etl/esegui_transform.py` | Comando che mette insieme Transform, profili e revisioni |
 | `etl/normalizza_regole.py` | Collega le regole di categoria alle destinazioni dei comuni |
+| `agente/tipi.py` | Riconoscimento, candidato, scelta, risposta |
+| `agente/modelli.py` | Modello di visione: interfaccia e implementazione Ollama |
+| `agente/recupero.py` | Candidati per livello di evidenza, arricchiti dal relazionale |
+| `agente/agente.py` | Orchestrazione: riconoscimento → cascata → scelta → risposta |
+| `prompt/` | I prompt come file versionati, con versione e impronta |
 | `percorsi.py` | Radice del progetto, cartelle dati, caricamento del `.env` |
 | `configurazione.py` | Impostazioni lette dal `.env`, con i valori predefiniti |
 | `db/schema.sql` | Schema del livello relazionale |

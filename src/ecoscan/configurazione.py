@@ -33,6 +33,10 @@ QDRANT = _testo("ECOSCAN_QDRANT", str(DATI / "qdrant"))
 OLLAMA = _testo("ECOSCAN_OLLAMA", "http://localhost:11434/api/embed")
 # Modello di embedding: cambiarlo richiede di reindicizzare
 MODELLO_EMBEDDING = _testo("ECOSCAN_MODELLO_EMBEDDING", "embeddinggemma")
+# Modello multimodale che legge le foto e sceglie fra i candidati
+MODELLO_VISIONE = _testo("ECOSCAN_MODELLO_VISIONE", "gemma4:e2b")
+# Endpoint di Ollama per le conversazioni (diverso da quello degli embedding)
+OLLAMA_CHAT = _testo("ECOSCAN_OLLAMA_CHAT", OLLAMA.replace("/api/embed", "/api/chat"))
 # Quante schede si vettorizzano per chiamata
 LOTTO_EMBEDDING = _intero("ECOSCAN_LOTTO_EMBEDDING", 32)
 
@@ -41,5 +45,6 @@ def riepilogo() -> dict[str, str]:
     """Valori in uso, per mostrarli nei comandi: è il modo più rapido per scoprire
     che una variabile non era impostata come si credeva."""
     return {"qdrant": QDRANT, "ollama": OLLAMA, "modello": MODELLO_EMBEDDING,
+            "modello_visione": MODELLO_VISIONE,
             "lotto": str(LOTTO_EMBEDDING),
             "modalita_qdrant": "server" if QDRANT.startswith(("http://", "https://")) else "in-process"}
