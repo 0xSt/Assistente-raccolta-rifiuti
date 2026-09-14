@@ -199,6 +199,10 @@ Cose imparate che non sono decisioni, ma che conviene ricordare.
 
 ## Cronologia
 
+### v0.15.1 — 12/09/2026
+
+**Aggiunto.** Comando `ecoscan-analizza`: prova l'agente su una foto vera, stampando riconoscimento, candidati con la loro provenienza (lessicale, semantica o entrambe), risposta e **tempi per fase**. Con `--oggetto` si salta il modello di visione e si parte da una descrizione scritta, utile per provare retrieval e scelta senza aspettare Gemma. 8 test sui controlli d'ingresso e sulla presentazione, fra cui uno che verifica che una regola di esclusione si legga come divieto.
+
 ### v0.15.0 — 12/09/2026
 
 **Aggiunto.** Il pacchetto `agente/`: tipi (`Riconoscimento`, `Candidato`, `Scelta`, `Risposta`), modello di visione dietro un'interfaccia con implementazione Ollama a output strutturato, recupero dei candidati per livello di evidenza arricchiti dal relazionale, e l'orchestrazione. 24 test con un modello finto programmabile e la ricerca vera.
