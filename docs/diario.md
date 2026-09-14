@@ -110,6 +110,7 @@ Formato: decisione, motivazione, stato.
 | D64 | I comandi stampano in testa le impostazioni in uso | Il modo più rapido per accorgersi che una variabile non era quella che si credeva | Accettata |
 | D65 | L'indicizzazione si verifica con l'**autorecupero**, non solo con i conteggi | Conteggi e identificatori possono tornare anche con i vettori associati alle schede sbagliate. Cercare il testo di una scheda e pretendere che ritrovi sé stessa al primo posto è l'unico controllo che lega vettore e identificatore | Accettata |
 | D66 | Il codice materiale entra nel testo indicizzato | È la sigla che l'utente legge sull'imballaggio ("PAP 21"), e senza di esso "Simbolo GL o GLS" è identico per i codici 70, 71 e 72: tre voci con destinazioni diverse diventerebbero indistinguibili | Accettata |
+| D68 | Un controllo che fallisce deve dire **cosa** è fallito | L'autorecupero segnalava `29/30` senza indicare quale scheda: un avviso che non permette di agire costringe a indagare a mano ogni volta | Accettata |
 | D67 | La polarità è parte della risposta: una regola `escluso` si presenta come "NO <contenitore>" | Mostrare solo il nome della destinazione ribalta il significato: "Cartoni per bevande → imballaggi in plastica" leggeva come un'indicazione quando è un divieto | Accettata |
 | D61 | Nel payload di Qdrant solo ciò che serve a cercare e filtrare; destinazioni, condizioni e provenienza restano in SQLite | Duplicare la regola nel payload significherebbe avere due verità. La risposta viene sempre dal relazionale (D9) | Accettata |
 | D56 | Il vettorizzatore è dietro un'interfaccia (`Vettorizzatore`) | Permette i test senza rete e il cambio di modello senza toccare la ricerca | Accettata |
@@ -180,6 +181,7 @@ Cose imparate che non sono decisioni, ma che conviene ricordare.
 - **Divergenze fra comuni utili da citare**: bicchiere di vetro (Napoli non riciclabile, Torino vetro); tappo di sughero (Napoli organico, Torino centro di raccolta o organico); pentole e padelle (Napoli plastica e metalli, Torino centro di raccolta). Una convergenza: il vetro dei profumi non è riciclabile in entrambi.
 - **Un processo lungo senza avanzamento sembra rotto.** L'estrazione di Napoli dura 15 minuti e non stampava nulla: Stef l'ha giustamente creduta bloccata. Vale per ogni comando che superi qualche secondo.
 - **In `.gitignore` non esistono commenti a fine riga.** `*.db  # nota` è un nome di file letterale: il database è finito in git per questo. Ora c'è un test che lo impedisce.
+- **Le celle della scheda "Pile" di Torino non sono oggetti.** Sono formati di batteria ("C", "AA", "AAA", "D", "Button"): testi di una o due lettere, che nessun metodo di ricerca può distinguere. Non è un difetto dell'indice ma un limite della fonte, e la verifica ora lo segnala come nota invece di confonderlo con un errore.
 - **Una regola di esclusione mostrata senza polarità dice l'opposto del vero.** Nella prima prova di ricerca, "Cartoni per bevande (tipo Tetra Pak®) → imballaggi_plastica" sembrava un'indicazione di conferimento, mentre è la riga che li **esclude** dalla plastica. Vale per ogni punto in cui una regola verrà mostrata all'utente o passata al modello.
 - **Un test che dipende dall'ambiente di chi lo esegue non è un test.** `test_il_file_env_viene_letto` passava da me e falliva sul portatile di Stef, perché ereditava le variabili della macchina. Ora l'ambiente del sottoprocesso viene ripulito di tutte le `ECOSCAN_*`.
 - **Trappole già incontrate, da non ripetere**: i nodi di testo frammentati di Elementor; il match di "ecc" dentro "appare**cc**hi"; gli slug che finiscono con un numero che è un codice materiale e non un contatore; un test che passava solo perché la fixture era più semplice della realtà.
@@ -187,6 +189,12 @@ Cose imparate che non sono decisioni, ma che conviene ricordare.
 ---
 
 ## Cronologia
+
+### v0.14.2 — 12/09/2026
+
+**Corretto.** L'autorecupero diceva `29/30` senza indicare quale scheda avesse fallito e cosa avesse trovato al suo posto. Ora le mancate sono elencate con testo cercato e testo ottenuto.
+
+**Aggiunto.** La verifica segnala quante schede hanno un testo più corto di 4 caratteri, con esempi: sono le celle della scheda "Pile" di Torino ("C", "AA", "D"), formati di batteria che nessun metodo di ricerca può distinguere. È un limite della fonte, non dell'indice, e viene mostrato come nota.
 
 ### v0.14.1 — 12/09/2026
 

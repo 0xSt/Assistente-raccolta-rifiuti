@@ -197,3 +197,18 @@ def test_la_polarita_e_parte_della_risposta(ambiente):
     assert destinazioni(db, per_testo["scontrini"]) == "NO carta_e_cartone"
     assert destinazioni(db, per_testo["giornali"]) == "SI carta_e_cartone"
     db.close()
+
+
+def test_l_autorecupero_dice_quali_schede_ha_mancato(ambiente):
+    """Un controllo che fallisce senza dire cosa è fallito non serve a niente."""
+    from qdrant_client import models
+
+    from ecoscan.db.vettorizza import COLLEZIONE, NOME_VETTORE, verifica
+    db, qdrant, v = ambiente
+    punti = qdrant.scroll(COLLEZIONE, limit=10, with_vectors=True, with_payload=True)[0]
+    qdrant.upsert(COLLEZIONE, points=[
+        models.PointStruct(id=punti[0].id, vector={NOME_VETTORE: punti[1].vector[NOME_VETTORE]},
+                           payload=punti[0].payload)])
+    descrizione = next(d for ok, d in verifica(db, qdrant, v, campione=10)
+                       if not ok and "autorecupero" in d)
+    assert "mancate:" in descrizione and "ha trovato" in descrizione

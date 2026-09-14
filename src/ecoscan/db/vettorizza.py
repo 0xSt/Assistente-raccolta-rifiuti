@@ -222,6 +222,9 @@ def destinazioni(db: sqlite3.Connection, scheda_id: int) -> str | None:
 
 # --------------------------------------------------------------------------- verifica
 
+LUNGHEZZA_MINIMA_DISCRIMINANTE = 4  # sotto, il testo non basta a distinguere una scheda
+
+
 def verifica(db: sqlite3.Connection, qdrant: QdrantClient, vettorizzatore: Vettorizzatore,
              campione: int = 30) -> list[tuple[bool, str]]:
     """Controlla che l'indicizzazione sia andata a buon fine. Restituisce (esito, descrizione).
@@ -265,13 +268,31 @@ def verifica(db: sqlite3.Connection, qdrant: QdrantClient, vettorizzatore: Vetto
     # da contenitori diversi): in quel caso il pari merito è corretto, non un errore
     passo = max(1, len(schede) // campione)
     provini = schede[::passo][:campione]
-    centrati = 0
+    centrati, mancati = 0, []
     for s in provini:
         trovati = cerca_semantica(qdrant, s["testo"], s["comune"], vettorizzatore, k=1)
         if trovati and (trovati[0]["scheda_id"] == s["id"] or trovati[0]["testo"] == s["testo"]):
             centrati += 1
+        else:
+            ottenuto = trovati[0]["testo"] if trovati else "(nessun risultato)"
+            mancati.append(f"{s['comune']}/{s['id']} {s['testo']!r} -> ha trovato {ottenuto!r}")
+    dettaglio = ("; ".join(mancati[:5])) if mancati else ""
     esiti.append((centrati == len(provini),
-                  f"autorecupero: {centrati}/{len(provini)} schede ritrovano sé stesse al primo posto"))
+                  f"autorecupero: {centrati}/{len(provini)} schede ritrovano sé stesse al primo posto"
+                  + (f" — mancate: {dettaglio}" if mancati else "")))
+
+    # Non è un errore dell'indice ma un limite dei dati: le celle della scheda "Pile" di Torino
+    # sono formati di batteria ("C", "AA", "D"), testi troppo brevi per essere discriminanti.
+    corte = db.execute(
+        "SELECT count(*) FROM scheda WHERE length(testo) < ?", (LUNGHEZZA_MINIMA_DISCRIMINANTE,)
+    ).fetchone()[0]
+    if corte:
+        esempi = [t for t, in db.execute(
+            "SELECT testo FROM scheda WHERE length(testo) < ? ORDER BY length(testo) LIMIT 5",
+            (LUNGHEZZA_MINIMA_DISCRIMINANTE,))]
+        esiti.append((True, f"nota: {corte} schede hanno un testo più corto di "
+                            f"{LUNGHEZZA_MINIMA_DISCRIMINANTE} caratteri ({', '.join(map(repr, esempi))}): "
+                            "sono difficili da recuperare, ma è un limite della fonte"))
     return esiti
 
 
