@@ -33,10 +33,15 @@ def voce(comune, slug, nome, destinazione):
             "avvertenza": None, "motivi": [], "da_revisionare": False}
 
 
+# Servono abbastanza schede per comune: con meno di POSIZIONI_AUTORECUPERO+1 il controllo
+# dell'autorecupero non potrebbe mai fallire, e il test sarebbe inutile.
 VOCI = [
     voce("Torino", "cartone-bevande", "Cartone per bevande Tetra Pak", "carta_e_cartone"),
     voce("Torino", "giornali", "Giornali e riviste", "carta_e_cartone"),
     voce("Torino", "pirofile", "Pirofile da forno", "rifiuto_non_recuperabile"),
+    voce("Torino", "quaderni", "Quaderni e blocchi per appunti", "carta_e_cartone"),
+    voce("Torino", "specchi", "Specchi rotti", "rifiuto_non_recuperabile"),
+    voce("Torino", "stracci", "Stracci e strofinacci", "rifiuto_non_recuperabile"),
     voce("Napoli", "giornale", "Giornale", "Carta e Cartoncino"),
 ]
 
@@ -82,13 +87,13 @@ def test_apri_qdrant_distingue_url_e_percorso(tmp_path):
 
 def test_tutte_le_schede_indicizzate(ambiente):
     _, qdrant, _ = ambiente
-    assert qdrant.count(COLLEZIONE).count == 4
+    assert qdrant.count(COLLEZIONE).count == len(VOCI)
 
 
 def test_il_filtro_per_comune_e_dentro_la_query(ambiente):
     """Il vincolo D7 diventa strutturale: non è un filtro applicato dopo."""
     db, qdrant, v = ambiente
-    assert qdrant.count(COLLEZIONE, count_filter=filtro("Torino")).count == 3
+    assert qdrant.count(COLLEZIONE, count_filter=filtro("Torino")).count == len(VOCI) - 1
     risultati = cerca_semantica(qdrant, "giornale", "Napoli", v, k=5)
     assert {r["comune"] for r in risultati} == {"Napoli"}
 
@@ -115,7 +120,7 @@ def test_il_payload_non_contiene_la_destinazione(ambiente):
 def test_reindicizzare_non_duplica(ambiente):
     db, qdrant, v = ambiente
     indicizza(qdrant, schede_da_indicizzare(db), v, avanzamento=lambda *_: None)
-    assert qdrant.count(COLLEZIONE).count == 4
+    assert qdrant.count(COLLEZIONE).count == len(VOCI)
 
 
 def test_rrf_premia_chi_compare_in_entrambe_le_classifiche():
@@ -158,17 +163,20 @@ def test_verifica_accorge_di_punti_mancanti(ambiente):
 
 
 def test_verifica_accorge_di_vettori_sbagliati(ambiente):
-    """Conteggi giusti ma vettori scambiati: solo l'autorecupero se ne accorge."""
+    """Conteggi giusti ma vettore disallineato: solo l'autorecupero se ne accorge.
+
+    Il vettore viene invertito, così la scheda diventa il risultato *peggiore* per il proprio
+    testo e finisce fuori dalle prime posizioni tollerate.
+    """
     from qdrant_client import models
 
     from ecoscan.db.vettorizza import COLLEZIONE, NOME_VETTORE, verifica
     db, qdrant, v = ambiente
-    punti = qdrant.scroll(COLLEZIONE, limit=10, with_vectors=True, with_payload=True)[0]
-    scambiati = [models.PointStruct(id=punti[0].id, vector={NOME_VETTORE: punti[1].vector[NOME_VETTORE]},
-                                    payload=punti[0].payload),
-                 models.PointStruct(id=punti[1].id, vector={NOME_VETTORE: punti[0].vector[NOME_VETTORE]},
-                                    payload=punti[1].payload)]
-    qdrant.upsert(COLLEZIONE, points=scambiati)
+    punto = qdrant.scroll(COLLEZIONE, limit=1, with_vectors=True, with_payload=True)[0][0]
+    invertito = [-x for x in punto.vector[NOME_VETTORE]]
+    qdrant.upsert(COLLEZIONE, points=[models.PointStruct(id=punto.id,
+                                                         vector={NOME_VETTORE: invertito},
+                                                         payload=punto.payload)])
     descrizioni = [d for ok, d in verifica(db, qdrant, v, campione=10) if not ok]
     assert any("autorecupero" in d for d in descrizioni)
     assert not any("identificatori" in d for d in descrizioni)  # i conteggi tornano lo stesso
@@ -205,10 +213,10 @@ def test_l_autorecupero_dice_quali_schede_ha_mancato(ambiente):
 
     from ecoscan.db.vettorizza import COLLEZIONE, NOME_VETTORE, verifica
     db, qdrant, v = ambiente
-    punti = qdrant.scroll(COLLEZIONE, limit=10, with_vectors=True, with_payload=True)[0]
+    punto = qdrant.scroll(COLLEZIONE, limit=1, with_vectors=True, with_payload=True)[0][0]
     qdrant.upsert(COLLEZIONE, points=[
-        models.PointStruct(id=punti[0].id, vector={NOME_VETTORE: punti[1].vector[NOME_VETTORE]},
-                           payload=punti[0].payload)])
+        models.PointStruct(id=punto.id, vector={NOME_VETTORE: [-x for x in punto.vector[NOME_VETTORE]]},
+                           payload=punto.payload)])
     descrizione = next(d for ok, d in verifica(db, qdrant, v, campione=10)
                        if not ok and "autorecupero" in d)
     assert "mancate:" in descrizione and "ha trovato" in descrizione

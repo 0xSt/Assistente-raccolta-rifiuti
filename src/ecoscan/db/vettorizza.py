@@ -223,6 +223,10 @@ def destinazioni(db: sqlite3.Connection, scheda_id: int) -> str | None:
 # --------------------------------------------------------------------------- verifica
 
 LUNGHEZZA_MINIMA_DISCRIMINANTE = 4  # sotto, il testo non basta a distinguere una scheda
+# L'autorecupero accetta i primi K posti, non solo il primo: le fonti contengono quasi
+# sinonimi ("Televisore a tubo catodico" e "TV a tubo catodico") che si contendono
+# legittimamente la testa della classifica. Fuori dai primi K, invece, c'è un disallineamento.
+POSIZIONI_AUTORECUPERO = 3
 
 
 def verifica(db: sqlite3.Connection, qdrant: QdrantClient, vettorizzatore: Vettorizzatore,
@@ -270,15 +274,17 @@ def verifica(db: sqlite3.Connection, qdrant: QdrantClient, vettorizzatore: Vetto
     provini = schede[::passo][:campione]
     centrati, mancati = 0, []
     for s in provini:
-        trovati = cerca_semantica(qdrant, s["testo"], s["comune"], vettorizzatore, k=1)
-        if trovati and (trovati[0]["scheda_id"] == s["id"] or trovati[0]["testo"] == s["testo"]):
+        trovati = cerca_semantica(qdrant, s["testo"], s["comune"], vettorizzatore,
+                                  k=POSIZIONI_AUTORECUPERO)
+        if any(t["scheda_id"] == s["id"] or t["testo"] == s["testo"] for t in trovati):
             centrati += 1
         else:
-            ottenuto = trovati[0]["testo"] if trovati else "(nessun risultato)"
-            mancati.append(f"{s['comune']}/{s['id']} {s['testo']!r} -> ha trovato {ottenuto!r}")
+            ottenuti = ", ".join(repr(t["testo"]) for t in trovati) or "(nessun risultato)"
+            mancati.append(f"{s['comune']}/{s['id']} {s['testo']!r} -> ha trovato {ottenuti}")
     dettaglio = ("; ".join(mancati[:5])) if mancati else ""
     esiti.append((centrati == len(provini),
-                  f"autorecupero: {centrati}/{len(provini)} schede ritrovano sé stesse al primo posto"
+                  f"autorecupero: {centrati}/{len(provini)} schede fra i primi "
+                  f"{POSIZIONI_AUTORECUPERO} risultati del proprio testo"
                   + (f" — mancate: {dettaglio}" if mancati else "")))
 
     # Non è un errore dell'indice ma un limite dei dati: le celle della scheda "Pile" di Torino

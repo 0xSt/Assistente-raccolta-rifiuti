@@ -50,6 +50,7 @@ Ogni problema diventa una riga della tabella `problema_qualita` durante il caric
 | Esclusioni pubblicate solo come immagine | solo il Vetro ha l'elenco testuale | Rilevate come `immagini_informative`; l'Umido è stato trascritto a mano, Plastica e Carta non ne hanno |
 | Ammessi ed esclusi con markup diverso | ammessi: `<img>` + `<strong>`; esclusi: `<ul><li>` | Raccolta separata per polarità (corretto in v0.5.0) |
 | Etichette grafiche "SI"/"NO" lette come note | nota "NO" nella pagina del Vetro | Filtrate |
+| Voci quasi gemelle con destinazioni **diverse** | "Televisore a tubo catodico" (Isola + Ecopunto Elettrodomestici) vs "TV a tubo catodico" (solo Isola). Per lo schermo piatto invece le due versioni concordano | Non deduplicabili: i nomi differiscono troppo e le destinazioni non coincidono. Restano entrambe; la ricerca le propone insieme |
 | Lista non affidabile | "Puoi inoltre conferire in questo contenitore" quasi identica su voci diverse | Usata solo per le avvertenze |
 
 ### Correzioni al registro dopo il Transform

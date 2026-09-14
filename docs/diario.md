@@ -110,6 +110,7 @@ Formato: decisione, motivazione, stato.
 | D64 | I comandi stampano in testa le impostazioni in uso | Il modo più rapido per accorgersi che una variabile non era quella che si credeva | Accettata |
 | D65 | L'indicizzazione si verifica con l'**autorecupero**, non solo con i conteggi | Conteggi e identificatori possono tornare anche con i vettori associati alle schede sbagliate. Cercare il testo di una scheda e pretendere che ritrovi sé stessa al primo posto è l'unico controllo che lega vettore e identificatore | Accettata |
 | D66 | Il codice materiale entra nel testo indicizzato | È la sigla che l'utente legge sull'imballaggio ("PAP 21"), e senza di esso "Simbolo GL o GLS" è identico per i codici 70, 71 e 72: tre voci con destinazioni diverse diventerebbero indistinguibili | Accettata |
+| D69 | L'autorecupero accetta le prime 3 posizioni, non solo la prima | Le fonti contengono quasi sinonimi ("Televisore a tubo catodico" e "TV a tubo catodico") che si contendono legittimamente la testa della classifica. Fuori dalle prime posizioni, invece, c'è un vero disallineamento | Accettata |
 | D68 | Un controllo che fallisce deve dire **cosa** è fallito | L'autorecupero segnalava `29/30` senza indicare quale scheda: un avviso che non permette di agire costringe a indagare a mano ogni volta | Accettata |
 | D67 | La polarità è parte della risposta: una regola `escluso` si presenta come "NO <contenitore>" | Mostrare solo il nome della destinazione ribalta il significato: "Cartoni per bevande → imballaggi in plastica" leggeva come un'indicazione quando è un divieto | Accettata |
 | D61 | Nel payload di Qdrant solo ciò che serve a cercare e filtrare; destinazioni, condizioni e provenienza restano in SQLite | Duplicare la regola nel payload significherebbe avere due verità. La risposta viene sempre dal relazionale (D9) | Accettata |
@@ -181,6 +182,7 @@ Cose imparate che non sono decisioni, ma che conviene ricordare.
 - **Divergenze fra comuni utili da citare**: bicchiere di vetro (Napoli non riciclabile, Torino vetro); tappo di sughero (Napoli organico, Torino centro di raccolta o organico); pentole e padelle (Napoli plastica e metalli, Torino centro di raccolta). Una convergenza: il vetro dei profumi non è riciclabile in entrambi.
 - **Un processo lungo senza avanzamento sembra rotto.** L'estrazione di Napoli dura 15 minuti e non stampava nulla: Stef l'ha giustamente creduta bloccata. Vale per ogni comando che superi qualche secondo.
 - **In `.gitignore` non esistono commenti a fine riga.** `*.db  # nota` è un nome di file letterale: il database è finito in git per questo. Ora c'è un test che lo impedisce.
+- **ASIA ha voci quasi gemelle con destinazioni diverse.** "Televisore a tubo catodico" va all'isola ecologica **o all'ecopunto elettrodomestici**, "TV a tubo catodico" solo all'isola; per lo schermo piatto invece le due versioni concordano. La deduplicazione non poteva accorgersene, perché i nomi differiscono e le destinazioni non coincidono. È emerso dall'autorecupero dell'indice vettoriale, cioè da un controllo tecnico che ha scoperto un problema di dati.
 - **Le celle della scheda "Pile" di Torino non sono oggetti.** Sono formati di batteria ("C", "AA", "AAA", "D", "Button"): testi di una o due lettere, che nessun metodo di ricerca può distinguere. Non è un difetto dell'indice ma un limite della fonte, e la verifica ora lo segnala come nota invece di confonderlo con un errore.
 - **Una regola di esclusione mostrata senza polarità dice l'opposto del vero.** Nella prima prova di ricerca, "Cartoni per bevande (tipo Tetra Pak®) → imballaggi_plastica" sembrava un'indicazione di conferimento, mentre è la riga che li **esclude** dalla plastica. Vale per ogni punto in cui una regola verrà mostrata all'utente o passata al modello.
 - **Un test che dipende dall'ambiente di chi lo esegue non è un test.** `test_il_file_env_viene_letto` passava da me e falliva sul portatile di Stef, perché ereditava le variabili della macchina. Ora l'ambiente del sottoprocesso viene ripulito di tutte le `ECOSCAN_*`.
@@ -189,6 +191,12 @@ Cose imparate che non sono decisioni, ma che conviene ricordare.
 ---
 
 ## Cronologia
+
+### v0.14.3 — 12/09/2026
+
+**Modificato.** L'autorecupero accetta le prime 3 posizioni invece della sola prima: i quasi sinonimi presenti nelle fonti si contendono legittimamente la testa della classifica. Il test che verifica il controllo è stato reso più severo (il vettore viene invertito, non scambiato) e la sua fixture allargata, perché con poche schede il controllo non poteva fallire e il test non provava nulla.
+
+**Scoperto grazie all'autorecupero.** Napoli ha voci quasi gemelle con destinazioni diverse: "Televisore a tubo catodico" prevede anche l'ecopunto elettrodomestici, "TV a tubo catodico" no. Registrato in `qualita_dati.md`: non è deduplicabile e non è un errore nostro, ma una contraddizione della fonte che l'agente dovrà mostrare.
 
 ### v0.14.2 — 12/09/2026
 
