@@ -37,6 +37,10 @@ MODELLO_EMBEDDING = _testo("ECOSCAN_MODELLO_EMBEDDING", "embeddinggemma")
 MODELLO_VISIONE = _testo("ECOSCAN_MODELLO_VISIONE", "gemma4:e2b")
 # Endpoint di Ollama per le conversazioni (diverso da quello degli embedding)
 OLLAMA_CHAT = _testo("ECOSCAN_OLLAMA_CHAT", OLLAMA.replace("/api/embed", "/api/chat"))
+# Quanto Ollama tiene il modello in memoria dopo una richiesta. Senza questo, fra una
+# chiamata e l'altra il modello viene scaricato e ricaricato: su CPU sono decine di secondi
+# buttati a ogni passaggio. Costa memoria: metterlo a "0" lo scarica subito.
+OLLAMA_KEEP_ALIVE = _testo("ECOSCAN_OLLAMA_KEEP_ALIVE", "30m")
 # Quante schede si vettorizzano per chiamata
 LOTTO_EMBEDDING = _intero("ECOSCAN_LOTTO_EMBEDDING", 32)
 
@@ -45,6 +49,6 @@ def riepilogo() -> dict[str, str]:
     """Valori in uso, per mostrarli nei comandi: è il modo più rapido per scoprire
     che una variabile non era impostata come si credeva."""
     return {"qdrant": QDRANT, "ollama": OLLAMA, "modello": MODELLO_EMBEDDING,
-            "modello_visione": MODELLO_VISIONE,
+            "modello_visione": MODELLO_VISIONE, "keep_alive": OLLAMA_KEEP_ALIVE,
             "lotto": str(LOTTO_EMBEDDING),
             "modalita_qdrant": "server" if QDRANT.startswith(("http://", "https://")) else "in-process"}

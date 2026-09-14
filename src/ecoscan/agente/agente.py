@@ -86,6 +86,9 @@ class Agente:
             if scelta.scheda_id is not None:
                 scelto = next(c for c in trovati if c.scheda_id == scelta.scheda_id)
                 risposta = self._componi(scelto, riconoscimento, scelta, comune, trovati)
+                # si mostrano i candidati di TUTTI i livelli provati: se la scelta è caduta
+                # sul livello 2, vedere cosa era stato scartato al livello 1 spiega il perché
+                risposta.candidati = tutti
                 risposta.contesto = base["contesto"]
                 return risposta
 

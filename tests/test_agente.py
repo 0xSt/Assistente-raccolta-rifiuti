@@ -209,3 +209,27 @@ def test_il_contesto_registra_la_versione_dei_prompt(ambiente):
     risposta = crea_agente(ambiente, ModelloFinto()).analizza(b"foto", "Torino")
     etichette = risposta.contesto["prompt"]
     assert all("@" in e and ":" in e for e in etichette)
+
+
+def test_la_confidenza_in_percentuale_viene_normalizzata():
+    """I modelli rispondono spesso "100" invece di "1.0": senza normalizzare, ogni soglia
+    su 0-1 diventerebbe inutile."""
+    from ecoscan.agente.modelli import _confidenza
+    assert _confidenza(100) == 1.0 and _confidenza(85) == 0.85
+    assert _confidenza(0.9) == 0.9 and _confidenza(None) == 0.0 and _confidenza("boh") == 0.0
+
+
+def test_i_candidati_di_tutti_i_livelli_restano_visibili(ambiente):
+    """Se la risposta arriva dal livello 2, vedere cosa era stato scartato al livello 1
+    spiega il perché."""
+    class SoloAlSecondoGiro(ModelloFinto):
+        def scegli(self, riconoscimento, candidati, testo_utente=None):
+            self.chiamate_scelta += 1
+            if self.chiamate_scelta == 1:
+                return Scelta(scheda_id=None, motivo="nessuna voce")
+            return Scelta(scheda_id=candidati[0].scheda_id, motivo="regola")
+
+    modello = SoloAlSecondoGiro(Riconoscimento(oggetto="carta", confidenza=0.9))
+    risposta = crea_agente(ambiente, modello).analizza(b"foto", "Torino")
+    livelli = {c.livello for c in risposta.candidati}
+    assert livelli == {1, 2}

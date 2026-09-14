@@ -31,7 +31,7 @@ SCHEMA_RICONOSCIMENTO = {
         "materiali": {"type": "array", "items": {"type": "string"}},
         "stato": {"type": "string"},
         "componenti": {"type": "array", "items": {"type": "string"}},
-        "confidenza": {"type": "number"},
+        "confidenza": {"type": "number", "description": "da 0.0 a 1.0"},
         "note": {"type": "string"},
     },
     "required": ["oggetto", "materiali", "confidenza"],
@@ -55,6 +55,17 @@ class ModelloVisione(Protocol):
 
     def scegli(self, riconoscimento: Riconoscimento, candidati: Sequence[Candidato],
                testo_utente: str | None = None) -> Scelta: ...
+
+
+def _confidenza(valore) -> float:
+    """Normalizza la confidenza in 0-1: i modelli rispondono spesso in percentuale."""
+    try:
+        numero = float(valore)
+    except (TypeError, ValueError):
+        return 0.0
+    if numero > 1.0:
+        numero = numero / 100.0
+    return max(0.0, min(1.0, numero))
 
 
 def _elenco(candidati: Sequence[Candidato]) -> str:
@@ -85,21 +96,39 @@ class ModelloOllama:
 
     # ---------------------------------------------------------------- chiamate
 
-    def _chiama(self, messaggio: dict, schema: dict) -> dict:
-        corpo = json.dumps({"model": self.nome, "messages": [messaggio], "format": schema,
-                            "stream": False, "options": {"temperature": self.temperatura}}).encode()
-        richiesta = urllib.request.Request(self.url, data=corpo,
+    def _chiama(self, messaggio: dict, schema: dict | None = None) -> str:
+        """Una richiesta a Ollama. `keep_alive` evita di ricaricare il modello ogni volta."""
+        corpo: dict = {"model": self.nome, "messages": [messaggio], "stream": False,
+                       "keep_alive": conf.OLLAMA_KEEP_ALIVE,
+                       "options": {"temperature": self.temperatura}}
+        if schema:
+            corpo["format"] = schema
+        corpo_codificato = json.dumps(corpo).encode()
+        richiesta = urllib.request.Request(self.url, data=corpo_codificato,
                                            headers={"Content-Type": "application/json"})
         try:
-            with urllib.request.urlopen(richiesta, timeout=600) as risposta:
-                contenuto = json.load(risposta)["message"]["content"]
+            with urllib.request.urlopen(richiesta, timeout=900) as risposta:
+                return json.load(risposta)["message"]["content"]
         except urllib.error.URLError as errore:
             raise SystemExit(f"Ollama non raggiungibile su {self.url} ({errore}).\n"
                              f"Avvialo e scarica il modello: ollama pull {self.nome}") from errore
+
+    def _chiama_json(self, messaggio: dict, schema: dict) -> dict:
+        contenuto = self._chiama(messaggio, schema)
         try:
             return json.loads(contenuto)
         except json.JSONDecodeError as errore:
             raise ValueError(f"il modello non ha restituito JSON valido: {contenuto[:200]!r}") from errore
+
+    def descrivi(self, immagine: bytes, domanda: str | None = None) -> str:
+        """Diagnostica: descrizione libera della foto, senza schema e senza istruzioni nostre.
+
+        Serve a distinguere due guasti molto diversi: un modello che vede la foto ma la
+        interpreta male, e un modello che la foto non la riceve affatto.
+        """
+        domanda = domanda or "Descrivi in italiano che cosa vedi in questa immagine."
+        return self._chiama({"role": "user", "content": domanda,
+                             "images": [base64.b64encode(immagine).decode()]})
 
     # ---------------------------------------------------------------- passaggi
 
@@ -107,15 +136,15 @@ class ModelloOllama:
         istruzioni = prompt_.carica("riconoscimento").testo
         if testo_utente:
             istruzioni += f"\n\nL'utente aggiunge questa informazione: {testo_utente}"
-        dati = self._chiama({"role": "user", "content": istruzioni,
-                             "images": [base64.b64encode(immagine).decode()]},
-                            SCHEMA_RICONOSCIMENTO)
+        dati = self._chiama_json({"role": "user", "content": istruzioni,
+                                  "images": [base64.b64encode(immagine).decode()]},
+                                 SCHEMA_RICONOSCIMENTO)
         return Riconoscimento(
             oggetto=(dati.get("oggetto") or "").strip(),
             materiali=[m for m in dati.get("materiali", []) if m],
             stato=(dati.get("stato") or "").strip() or None,
             componenti=[c for c in dati.get("componenti", []) if c],
-            confidenza=float(dati.get("confidenza") or 0.0),
+            confidenza=_confidenza(dati.get("confidenza")),
             note=(dati.get("note") or "").strip() or None,
         )
 
@@ -128,7 +157,7 @@ class ModelloOllama:
             _descrizione_oggetto(riconoscimento, testo_utente),
             "Voci del dizionario:\n" + _elenco(candidati),
         ])
-        dati = self._chiama({"role": "user", "content": contenuto}, SCHEMA_SCELTA)
+        dati = self._chiama_json({"role": "user", "content": contenuto}, SCHEMA_SCELTA)
         numero = int(dati.get("numero") or 0)
         if not 1 <= numero <= len(candidati):
             return Scelta(scheda_id=None, motivo=dati.get("motivo") or "nessuna voce corrisponde")

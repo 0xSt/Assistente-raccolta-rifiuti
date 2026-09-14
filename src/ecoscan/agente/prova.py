@@ -8,6 +8,7 @@ Uso:
   uv run ecoscan-analizza --foto foto/bottiglia.jpg --comune Napoli
   uv run ecoscan-analizza --foto f.jpg --comune Torino --testo "è vuota"
   uv run ecoscan-analizza --oggetto "bottiglia di vetro" --comune Torino   # salta la foto
+  uv run ecoscan-analizza --foto f.jpg --descrivi     # diagnostica: il modello vede la foto?
 """
 from __future__ import annotations
 
@@ -79,8 +80,11 @@ def main() -> None:
     ap = argparse.ArgumentParser(description="Prova l'agente su una foto o su un oggetto descritto.")
     ap.add_argument("--foto", type=Path, help="immagine da analizzare")
     ap.add_argument("--oggetto", help="salta la foto e parte da questa descrizione")
-    ap.add_argument("--comune", required=True)
+    ap.add_argument("--comune", default="Napoli")
     ap.add_argument("--testo", help="informazione aggiuntiva dell'utente")
+    ap.add_argument("--descrivi", action="store_true",
+                    help="chiede solo una descrizione libera della foto, per capire se il "
+                         "modello la riceve davvero")
     ap.add_argument("--db", type=Path, default=DB)
     ap.add_argument("-k", type=int, default=8, help="quanti candidati per livello")
     args = ap.parse_args()
@@ -89,11 +93,23 @@ def main() -> None:
         raise SystemExit("serve --foto oppure --oggetto")
     if args.foto and not args.foto.is_file():
         raise SystemExit(f"foto non trovata: {args.foto}")
-    if not args.db.is_file():
+    if args.descrivi and not args.foto:
+        raise SystemExit("--descrivi richiede --foto")
+    if not args.descrivi and not args.db.is_file():
         raise SystemExit(f"Database non trovato: {args.db}\nLancia prima: uv run ecoscan-carica")
 
     print("Impostazioni: " + " | ".join(f"{k}={v}" for k, v in conf.riepilogo().items()))
     modello = ModelloOllama()
+
+    if args.descrivi:
+        print(f"\nChiedo a {modello.nome} di descrivere {args.foto.name}...", flush=True)
+        with cronometro("descrizione"):
+            descrizione = modello.descrivi(args.foto.read_bytes())
+        print(f"\n## Descrizione libera\n  {descrizione.strip()}")
+        print(f"\nTempo: {DURATE['descrizione']:.1f} s")
+        print("\nSe la descrizione non c'entra nulla con la foto, il modello non la sta "
+              "ricevendo: il problema è nel passaggio dell'immagine, non nei prompt.")
+        return
     with sqlite3.connect(args.db) as db:
         comuni = [c for c, in db.execute("SELECT nome FROM comune")]
         if args.comune not in comuni:

@@ -116,6 +116,8 @@ Formato: decisione, motivazione, stato.
 | D71 | I prompt sono file versionati in `src/ecoscan/prompt/`, con versione dichiarata e impronta calcolata sul contenuto | Ogni risposta registra quale prompt l'ha prodotta; una modifica senza cambio di versione resta comunque visibile dall'impronta | Accettata |
 | D72 | `analizza` (dalla foto) e `rispondi` (dal riconoscimento) sono separati | Permette di valutare retrieval e scelta senza rieseguire il modello di visione su ogni foto, che su CPU è il passaggio più lento | Accettata |
 | D73 | Il chiarimento nasce dai dati, non dall'intuito del modello: se fra i candidati ci sono omonimi con destinazioni diverse, la condizione si chiede | "Capsule del caffè in plastica" con e senza residuo vanno in contenitori diversi e dalla foto non si distingue | Accettata |
+| D75 | Le richieste a Ollama passano `keep_alive` (30 minuti di norma) | Senza, il modello viene scaricato e ricaricato fra una chiamata e l'altra: su CPU sono decine di secondi per passaggio, e l'agente ne fa fino a tre | Accettata |
+| D76 | La confidenza restituita dal modello viene normalizzata in 0-1 | I modelli rispondono spesso in percentuale ("100"): senza normalizzare, ogni soglia sarebbe inutile | Accettata |
 | D74 | Il contesto per il secondo giro torna al client ed è opaco | Backend senza stato, come deciso per il prototipo: niente sessioni da gestire e scadere | Accettata |
 | D69 | L'autorecupero accetta le prime 3 posizioni, non solo la prima | Le fonti contengono quasi sinonimi ("Televisore a tubo catodico" e "TV a tubo catodico") che si contendono legittimamente la testa della classifica. Fuori dalle prime posizioni, invece, c'è un vero disallineamento | Accettata |
 | D68 | Un controllo che fallisce deve dire **cosa** è fallito | L'autorecupero segnalava `29/30` senza indicare quale scheda: un avviso che non permette di agire costringe a indagare a mano ogni volta | Accettata |
@@ -187,6 +189,7 @@ Cose imparate che non sono decisioni, ma che conviene ricordare.
 - **ASIA pubblica poche esclusioni, e quasi solo come grafica.** Testo solo per il Vetro; dentro l'immagine per l'Umido; per Plastica e Carta non esistono proprio. Torino ne pubblica 27 contro le 11 di Napoli: la stessa informazione, con profondità molto diversa. Una fonte può essere incompleta *per come è pubblicata*, non per come la leggiamo: il controllo che distingue i due casi è ciò che ha permesso di capirlo in un giro solo.
 - **Le esclusioni spiegano il dizionario.** La pagina del vetro di Napoli esclude bicchieri, piatti, pirofile e lastre: esattamente le voci che nel dizionario finiscono nel non riciclabile. Ciò che sembrava incoerenza è una regola dichiarata.
 - **Divergenze fra comuni utili da citare**: bicchiere di vetro (Napoli non riciclabile, Torino vetro); tappo di sughero (Napoli organico, Torino centro di raccolta o organico); pentole e padelle (Napoli plastica e metalli, Torino centro di raccolta). Una convergenza: il vetro dei profumi non è riciclabile in entrambi.
+- **Prima di ritoccare un prompt, verificare che il modello riceva davvero l'immagine.** Un modello che descrive "uno schema su carta con inchiostro" davanti alla foto di una ciabatta sta probabilmente rispondendo senza vedere nulla: è il comportamento tipico di chi riceve solo il testo. Da qui la modalità `--descrivi`, che chiede una descrizione libera senza schemi né istruzioni nostre.
 - **Un processo lungo senza avanzamento sembra rotto.** L'estrazione di Napoli dura 15 minuti e non stampava nulla: Stef l'ha giustamente creduta bloccata. Vale per ogni comando che superi qualche secondo.
 - **In `.gitignore` non esistono commenti a fine riga.** `*.db  # nota` è un nome di file letterale: il database è finito in git per questo. Ora c'è un test che lo impedisce.
 - **ASIA ha voci quasi gemelle con destinazioni diverse.** "Televisore a tubo catodico" va all'isola ecologica **o all'ecopunto elettrodomestici**, "TV a tubo catodico" solo all'isola; per lo schermo piatto invece le due versioni concordano. La deduplicazione non poteva accorgersene, perché i nomi differiscono e le destinazioni non coincidono. È emerso dall'autorecupero dell'indice vettoriale, cioè da un controllo tecnico che ha scoperto un problema di dati.
@@ -198,6 +201,18 @@ Cose imparate che non sono decisioni, ma che conviene ricordare.
 ---
 
 ## Cronologia
+
+### v0.15.2 — 12/09/2026
+
+Correzioni nate dalla prima prova su una foto reale, che ha dato un riconoscimento sbagliato ("schema" per una ciabatta) e 262 secondi di attesa.
+
+**Aggiunto.** Modalità diagnostica `ecoscan-analizza --foto ... --descrivi`: chiede al modello una descrizione libera dell'immagine, senza schema e senza i nostri prompt. Distingue due guasti molto diversi: un modello che vede male e un modello che l'immagine non la riceve.
+
+**Aggiunto.** `keep_alive` nelle richieste a Ollama (30 minuti di norma, configurabile). L'agente fa fino a tre chiamate al modello e senza questo parametro ognuna può ricaricare il modello da disco.
+
+**Corretto.** La confidenza tornava come `100.00`: i modelli rispondono in percentuale. Ora viene normalizzata in 0-1, altrimenti la soglia sotto cui si dichiara "non riconosciuto" non scatterebbe mai.
+
+**Migliorato.** La risposta conserva i candidati di **tutti** i livelli provati, non solo dell'ultimo: se la scelta cade sul livello 2, si vede anche cosa era stato scartato al livello 1.
 
 ### v0.15.1 — 12/09/2026
 
