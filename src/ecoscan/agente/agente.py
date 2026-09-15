@@ -29,7 +29,7 @@ CONFIDENZA_MINIMA = 0.2   # sotto, il riconoscimento non è affidabile abbastanz
 
 class Agente:
     def __init__(self, db: sqlite3.Connection, qdrant, vettorizzatore, modello: ModelloVisione,
-                 k: int = 8):
+                 k: int = 10):
         self.db, self.qdrant, self.vettorizzatore = db, qdrant, vettorizzatore
         self.modello, self.k = modello, k
 

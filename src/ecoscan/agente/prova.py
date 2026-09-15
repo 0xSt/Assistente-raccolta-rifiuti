@@ -98,7 +98,7 @@ def main() -> None:
                     help="chiede solo una descrizione libera della foto, per capire se il "
                          "modello la riceve davvero")
     ap.add_argument("--db", type=Path, default=DB)
-    ap.add_argument("-k", type=int, default=8, help="quanti candidati per livello")
+    ap.add_argument("-k", type=int, default=10, help="quanti candidati per livello")
     args = ap.parse_args()
     nome_modello = args.modello or conf.MODELLO_VISIONE
 

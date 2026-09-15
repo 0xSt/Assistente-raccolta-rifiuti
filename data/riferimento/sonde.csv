@@ -2,6 +2,8 @@ comune,domanda,atteso,nota
 Napoli,sandalo,Scarpe utilizzabile,"il modello riconosce \"sandalo\": il dizionario scrive \"Scarpe\""
 Napoli,calzatura,Scarpe utilizzabile,categoria generale
 Napoli,ciabatta,Scarpe utilizzabile,nome ambiguo: calzatura o pane
+Napoli,sandalo calzatura,Scarpe utilizzabile,oggetto piu categoria: toglie l'ambiguita alla parola sola
+Napoli,ciabatta calzatura,Scarpe utilizzabile,oggetto piu categoria
 Napoli,bottiglia di plastica,Bottiglia in plastica,caso facile di controllo
 Napoli,contenitore del latte,Cartone per latte,parafrasi
 Napoli,capsula del caffè,Capsula caffè,due voci distinte per condizione

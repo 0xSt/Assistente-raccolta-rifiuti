@@ -47,7 +47,7 @@ CREATE TABLE scheda (
     id            INTEGER PRIMARY KEY,
     comune_id     INTEGER NOT NULL REFERENCES comune(id),
     livello       INTEGER NOT NULL CHECK (livello IN (1, 2)),
-    tipo          TEXT NOT NULL CHECK (tipo IN ('voce', 'alias', 'regola')),
+    tipo          TEXT NOT NULL CHECK (tipo IN ('voce', 'nome', 'alias', 'regola')),
     voce_id       INTEGER REFERENCES voce(id),
     regola_id     INTEGER REFERENCES regola(id),
     testo         TEXT NOT NULL,
@@ -83,8 +83,16 @@ def costruisci(db: sqlite3.Connection) -> dict[str, int]:
 
     for voce_id, comune_id, nome, codice in q(
             "SELECT id, comune_id, nome, codice_materiale FROM voce").fetchall():
+        sue = condizioni.get(voce_id, [])
         q("INSERT INTO scheda (comune_id, livello, tipo, voce_id, testo) VALUES (?, 1, 'voce', ?, ?)",
-          (comune_id, voce_id, testo_voce(nome, condizioni.get(voce_id, []), codice)))
+          (comune_id, voce_id, testo_voce(nome, sue, codice)))
+        if sue:
+            # Anche il nome NUDO, senza condizioni. Con la condizione in coda il testo
+            # diventa italiano storto ("Scarpe utilizzabile", "Scarpa usato") e la ricerca
+            # semantica ne risente. Due voci omonime produrranno due schede uguali: è
+            # corretto, ed è proprio il caso in cui l'agente deve chiedere la condizione.
+            q("INSERT INTO scheda (comune_id, livello, tipo, voce_id, testo) "
+              "VALUES (?, 1, 'nome', ?, ?)", (comune_id, voce_id, testo_voce(nome, [], codice)))
 
     for voce_id, comune_id, alias in q("""SELECT va.voce_id, v.comune_id, va.alias
                                           FROM voce_alias va JOIN voce v ON v.id = va.voce_id""").fetchall():

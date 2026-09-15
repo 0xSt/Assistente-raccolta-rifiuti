@@ -267,13 +267,15 @@ def test_i_sinonimi_fanno_da_ponte_col_vocabolario_della_fonte():
     """Il modello dice "sandalo", ASIA scrive "Scarpe": senza sinonimi non si incontrano."""
     r = Riconoscimento(oggetto="sandalo", sinonimi=["ciabatta", "scarpa"], categoria="calzatura",
                        materiali=["gomma"])
-    assert r.formulazioni() == ["sandalo", "ciabatta", "scarpa", "calzatura", "sandalo gomma"]
+    # "sandalo calzatura" viene subito dopo l'oggetto: toglie l'ambiguità alla parola sola,
+    # che da sola recupera rumore ("Salse", "Sdraio")
+    assert r.formulazioni() == ["sandalo", "sandalo calzatura", "ciabatta", "scarpa", "calzatura"]
 
 
 def test_le_formulazioni_non_si_ripetono_e_sono_limitate():
     r = Riconoscimento(oggetto="scarpa", sinonimi=["Scarpa", "scarpa ", "calzatura"],
                        categoria="calzatura")
-    assert r.formulazioni() == ["scarpa", "calzatura"]
+    assert r.formulazioni() == ["scarpa", "scarpa calzatura", "calzatura"]
     tante = Riconoscimento(oggetto="x", sinonimi=[f"s{i}" for i in range(10)])
     assert len(tante.formulazioni(massimo=3)) == 3
 
@@ -350,3 +352,27 @@ def test_un_chiarimento_che_non_e_una_domanda_viene_ignorato(valore, atteso):
     sarebbe incomprensibile."""
     from ecoscan.agente.modelli import _chiarimento
     assert _chiarimento(valore) == atteso
+
+
+def test_la_garanzia_copre_i_primi_due_risultati():
+    """"calzatura" trova "Scarpe utilizzabile" al SECONDO posto, dietro "Laccio per scarpe":
+    garantire solo il primo lasciava fuori la voce giusta."""
+    from ecoscan.agente.recupero import _fondi_garantendo_i_primi
+
+    classifiche = {
+        "principale": [{"scheda_id": 1, "testo": "a"}, {"scheda_id": 2, "testo": "b"}],
+        "calzatura": [{"scheda_id": 50, "testo": "Laccio per scarpe"},
+                      {"scheda_id": 51, "testo": "Scarpe utilizzabile"}],
+    }
+    identificatori = [r["scheda_id"] for r in _fondi_garantendo_i_primi(classifiche, k=2)]
+    assert 51 in identificatori
+
+
+def test_i_candidati_non_crescono_oltre_il_massimo():
+    """Un elenco lungo allunga il prompt della scelta senza aggiungere scelte utili, e su
+    CPU il tempo si paga."""
+    from ecoscan.agente.recupero import MASSIMO_CANDIDATI, _fondi_garantendo_i_primi
+
+    classifiche = {f"m{i}": [{"scheda_id": i * 100 + j, "testo": "x"} for j in range(5)]
+                   for i in range(8)}
+    assert len(_fondi_garantendo_i_primi(classifiche, k=8)) <= MASSIMO_CANDIDATI

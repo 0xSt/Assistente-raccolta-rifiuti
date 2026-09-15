@@ -122,7 +122,8 @@ Formato: decisione, motivazione, stato.
 | D91 | Il chiarimento viene tenuto solo se è davvero una domanda (almeno dieci caratteri e un punto interrogativo) | Il campo è facoltativo e il modello lo riempie comunque: ha risposto "0", che mostrato all'utente sarebbe incomprensibile | Accettata |
 | D87 | I prefissi di EmbeddingGemma **restano attivi**: misurato, non supposto | Con i prefissi 10 sonde su 14, senza 9; "tetrapak" si trova solo con i prefissi. L'ipotesi che Ollama li applicasse già da sé è smentita dai numeri | Accettata |
 | D88 | Preposizioni e articoli si tolgono dalla ricerca lessicale; "non" resta | "cartone della pizza unto" falliva perché "dell" compare in "Polvere dell'aspirapolvere": la ricerca in AND trovava quel documento e non ripiegava su OR. "non" invece distingue "Scarpe utilizzabile" da "Scarpe non utilizzabile" | Accettata |
-| D89 | Ogni formulazione porta fra i candidati almeno il proprio primo risultato | Con otto classifiche la fusione premia chi compare in molte: "calzatura" trova "Scarpe" al primo posto, ma fusa con le altre la voce giusta spariva | Accettata |
+| D89 | Ogni formulazione porta fra i candidati i propri **primi due** risultati, con un tetto di 12 candidati | Con otto classifiche la fusione premia chi compare in molte. Due posizioni e non una perché la misura lo ha mostrato: "calzatura" trova "Scarpe utilizzabile" al secondo posto, dietro "Laccio per scarpe". Il tetto evita di allungare il prompt della scelta, che su CPU si paga | Accettata |
+| D92 | Fra le formulazioni c'è **oggetto più categoria** ("sandalo calzatura") | Una parola sola e ambigua recupera rumore ("Salse", "Sdraio", "Cuffia"): la categoria dà al modello di embedding il contesto che gli manca | Accettata |
 | D86 | Il retrieval si misura con le **sonde**: domande note e scheda attesa, con la posizione raggiunta da ciascun metodo | Guardando i primi cinque risultati non si sa se la scheda giusta sia sesta o assente. Senza quel dato ogni modifica al recupero è un tentativo alla cieca | Accettata |
 | D84 | Sinonimi e categoria sono **obbligatori** nello schema di uscita del riconoscimento | Lasciati facoltativi il modello li omette, e la ricerca perde il ponte col vocabolario della fonte: è successo alla prima prova con la ciabatta | Accettata |
 | D85 | La descrizione passata alla scelta include categoria e sinonimi, e il prompt dichiara la categoria **vincolante** | Senza, un nome ambiguo viene reinterpretato: davanti a "ciabatta" il modello ha risposto "è un tipo di pane" e ha scelto una busta per alimenti | Accettata |
@@ -224,6 +225,14 @@ Cose imparate che non sono decisioni, ma che conviene ricordare.
 ---
 
 ## Cronologia
+
+### v0.21.0 — 12/09/2026
+
+**Misurato onestamente.** Con le attese corrette: 12 sonde su 14, e "calzatura" trova davvero "Scarpe utilizzabile", ma al **secondo** posto. Restano fuori "sandalo" e "ciabatta", parole singole e ambigue che recuperano rumore.
+
+**Corretto.** La garanzia copriva solo il primo risultato di ogni formulazione: per questo "Scarpe utilizzabile" non compariva fra i candidati dell'agente pur essendo seconda. Ora ne copre due, con un tetto di 12 candidati per non allungare il prompt della scelta.
+
+**Aggiunto.** Una formulazione che unisce oggetto e categoria ("sandalo calzatura"), subito dopo quella con il solo oggetto. Due sonde nuove la misurano.
 
 ### v0.20.2 — 12/09/2026
 

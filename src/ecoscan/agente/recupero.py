@@ -76,8 +76,12 @@ def candidati(db: sqlite3.Connection, qdrant, vettorizzatore, query: str | Seque
     return arricchisci(db, _fondi_garantendo_i_primi(classifiche, k))
 
 
-def _fondi_garantendo_i_primi(classifiche: dict[str, list[dict]], k: int) -> list[dict]:
-    """Fonde con RRF, ma garantisce che il PRIMO risultato di ogni formulazione ci sia.
+PRIMI_GARANTITI = 2   # quanti risultati di ciascuna formulazione entrano comunque
+
+
+def _fondi_garantendo_i_primi(classifiche: dict[str, list[dict]], k: int,
+                              garantiti: int = PRIMI_GARANTITI) -> list[dict]:
+    """Fonde con RRF, ma garantisce i primi risultati di OGNI formulazione.
 
     Con più formulazioni la fusione premia chi compare in molte classifiche, e una scheda
     trovata al primo posto da una sola formulazione può restare fuori. È successo con
@@ -87,11 +91,12 @@ def _fondi_garantendo_i_primi(classifiche: dict[str, list[dict]], k: int) -> lis
     fusi = fondi_rrf(classifiche, k=k)
     presenti = {r["scheda_id"] for r in fusi}
     for metodo, risultati in classifiche.items():
-        if risultati and risultati[0]["scheda_id"] not in presenti:
-            primo = dict(risultati[0])
-            primo["posizioni"] = {metodo: 1}
-            fusi.append(primo)
-            presenti.add(primo["scheda_id"])
+        for posizione, risultato in enumerate(risultati[:garantiti], start=1):
+            if risultato["scheda_id"] not in presenti:
+                aggiunto = dict(risultato)
+                aggiunto["posizioni"] = {metodo: posizione}
+                fusi.append(aggiunto)
+                presenti.add(aggiunto["scheda_id"])
     return fusi
 
 

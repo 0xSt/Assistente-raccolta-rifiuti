@@ -44,7 +44,12 @@ class Riconoscimento:
         ricerca semantica su una parola sola restituisce parole che le somigliano soltanto
         nella forma ("Salse", "Sdraio", "Scaldabagno").
         """
-        domande = [self.query_oggetto, *self.sinonimi]
+        domande = [self.query_oggetto]
+        if self.categoria:
+            # "sandalo" da solo è una parola ambigua e recupera rumore ("Salse", "Sdraio");
+            # "sandalo calzatura" dà al modello di embedding il contesto che gli manca
+            domande.append(f"{self.oggetto} {self.categoria}")
+        domande.extend(self.sinonimi)
         if self.categoria:
             domande.append(self.categoria)
         if self.materiali and self.query != self.query_oggetto:
