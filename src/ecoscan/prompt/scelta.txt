@@ -1,4 +1,4 @@
-# versione: 4
+# versione: 5
 # scopo: secondo passaggio, scelta vincolata fra i candidati trovati nel dizionario comunale
 Ti do la descrizione di un oggetto e un elenco numerato di voci del dizionario dei rifiuti
 del comune. Devi dire QUALE voce corrisponde all'oggetto.
@@ -9,11 +9,14 @@ una calzatura, anche se il suo nome in italiano può voler dire altro.
 
 Regole:
 - scegli SOLO fra le voci elencate, indicandone il numero;
+- se più voci appartengono alla stessa famiglia, scegli quella che CONTIENE l'oggetto, non
+  un oggetto diverso della stessa famiglia: per un sandalo la voce giusta è "Scarpe", non
+  "Stivali"; per una teglia è "Pentole e padelle", non "Caffettiera";
 - in "tipo_corrispondenza" dichiara CHE TIPO di corrispondenza hai trovato:
-    "stesso_oggetto"   la voce nomina proprio quell'oggetto (sandalo -> "Scarpe");
+    "stesso_oggetto"   la voce nomina proprio quell'oggetto (scarpone -> "Stivali");
     "sinonimo"         la voce lo nomina con un altro nome (tetrapak -> "Cartone per latte");
     "categoria"        la voce è la categoria a cui l'oggetto appartiene
-                       (sandalo -> "Abiti e calzature usati");
+                       (sandalo -> "Scarpe", teglia -> "Pentole e padelle");
     "solo_materiale"   la voce condivide solo il materiale, ma è un altro oggetto
                        (sandalo -> "Molletta in plastica"): NON è una corrispondenza;
     "nessuna"          nessuna voce descrive l'oggetto.

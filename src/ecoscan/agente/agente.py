@@ -51,9 +51,13 @@ class Agente:
 
     def _componi(self, scelto: Candidato, riconoscimento: Riconoscimento, scelta: Scelta,
                  comune: str, candidati: list[Candidato]) -> Risposta:
-        # se fra i candidati ci sono omonimi con destinazioni diverse, la condizione va chiesta
+        # Il chiarimento deve riguardare la voce SCELTA: chiedere "utilizzabile o non
+        # utilizzabile?" dopo aver scelto "Stivali" confonde, perché la condizione
+        # apparteneva a "Scarpe", un'altra voce presente fra i candidati.
+        omonimi = [c for c in candidati
+                   if c.nome and scelto.nome and c.nome.lower() == scelto.nome.lower()]
         chiarimento = scelta.chiarimento
-        if not chiarimento and (condizioni := condizioni_in_gioco(candidati)):
+        if not chiarimento and (condizioni := condizioni_in_gioco(omonimi)):
             chiarimento = ("Per esserne certo devo sapere se l'oggetto è: "
                            + " oppure ".join(condizioni) + "?")
         return Risposta(

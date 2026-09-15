@@ -376,3 +376,21 @@ def test_i_candidati_non_crescono_oltre_il_massimo():
     classifiche = {f"m{i}": [{"scheda_id": i * 100 + j, "testo": "x"} for j in range(5)]
                    for i in range(8)}
     assert len(_fondi_garantendo_i_primi(classifiche, k=8)) <= MASSIMO_CANDIDATI
+
+
+def test_il_chiarimento_riguarda_solo_la_voce_scelta(ambiente):
+    """Chiedere "utilizzabile o non utilizzabile?" dopo aver scelto "Stivali" confonde:
+    quella condizione apparteneva a "Scarpe", un'altra voce fra i candidati."""
+    db, qdrant, v = ambiente
+    from ecoscan.agente.recupero import condizioni_in_gioco
+
+    scarpe = [Candidato(1, 1, "Scarpe utilizzabile", nome="Scarpe", condizioni=["utilizzabile"],
+                        destinazioni=["abiti"]),
+              Candidato(2, 1, "Scarpe non utilizzabile", nome="Scarpe",
+                        condizioni=["non utilizzabile"], destinazioni=["residuo"])]
+    stivali = Candidato(3, 1, "Stivali", nome="Stivali", destinazioni=["abiti"])
+    # con tutti i candidati la condizione emerge...
+    assert condizioni_in_gioco([*scarpe, stivali])
+    # ...ma fra gli omonimi di "Stivali" non c'è nulla da chiedere
+    omonimi = [c for c in [*scarpe, stivali] if c.nome.lower() == stivali.nome.lower()]
+    assert condizioni_in_gioco(omonimi) == []

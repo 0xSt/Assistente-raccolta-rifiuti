@@ -65,8 +65,8 @@ def test_il_prompt_di_riconoscimento_chiede_i_sinonimi():
 
 def test_le_versioni_dei_prompt_sono_avanzate():
     """I prompt sono stati corretti dopo le prove su foto reali: le versioni devono dirlo."""
-    assert int(prompt_.carica("scelta").versione) >= 3
-    assert int(prompt_.carica("riconoscimento").versione) >= 2
+    assert int(prompt_.carica("scelta").versione) >= 5
+    assert int(prompt_.carica("riconoscimento").versione) >= 3
 
 
 def test_il_prompt_di_riconoscimento_avverte_dei_nomi_ambigui():
@@ -80,3 +80,10 @@ def test_il_prompt_di_scelta_rende_vincolante_la_categoria():
     testo = prompt_.carica("scelta").testo.lower()
     assert "categoria" in testo and "vincolante" in testo
     assert "non reinterpretare" in testo
+
+
+def test_il_prompt_di_scelta_evita_gli_oggetti_vicini_ma_diversi():
+    """Per un sandalo il modello aveva scelto "Stivali": stessa famiglia, oggetto diverso."""
+    testo = prompt_.carica("scelta").testo.lower()
+    assert "stessa famiglia" in testo and "stivali" in testo
+    assert int(prompt_.carica("scelta").versione) >= 5

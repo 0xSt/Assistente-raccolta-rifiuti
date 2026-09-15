@@ -119,6 +119,7 @@ Formato: decisione, motivazione, stato.
 | D75 | Le richieste a Ollama passano `keep_alive` (30 minuti di norma) | Senza, il modello viene scaricato e ricaricato fra una chiamata e l'altra: su CPU sono decine di secondi per passaggio, e l'agente ne fa fino a tre | Accettata |
 | D82 | Il modello di visione produce anche **sinonimi** e **categoria** dell'oggetto, usati come formulazioni aggiuntive | È il ponte fra il vocabolario del modello e quello della fonte: il modello dice "sandalo", ASIA scrive "Scarpe". Con la sola parola "sandalo" la ricerca semantica restituiva parole che le somigliano nella forma ("Salse", "Sdraio", "Scaldabagno") | Accettata |
 | D90 | La sonda riporta **quale scheda** ha soddisfatto l'attesa, e il primo risultato quando fallisce | Cercando "Scarpe" come sottostringa si accettava "Laccio per scarpe": un falso positivo va visto, non dedotto confrontando due output diversi | Accettata |
+| D93 | Il chiarimento riguarda solo gli omonimi della voce **scelta** | Chiedere "utilizzabile o non utilizzabile?" dopo aver scelto "Stivali" confonde: quella condizione apparteneva a "Scarpe", un'altra voce presente fra i candidati | Accettata |
 | D91 | Il chiarimento viene tenuto solo se è davvero una domanda (almeno dieci caratteri e un punto interrogativo) | Il campo è facoltativo e il modello lo riempie comunque: ha risposto "0", che mostrato all'utente sarebbe incomprensibile | Accettata |
 | D87 | I prefissi di EmbeddingGemma **restano attivi**: misurato, non supposto | Con i prefissi 10 sonde su 14, senza 9; "tetrapak" si trova solo con i prefissi. L'ipotesi che Ollama li applicasse già da sé è smentita dai numeri | Accettata |
 | D88 | Preposizioni e articoli si tolgono dalla ricerca lessicale; "non" resta | "cartone della pizza unto" falliva perché "dell" compare in "Polvere dell'aspirapolvere": la ricerca in AND trovava quel documento e non ripiegava su OR. "non" invece distingue "Scarpe utilizzabile" da "Scarpe non utilizzabile" | Accettata |
@@ -226,6 +227,14 @@ Cose imparate che non sono decisioni, ma che conviene ricordare.
 ---
 
 ## Cronologia
+
+### v0.22.0 — 12/09/2026
+
+**Risultato.** Il recupero sulla ciabatta funziona: fra i candidati compaiono "Scarpe utilizzabile", "Scarpe non utilizzabile" e "Stivali". Sonde a 14 su 16; la formulazione "oggetto più categoria" porta "sandalo calzatura" al secondo posto, mentre "sandalo" da solo resta fuori.
+
+**Corretto.** Il chiarimento veniva calcolato su tutti i candidati: dopo aver scelto "Stivali" chiedeva "utilizzabile o non utilizzabile?", condizione che apparteneva a "Scarpe". Ora si guardano solo gli omonimi della voce scelta.
+
+**Modificato.** Prompt di scelta alla versione 5: fra voci della stessa famiglia va scelta quella che **contiene** l'oggetto, non un oggetto diverso della stessa famiglia. Per un sandalo la voce giusta è "Scarpe", non "Stivali"; l'esempio è preso dall'errore osservato.
 
 ### v0.21.1 — 12/09/2026
 
