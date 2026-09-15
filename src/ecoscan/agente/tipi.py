@@ -13,6 +13,8 @@ class Riconoscimento:
     """Cosa il modello di visione dice di vedere. Non contiene destinazioni: non le conosce."""
 
     oggetto: str
+    sinonimi: list[str] = field(default_factory=list)
+    categoria: str | None = None
     materiali: list[str] = field(default_factory=list)
     stato: str | None = None
     componenti: list[str] = field(default_factory=list)
@@ -34,12 +36,26 @@ class Riconoscimento:
         """
         return " ".join(filter(None, [self.oggetto, self.stato])).strip()
 
-    def formulazioni(self) -> list[str]:
-        """Le domande da porre all'indice, dalla più specifica alla più generica."""
-        domande = [self.query_oggetto]
+    def formulazioni(self, massimo: int = 5) -> list[str]:
+        """Le domande da porre all'indice, dalla più specifica alla più generica.
+
+        I sinonimi sono il ponte fra il vocabolario del modello e quello della fonte: il
+        modello dice "sandalo", il dizionario di ASIA scrive "Scarpe". Senza sinonimi la
+        ricerca semantica su una parola sola restituisce parole che le somigliano soltanto
+        nella forma ("Salse", "Sdraio", "Scaldabagno").
+        """
+        domande = [self.query_oggetto, *self.sinonimi]
+        if self.categoria:
+            domande.append(self.categoria)
         if self.materiali and self.query != self.query_oggetto:
             domande.append(self.query)
-        return [d for d in domande if d]
+        viste, uniche = set(), []
+        for d in domande:
+            chiave = (d or "").strip().lower()
+            if chiave and chiave not in viste:
+                viste.add(chiave)
+                uniche.append(d.strip())
+        return uniche[:massimo]
 
     @property
     def riuscito(self) -> bool:
@@ -72,13 +88,23 @@ class Candidato:
         return " ".join(pezzi)
 
 
+# Tipi di corrispondenza che NON valgono come risposta. La regola è applicata dall'agente,
+# non dall'adattatore di un singolo modello: vale per qualunque modello, anche futuro.
+TIPI_NON_VALIDI = frozenset({"solo_materiale", "nessuna"})
+
+
 @dataclass
 class Scelta:
     """L'esito della scelta vincolata: un candidato reale, oppure nessuno."""
 
     scheda_id: int | None
+    tipo_corrispondenza: str = ""   # stesso_oggetto | sinonimo | categoria | solo_materiale | nessuna
     motivo: str = ""
     chiarimento: str | None = None
+
+    @property
+    def valida(self) -> bool:
+        return self.scheda_id is not None and self.tipo_corrispondenza not in TIPI_NON_VALIDI
 
 
 @dataclass
@@ -95,6 +121,7 @@ class Risposta:
     fonte: str | None = None
     riferimento: str | None = None
     chiarimento: str | None = None     # domanda da fare prima di considerarla definitiva
+    tipo_corrispondenza: str = ""
     motivo: str = ""
     candidati: list[Candidato] = field(default_factory=list)
     riconoscimento: Riconoscimento | None = None

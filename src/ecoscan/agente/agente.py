@@ -22,7 +22,7 @@ from ecoscan import prompt as prompt_
 from ecoscan.agente.modelli import ModelloVisione
 from ecoscan.agente.recupero import candidati as recupera
 from ecoscan.agente.recupero import condizioni_in_gioco
-from ecoscan.agente.tipi import Candidato, Riconoscimento, Risposta, Scelta
+from ecoscan.agente.tipi import TIPI_NON_VALIDI, Candidato, Riconoscimento, Risposta, Scelta
 
 CONFIDENZA_MINIMA = 0.2   # sotto, il riconoscimento non è affidabile abbastanza per cercare
 
@@ -41,7 +41,13 @@ class Agente:
                            riconoscimento.formulazioni(), comune, livello=livello, k=self.k)
         if not trovati:
             return [], Scelta(scheda_id=None, motivo=f"nessun candidato al livello {livello}")
-        return trovati, self.modello.scegli(riconoscimento, trovati, testo_utente)
+        scelta = self.modello.scegli(riconoscimento, trovati, testo_utente)
+        if scelta.tipo_corrispondenza in TIPI_NON_VALIDI:
+            # il modello ha indicato una voce ma ha dichiarato che non corrisponde davvero:
+            # la politica la scarta, qualunque modello l'abbia prodotta
+            return trovati, Scelta(scheda_id=None, tipo_corrispondenza=scelta.tipo_corrispondenza,
+                                   motivo=scelta.motivo or f"scartata: {scelta.tipo_corrispondenza}")
+        return trovati, scelta
 
     def _componi(self, scelto: Candidato, riconoscimento: Riconoscimento, scelta: Scelta,
                  comune: str, candidati: list[Candidato]) -> Risposta:
@@ -56,6 +62,7 @@ class Agente:
             condizioni=scelto.condizioni, avvertenza=scelto.avvertenza,
             fonte=scelto.fonte, riferimento=scelto.riferimento,
             chiarimento=chiarimento, motivo=scelta.motivo,
+            tipo_corrispondenza=scelta.tipo_corrispondenza,
             candidati=candidati, riconoscimento=riconoscimento,
         )
 

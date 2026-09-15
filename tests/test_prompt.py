@@ -47,14 +47,23 @@ def test_prompt_inesistente_segnalato():
         prompt_.carica("inventato")
 
 
-def test_il_prompt_di_scelta_vieta_la_corrispondenza_per_solo_materiale():
+def test_il_prompt_di_scelta_chiede_di_dichiarare_il_tipo_di_corrispondenza():
     """Scegliere "molletta di plastica" per un sandalo perché entrambi sono di plastica è
-    l'errore osservato nella prima prova su foto vere."""
+    l'errore osservato nelle prove su foto vere. Il modello deve dichiarare che tipo di
+    corrispondenza ha trovato, così il codice può scartare quelle che non valgono."""
     testo = prompt_.carica("scelta").testo.lower()
-    assert "non un oggetto dello stesso materiale" in testo
-    assert "rispondi con numero 0" in testo and "meglio dire" in testo
+    for tipo in ("stesso_oggetto", "sinonimo", "categoria", "solo_materiale", "nessuna"):
+        assert tipo in testo
+    assert "numero 0" in testo and "meglio dire" in testo
 
 
-def test_la_versione_del_prompt_di_scelta_e_avanzata():
-    """Il prompt è stato corretto dopo le prove su foto reali: la versione deve dirlo."""
-    assert int(prompt_.carica("scelta").versione) >= 2
+def test_il_prompt_di_riconoscimento_chiede_i_sinonimi():
+    """Sono il ponte fra il vocabolario del modello e quello della fonte."""
+    testo = prompt_.carica("riconoscimento").testo.lower()
+    assert "sinonimi" in testo and "categoria" in testo
+
+
+def test_le_versioni_dei_prompt_sono_avanzate():
+    """I prompt sono stati corretti dopo le prove su foto reali: le versioni devono dirlo."""
+    assert int(prompt_.carica("scelta").versione) >= 3
+    assert int(prompt_.carica("riconoscimento").versione) >= 2

@@ -1,18 +1,22 @@
-# versione: 2
+# versione: 3
 # scopo: secondo passaggio, scelta vincolata fra i candidati trovati nel dizionario comunale
 Ti do la descrizione di un oggetto e un elenco numerato di voci del dizionario dei rifiuti
 del comune. Devi dire QUALE voce corrisponde all'oggetto.
 
 Regole:
 - scegli SOLO fra le voci elencate, indicandone il numero;
-- la voce deve descrivere LO STESSO OGGETTO, non un oggetto dello stesso materiale:
-  un sandalo non è una molletta di plastica, anche se sono entrambi di plastica;
-  una scatola di legno non è un tagliere, anche se sono entrambi di legno;
-- se nessuna voce descrive l'oggetto, rispondi con numero 0. È una risposta corretta e
+- in "tipo_corrispondenza" dichiara CHE TIPO di corrispondenza hai trovato:
+    "stesso_oggetto"   la voce nomina proprio quell'oggetto (sandalo -> "Scarpe");
+    "sinonimo"         la voce lo nomina con un altro nome (tetrapak -> "Cartone per latte");
+    "categoria"        la voce è la categoria a cui l'oggetto appartiene
+                       (sandalo -> "Abiti e calzature usati");
+    "solo_materiale"   la voce condivide solo il materiale, ma è un altro oggetto
+                       (sandalo -> "Molletta in plastica"): NON è una corrispondenza;
+    "nessuna"          nessuna voce descrive l'oggetto.
+- se il tipo è "solo_materiale" o "nessuna", metti numero 0. È una risposta corretta e
   utile: meglio dire "non lo so" che indicare il contenitore sbagliato;
 - non inventare voci che non sono nell'elenco;
 - se due voci differiscono per una CONDIZIONE che non puoi verificare dalla foto
   (per esempio "vuoto" contro "con residui", "pulito" contro "unto"), scegli la più
   probabile e scrivi in "chiarimento" la domanda da fare all'utente per esserne certo;
-- in "motivo" scrivi perché la voce scelta descrive proprio quell'oggetto. Se il motivo che
-  ti viene in mente parla solo del materiale, allora la voce è sbagliata: rispondi 0.
+- in "motivo" scrivi in una frase perché la voce scelta descrive proprio quell'oggetto.

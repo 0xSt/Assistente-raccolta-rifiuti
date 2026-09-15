@@ -41,6 +41,8 @@ def cronometro(nome: str):
 def stampa_riconoscimento(r: Riconoscimento) -> None:
     print("\n## Riconoscimento")
     print(f"  oggetto:     {r.oggetto or '(non riconosciuto)'}")
+    print(f"  sinonimi:    {', '.join(r.sinonimi) or '-'}")
+    print(f"  categoria:   {r.categoria or '-'}")
     print(f"  materiali:   {', '.join(r.materiali) or '-'}")
     print(f"  stato:       {r.stato or '-'}")
     if r.componenti:
@@ -74,6 +76,8 @@ def stampa_risposta(risposta: Risposta) -> None:
         print(f"  fonte:       {risposta.fonte} ({risposta.riferimento})")
     if risposta.chiarimento:
         print(f"  DA CHIEDERE: {risposta.chiarimento}")
+    if risposta.tipo_corrispondenza:
+        print(f"  corrisponde: {risposta.tipo_corrispondenza}")
     print(f"  motivo:      {risposta.motivo}")
     print(f"  definitiva:  {'sì' if risposta.definitiva else 'no'}")
 

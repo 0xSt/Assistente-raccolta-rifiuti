@@ -74,7 +74,8 @@ class ModelloFinto:
         if not candidati or self.indice_scelto == 0 or self.indice_scelto > len(candidati):
             return Scelta(scheda_id=None, motivo="nessuna voce corrisponde")
         scelto = candidati[self.indice_scelto - 1]
-        return Scelta(scheda_id=scelto.scheda_id, motivo="somiglia", chiarimento=self.chiarimento)
+        return Scelta(scheda_id=scelto.scheda_id, tipo_corrispondenza="stesso_oggetto",
+                      motivo="somiglia", chiarimento=self.chiarimento)
 
 
 @pytest.fixture
@@ -260,3 +261,45 @@ def test_il_recupero_fonde_piu_formulazioni(ambiente):
 def test_formulazioni_vuote_ignorate(ambiente):
     db, qdrant, v = ambiente
     assert candidati(db, qdrant, v, ["", "   "], "Torino", livello=1) == []
+
+
+def test_i_sinonimi_fanno_da_ponte_col_vocabolario_della_fonte():
+    """Il modello dice "sandalo", ASIA scrive "Scarpe": senza sinonimi non si incontrano."""
+    r = Riconoscimento(oggetto="sandalo", sinonimi=["ciabatta", "scarpa"], categoria="calzatura",
+                       materiali=["gomma"])
+    assert r.formulazioni() == ["sandalo", "ciabatta", "scarpa", "calzatura", "sandalo gomma"]
+
+
+def test_le_formulazioni_non_si_ripetono_e_sono_limitate():
+    r = Riconoscimento(oggetto="scarpa", sinonimi=["Scarpa", "scarpa ", "calzatura"],
+                       categoria="calzatura")
+    assert r.formulazioni() == ["scarpa", "calzatura"]
+    tante = Riconoscimento(oggetto="x", sinonimi=[f"s{i}" for i in range(10)])
+    assert len(tante.formulazioni(massimo=3)) == 3
+
+
+def test_la_corrispondenza_per_solo_materiale_viene_scartata_dal_codice(ambiente):
+    """La regola non è affidata alla buona volontà del modello: la applica il codice."""
+    class SceglieMaleMaLoDichiara(ModelloFinto):
+        def scegli(self, riconoscimento, candidati, testo_utente=None):
+            self.chiamate_scelta += 1
+            return Scelta(scheda_id=candidati[0].scheda_id if candidati else None,
+                          tipo_corrispondenza="solo_materiale", motivo="entrambi di plastica")
+
+    from ecoscan.agente.tipi import TIPI_NON_VALIDI
+    assert "solo_materiale" in TIPI_NON_VALIDI
+    modello = SceglieMaleMaLoDichiara(Riconoscimento(oggetto="sandalo", confidenza=0.9))
+    risposta = crea_agente(ambiente, modello).analizza(b"foto", "Torino")
+    # il modello aveva indicato un candidato, ma il tipo dichiarato lo rende inutilizzabile
+    assert risposta.livello_evidenza == 3
+
+
+def test_il_tipo_di_corrispondenza_arriva_nella_risposta(ambiente):
+    class ConTipo(ModelloFinto):
+        def scegli(self, riconoscimento, candidati, testo_utente=None):
+            self.chiamate_scelta += 1
+            return Scelta(scheda_id=candidati[0].scheda_id, tipo_corrispondenza="sinonimo",
+                          motivo="altro nome dello stesso oggetto")
+
+    risposta = crea_agente(ambiente, ConTipo()).analizza(b"foto", "Torino")
+    assert risposta.tipo_corrispondenza == "sinonimo"

@@ -29,6 +29,8 @@ SCHEMA_RICONOSCIMENTO = {
     "type": "object",
     "properties": {
         "oggetto": {"type": "string"},
+        "sinonimi": {"type": "array", "items": {"type": "string"}},
+        "categoria": {"type": "string"},
         "materiali": {"type": "array", "items": {"type": "string"}},
         "stato": {"type": "string"},
         "componenti": {"type": "array", "items": {"type": "string"}},
@@ -42,11 +44,16 @@ SCHEMA_SCELTA = {
     "type": "object",
     "properties": {
         "numero": {"type": "integer"},
+        "tipo_corrispondenza": {
+            "type": "string",
+            "enum": ["stesso_oggetto", "sinonimo", "categoria", "solo_materiale", "nessuna"],
+        },
         "motivo": {"type": "string"},
         "chiarimento": {"type": "string"},
     },
-    "required": ["numero", "motivo"],
+    "required": ["numero", "tipo_corrispondenza", "motivo"],
 }
+
 
 
 class ModelloVisione(Protocol):
@@ -147,6 +154,8 @@ class ModelloOllama:
                                  SCHEMA_RICONOSCIMENTO)
         return Riconoscimento(
             oggetto=(dati.get("oggetto") or "").strip(),
+            sinonimi=[s.strip() for s in dati.get("sinonimi", []) if s and s.strip()],
+            categoria=(dati.get("categoria") or "").strip() or None,
             materiali=[m for m in dati.get("materiali", []) if m],
             stato=(dati.get("stato") or "").strip() or None,
             componenti=[c for c in dati.get("componenti", []) if c],
@@ -165,8 +174,10 @@ class ModelloOllama:
         ])
         dati = self._chiama_json({"role": "user", "content": contenuto}, SCHEMA_SCELTA)
         numero = int(dati.get("numero") or 0)
+        tipo = (dati.get("tipo_corrispondenza") or "").strip()
+        motivo = dati.get("motivo") or ""
         if not 1 <= numero <= len(candidati):
-            return Scelta(scheda_id=None, motivo=dati.get("motivo") or "nessuna voce corrisponde")
-        return Scelta(scheda_id=candidati[numero - 1].scheda_id,
-                      motivo=dati.get("motivo") or "",
-                      chiarimento=(dati.get("chiarimento") or "").strip() or None)
+            return Scelta(scheda_id=None, tipo_corrispondenza=tipo or "nessuna",
+                          motivo=motivo or "nessuna voce corrisponde")
+        return Scelta(scheda_id=candidati[numero - 1].scheda_id, tipo_corrispondenza=tipo,
+                      motivo=motivo, chiarimento=(dati.get("chiarimento") or "").strip() or None)
