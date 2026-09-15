@@ -233,3 +233,30 @@ def test_i_candidati_di_tutti_i_livelli_restano_visibili(ambiente):
     risposta = crea_agente(ambiente, modello).analizza(b"foto", "Torino")
     livelli = {c.livello for c in risposta.candidati}
     assert livelli == {1, 2}
+
+
+def test_le_formulazioni_separano_oggetto_e_materiali():
+    """I materiali nella stessa domanda trascinano la ricerca verso ciò che è *fatto di*
+    quel materiale: cercando "sandalo gomma plastica" si trovano gomme da masticare."""
+    r = Riconoscimento(oggetto="sandalo", materiali=["gomma", "plastica"], stato="usato")
+    assert r.query_oggetto == "sandalo usato"
+    assert r.formulazioni() == ["sandalo usato", "sandalo gomma plastica usato"]
+
+
+def test_senza_materiali_una_sola_formulazione():
+    assert Riconoscimento(oggetto="bottiglia").formulazioni() == ["bottiglia"]
+
+
+def test_il_recupero_fonde_piu_formulazioni(ambiente):
+    """Una voce trovata da più formulazioni deve salire in classifica."""
+    db, qdrant, v = ambiente
+    sola = candidati(db, qdrant, v, "Giornali e riviste", "Torino", livello=1, k=5)
+    doppia = candidati(db, qdrant, v, ["Giornali e riviste", "Giornali e riviste carta"],
+                       "Torino", livello=1, k=5)
+    assert sola and doppia
+    assert doppia[0].nome == "Giornali e riviste"
+
+
+def test_formulazioni_vuote_ignorate(ambiente):
+    db, qdrant, v = ambiente
+    assert candidati(db, qdrant, v, ["", "   "], "Torino", livello=1) == []

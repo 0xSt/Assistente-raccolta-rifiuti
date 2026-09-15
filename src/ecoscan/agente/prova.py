@@ -48,7 +48,7 @@ def stampa_riconoscimento(r: Riconoscimento) -> None:
     print(f"  confidenza:  {r.confidenza:.2f}")
     if r.note:
         print(f"  note:        {r.note}")
-    print(f"  query usata: {r.query!r}")
+    print(f"  domande poste all'indice: {', '.join(repr(q) for q in r.formulazioni())}")
 
 
 def stampa_risposta(risposta: Risposta) -> None:

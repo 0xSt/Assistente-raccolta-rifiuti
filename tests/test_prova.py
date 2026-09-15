@@ -66,7 +66,8 @@ def test_il_riconoscimento_mostra_la_query_usata(capsys):
     stampa_riconoscimento(Riconoscimento(oggetto="bottiglia", materiali=["vetro"],
                                          stato="vuota", confidenza=0.8))
     uscita = capsys.readouterr().out
-    assert "query usata: 'bottiglia vetro vuota'" in uscita and "0.80" in uscita
+    assert "'bottiglia vuota'" in uscita and "'bottiglia vetro vuota'" in uscita
+    assert "0.80" in uscita
 
 
 def test_la_diagnostica_parte_senza_toccare_il_database(monkeypatch, capsys):

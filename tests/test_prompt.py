@@ -45,3 +45,16 @@ def test_il_prompt_di_scelta_vincola_ai_candidati():
 def test_prompt_inesistente_segnalato():
     with pytest.raises(FileNotFoundError):
         prompt_.carica("inventato")
+
+
+def test_il_prompt_di_scelta_vieta_la_corrispondenza_per_solo_materiale():
+    """Scegliere "molletta di plastica" per un sandalo perché entrambi sono di plastica è
+    l'errore osservato nella prima prova su foto vere."""
+    testo = prompt_.carica("scelta").testo.lower()
+    assert "non un oggetto dello stesso materiale" in testo
+    assert "rispondi con numero 0" in testo and "meglio dire" in testo
+
+
+def test_la_versione_del_prompt_di_scelta_e_avanzata():
+    """Il prompt è stato corretto dopo le prove su foto reali: la versione deve dirlo."""
+    assert int(prompt_.carica("scelta").versione) >= 2

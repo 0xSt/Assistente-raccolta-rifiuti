@@ -38,7 +38,7 @@ class Agente:
     def _scegli_nel_livello(self, riconoscimento: Riconoscimento, comune: str, livello: int,
                             testo_utente: str | None) -> tuple[list[Candidato], Scelta]:
         trovati = recupera(self.db, self.qdrant, self.vettorizzatore,
-                           riconoscimento.query, comune, livello=livello, k=self.k)
+                           riconoscimento.formulazioni(), comune, livello=livello, k=self.k)
         if not trovati:
             return [], Scelta(scheda_id=None, motivo=f"nessun candidato al livello {livello}")
         return trovati, self.modello.scegli(riconoscimento, trovati, testo_utente)

@@ -21,8 +21,25 @@ class Riconoscimento:
 
     @property
     def query(self) -> str:
-        """Il testo con cui si interroga l'indice: oggetto, materiali e stato insieme."""
+        """Formulazione estesa: oggetto, materiali e stato insieme."""
         return " ".join(filter(None, [self.oggetto, *self.materiali, self.stato])).strip()
+
+    @property
+    def query_oggetto(self) -> str:
+        """Solo l'oggetto e il suo stato.
+
+        Serve perché i materiali, messi nella stessa domanda, trascinano la ricerca verso
+        ciò che è *fatto di* quel materiale: cercando "sandalo gomma plastica tessuto" si
+        ottengono gomme da masticare e righelli di plastica, e il sandalo sparisce.
+        """
+        return " ".join(filter(None, [self.oggetto, self.stato])).strip()
+
+    def formulazioni(self) -> list[str]:
+        """Le domande da porre all'indice, dalla più specifica alla più generica."""
+        domande = [self.query_oggetto]
+        if self.materiali and self.query != self.query_oggetto:
+            domande.append(self.query)
+        return [d for d in domande if d]
 
     @property
     def riuscito(self) -> bool:

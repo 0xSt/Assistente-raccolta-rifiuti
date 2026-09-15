@@ -57,15 +57,22 @@ def arricchisci(db: sqlite3.Connection, risultati: Sequence[dict]) -> list[Candi
     return candidati
 
 
-def candidati(db: sqlite3.Connection, qdrant, vettorizzatore, query: str, comune: str,
-              livello: int, k: int = 8) -> list[Candidato]:
-    """Ricerca ibrida su un solo livello di evidenza, dentro un solo comune."""
-    if not query.strip():
+def candidati(db: sqlite3.Connection, qdrant, vettorizzatore, query: str | Sequence[str],
+              comune: str, livello: int, k: int = 8) -> list[Candidato]:
+    """Ricerca ibrida su un solo livello di evidenza, dentro un solo comune.
+
+    `query` può essere una domanda sola o più formulazioni della stessa: in quel caso ogni
+    formulazione produce due classifiche (lessicale e semantica) e tutte vengono fuse con
+    RRF. Una voce trovata da più formulazioni sale, il che è esattamente ciò che si vuole.
+    """
+    domande = [query] if isinstance(query, str) else list(query)
+    classifiche: dict[str, list[dict]] = {}
+    for n, domanda in enumerate(d for d in domande if d and d.strip()):
+        classifiche[f"lessicale{n}"] = cerca_lessicale(db, domanda, comune, livello=livello, k=k)
+        classifiche[f"semantica{n}"] = cerca_semantica(qdrant, domanda, comune, vettorizzatore,
+                                                       livello=livello, k=k)
+    if not classifiche:
         return []
-    classifiche = {
-        "lessicale": cerca_lessicale(db, query, comune, livello=livello, k=k),
-        "semantica": cerca_semantica(qdrant, query, comune, vettorizzatore, livello=livello, k=k),
-    }
     return arricchisci(db, fondi_rrf(classifiche, k=k))
 
 
