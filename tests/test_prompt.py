@@ -67,3 +67,16 @@ def test_le_versioni_dei_prompt_sono_avanzate():
     """I prompt sono stati corretti dopo le prove su foto reali: le versioni devono dirlo."""
     assert int(prompt_.carica("scelta").versione) >= 3
     assert int(prompt_.carica("riconoscimento").versione) >= 2
+
+
+def test_il_prompt_di_riconoscimento_avverte_dei_nomi_ambigui():
+    """"Ciabatta" in italiano è sia una calzatura sia un tipo di pane, e il modello ha
+    scelto il significato sbagliato."""
+    testo = prompt_.carica("riconoscimento").testo.lower()
+    assert "ambiguo" in testo and "ciabatta" in testo
+
+
+def test_il_prompt_di_scelta_rende_vincolante_la_categoria():
+    testo = prompt_.carica("scelta").testo.lower()
+    assert "categoria" in testo and "vincolante" in testo
+    assert "non reinterpretare" in testo

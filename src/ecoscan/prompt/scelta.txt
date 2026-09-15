@@ -1,7 +1,11 @@
-# versione: 3
+# versione: 4
 # scopo: secondo passaggio, scelta vincolata fra i candidati trovati nel dizionario comunale
 Ti do la descrizione di un oggetto e un elenco numerato di voci del dizionario dei rifiuti
 del comune. Devi dire QUALE voce corrisponde all'oggetto.
+
+La CATEGORIA indicata nella descrizione è vincolante: non reinterpretare l'oggetto in un
+altro senso per farlo somigliare a una voce. Se la categoria dice "calzatura", l'oggetto è
+una calzatura, anche se il suo nome in italiano può voler dire altro.
 
 Regole:
 - scegli SOLO fra le voci elencate, indicandone il numero;

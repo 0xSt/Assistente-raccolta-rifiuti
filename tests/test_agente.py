@@ -303,3 +303,21 @@ def test_il_tipo_di_corrispondenza_arriva_nella_risposta(ambiente):
 
     risposta = crea_agente(ambiente, ConTipo()).analizza(b"foto", "Torino")
     assert risposta.tipo_corrispondenza == "sinonimo"
+
+
+def test_la_scelta_vede_categoria_e_sinonimi():
+    """Senza categoria il modello può reinterpretare un nome ambiguo: davanti a "ciabatta"
+    ha risposto "è un tipo di pane" e ha scelto una busta per alimenti."""
+    from ecoscan.agente.modelli import _descrizione_oggetto
+    testo = _descrizione_oggetto(
+        Riconoscimento(oggetto="ciabatta", categoria="calzatura", sinonimi=["sandalo", "scarpa"],
+                       materiali=["gomma"], stato="sporco"), None)
+    assert "Categoria: calzatura" in testo
+    assert "Chiamato anche: sandalo, scarpa" in testo
+    assert "Oggetto: ciabatta" in testo
+
+
+def test_lo_schema_del_riconoscimento_esige_sinonimi_e_categoria():
+    """Lasciati facoltativi il modello li omette: è successo alla prima prova."""
+    from ecoscan.agente.modelli import SCHEMA_RICONOSCIMENTO
+    assert {"sinonimi", "categoria"} <= set(SCHEMA_RICONOSCIMENTO["required"])

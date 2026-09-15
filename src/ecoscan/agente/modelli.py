@@ -37,7 +37,9 @@ SCHEMA_RICONOSCIMENTO = {
         "confidenza": {"type": "number", "description": "da 0.0 a 1.0"},
         "note": {"type": "string"},
     },
-    "required": ["oggetto", "materiali", "confidenza"],
+    # sinonimi e categoria sono OBBLIGATORI: lasciati facoltativi, il modello li omette e
+    # la ricerca perde il ponte col vocabolario della fonte
+    "required": ["oggetto", "sinonimi", "categoria", "materiali", "confidenza"],
 }
 
 SCHEMA_SCELTA = {
@@ -81,7 +83,17 @@ def _elenco(candidati: Sequence[Candidato]) -> str:
 
 
 def _descrizione_oggetto(r: Riconoscimento, testo_utente: str | None) -> str:
+    """Come l'oggetto viene presentato al modello nella scelta.
+
+    Sinonimi e categoria non sono un di più: senza di essi un nome ambiguo può essere
+    reinterpretato. Davanti a "ciabatta" il modello ha risposto "è un tipo di pane" e ha
+    scelto una busta per alimenti; con "categoria: calzatura" quella strada è chiusa.
+    """
     righe = [f"Oggetto: {r.oggetto}"]
+    if r.categoria:
+        righe.append(f"Categoria: {r.categoria}")
+    if r.sinonimi:
+        righe.append(f"Chiamato anche: {', '.join(r.sinonimi)}")
     if r.materiali:
         righe.append(f"Materiali visibili: {', '.join(r.materiali)}")
     if r.stato:

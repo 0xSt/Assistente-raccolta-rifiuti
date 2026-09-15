@@ -118,6 +118,8 @@ Formato: decisione, motivazione, stato.
 | D73 | Il chiarimento nasce dai dati, non dall'intuito del modello: se fra i candidati ci sono omonimi con destinazioni diverse, la condizione si chiede | "Capsule del caffè in plastica" con e senza residuo vanno in contenitori diversi e dalla foto non si distingue | Accettata |
 | D75 | Le richieste a Ollama passano `keep_alive` (30 minuti di norma) | Senza, il modello viene scaricato e ricaricato fra una chiamata e l'altra: su CPU sono decine di secondi per passaggio, e l'agente ne fa fino a tre | Accettata |
 | D82 | Il modello di visione produce anche **sinonimi** e **categoria** dell'oggetto, usati come formulazioni aggiuntive | È il ponte fra il vocabolario del modello e quello della fonte: il modello dice "sandalo", ASIA scrive "Scarpe". Con la sola parola "sandalo" la ricerca semantica restituiva parole che le somigliano nella forma ("Salse", "Sdraio", "Scaldabagno") | Accettata |
+| D84 | Sinonimi e categoria sono **obbligatori** nello schema di uscita del riconoscimento | Lasciati facoltativi il modello li omette, e la ricerca perde il ponte col vocabolario della fonte: è successo alla prima prova con la ciabatta | Accettata |
+| D85 | La descrizione passata alla scelta include categoria e sinonimi, e il prompt dichiara la categoria **vincolante** | Senza, un nome ambiguo viene reinterpretato: davanti a "ciabatta" il modello ha risposto "è un tipo di pane" e ha scelto una busta per alimenti | Accettata |
 | D83 | Il modello dichiara il **tipo di corrispondenza** (stesso oggetto, sinonimo, categoria, solo materiale, nessuna) e l'agente scarta le ultime due | Non ci si affida alla prosa né alla buona volontà: il modello si impegna su un'etichetta e la politica la applica il codice. La regola sta nell'agente, non nell'adattatore Ollama, così vale per qualunque modello | Accettata |
 | D80 | L'indice si interroga con **più formulazioni** della stessa domanda (solo oggetto; oggetto più materiali), fuse con RRF | I materiali nella stessa domanda trascinano la ricerca verso ciò che è *fatto di* quel materiale: "sandalo gomma plastica tessuto" restituisce gomme da masticare e righelli, e il sandalo sparisce | Accettata |
 | D81 | Il prompt di scelta vieta la corrispondenza per solo materiale e dichiara che "nessuna voce" è una risposta corretta | Davanti a un sandalo il modello aveva scelto "molletta in plastica da bucato", motivandolo con il materiale condiviso: indicare il contenitore sbagliato è peggio che ammettere di non sapere | Accettata |
@@ -196,6 +198,8 @@ Cose imparate che non sono decisioni, ma che conviene ricordare.
 - **ASIA pubblica poche esclusioni, e quasi solo come grafica.** Testo solo per il Vetro; dentro l'immagine per l'Umido; per Plastica e Carta non esistono proprio. Torino ne pubblica 27 contro le 11 di Napoli: la stessa informazione, con profondità molto diversa. Una fonte può essere incompleta *per come è pubblicata*, non per come la leggiamo: il controllo che distingue i due casi è ciò che ha permesso di capirlo in un giro solo.
 - **Le esclusioni spiegano il dizionario.** La pagina del vetro di Napoli esclude bicchieri, piatti, pirofile e lastre: esattamente le voci che nel dizionario finiscono nel non riciclabile. Ciò che sembrava incoerenza è una regola dichiarata.
 - **Divergenze fra comuni utili da citare**: bicchiere di vetro (Napoli non riciclabile, Torino vetro); tappo di sughero (Napoli organico, Torino centro di raccolta o organico); pentole e padelle (Napoli plastica e metalli, Torino centro di raccolta). Una convergenza: il vetro dei profumi non è riciclabile in entrambi.
+- **I nomi degli oggetti sono ambigui, e il modello sceglie il senso sbagliato.** "Ciabatta" in italiano è una calzatura e un tipo di pane: il modello ha imboccato la seconda strada e ha scelto "busta per alimenti", dichiarando pure la corrispondenza come "sinonimo". La categoria, resa obbligatoria e mostrata anche nella scelta, chiude quella strada.
+- **Un campo facoltativo in uno schema di uscita è un campo che il modello ometterà.**
 - **Il vocabolario del modello e quello della fonte non coincidono.** Il modello riconosce "sandalo", il dizionario di ASIA elenca "Scarpa", "Scarpe", "Pantofole di stoffa", "Stivali". Cercando "sandalo" da solo, la ricerca semantica ha restituito "Salse", "Sdraio" e "Scaldabagno": parole che somigliano nella forma, non nel significato. È il limite di una ricerca semantica su testi di una parola sola, e si risolve chiedendo al modello i sinonimi, che conosce.
 - **Un riconoscimento giusto non basta: conta come si formula la domanda.** Gemma 3 ha riconosciuto correttamente "sandalo, gomma, plastica, tessuto", ma la ricerca con quella frase intera ha restituito gomme da masticare e righelli di plastica. Il riconoscimento era buono, il retrieval no.
 - **Gemma 4 dichiara `vision` ma non interpreta le fotografie.** Supera le prove su immagini sintetiche semplici (un colore pieno, indovinabile) e fallisce su tutto il resto: tre colori su tre sbagliati, la domanda sulla posizione sbagliata, e davanti a qualsiasi foto risponde "un modulo" o "una griglia di blocchi". Gemma 3 da 4 miliardi di parametri, con **lo stesso codice e gli stessi byte**, descrive correttamente una ciabatta Adidas usurata e una bottiglia di acqua minerale. Il confronto fra due modelli sullo stesso ingresso è ciò che ha chiuso l'indagine.
@@ -212,6 +216,16 @@ Cose imparate che non sono decisioni, ma che conviene ricordare.
 ---
 
 ## Cronologia
+
+### v0.19.1 — 12/09/2026
+
+Tre difetti emersi dalla prova sulla ciabatta, dove la risposta è stata "Organico" con la motivazione "la ciabatta è un tipo di pane".
+
+**Corretto.** `sinonimi` e `categoria` erano facoltativi nello schema di uscita e il modello li ha omessi: ora sono obbligatori.
+
+**Corretto.** La descrizione passata al passaggio di scelta non conteneva categoria né sinonimi. Il modello poteva quindi reinterpretare l'oggetto: è il bug che ha permesso alla ciabatta di diventare pane.
+
+**Modificato.** Prompt di riconoscimento alla versione 3, con la regola sui nomi ambigui e l'esempio della ciabatta; prompt di scelta alla versione 4, con la categoria dichiarata vincolante.
 
 ### v0.19.0 — 12/09/2026
 
