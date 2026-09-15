@@ -1,0 +1,15 @@
+comune,domanda,atteso,nota
+Napoli,sandalo,Scarpe,il modello riconosce "sandalo": il dizionario scrive "Scarpe"
+Napoli,calzatura,Scarpe,categoria generale
+Napoli,ciabatta,Scarpe,nome ambiguo: calzatura o pane
+Napoli,bottiglia di plastica,Bottiglia in plastica,caso facile di controllo
+Napoli,contenitore del latte,Cartone per latte,parafrasi
+Napoli,capsula del caffè,Capsula caffè,due voci distinte per condizione
+Napoli,lattina di alluminio,Lattina in alluminio,
+Napoli,cartone della pizza unto,Cartone unto per pizze,condizione decisiva
+Torino,tetrapak,Tetra Pak,la fonte scrive "Tetra Pak" con lo spazio
+Torino,bicchiere di vetro,Bicchieri di vetro,singolare contro plurale
+Torino,cartone della pizza unto,Cartone da pizza sporco,condizione decisiva
+Torino,bottiglia di plastica,Bottiglie di plastica,caso facile di controllo
+Torino,pila stilo,Pile,
+Torino,lampadina a led,Lampadine,

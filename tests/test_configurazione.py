@@ -87,3 +87,12 @@ def test_il_modello_di_visione_predefinito_e_quello_che_funziona(tmp_path):
     restare un modello verificato, altrimenti chi clona il progetto parte da un guasto."""
     (tmp_path / "pyproject.toml").write_text("[project]\nname='x'\n")
     assert leggi_configurazione(tmp_path)["modello_visione"] == "gemma3:4b"
+
+
+def test_i_prefissi_degli_embedding_si_possono_spegnere(tmp_path):
+    """Servono a confrontare due configurazioni, non a indovinare quale sia giusta."""
+    (tmp_path / "pyproject.toml").write_text("[project]\nname='x'\n")
+    (tmp_path / ".env").write_text("ECOSCAN_PREFISSI_EMBEDDING=no\n")
+    assert leggi_configurazione(tmp_path)["prefissi_embedding"] == "no"
+    assert leggi_configurazione(tmp_path.parent / tmp_path.name, {"ECOSCAN_PREFISSI_EMBEDDING": "si"}
+                                )["prefissi_embedding"] == "si"

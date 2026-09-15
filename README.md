@@ -4,7 +4,7 @@ Assistente per la raccolta differenziata che gira interamente in locale. L'utent
 
 Progetto universitario. Comuni del prototipo: **Napoli** (ASIA) e **Torino** (AMIAT).
 
-## Stato attuale (v0.19.1)
+## Stato attuale (v0.20.0)
 
 Il quadro completo è in [docs/diario.md](docs/diario.md).
 
@@ -67,6 +67,7 @@ ollama pull embeddinggemma      # una volta sola, serve per i vettori
 docker compose up -d qdrant     # database vettoriale (dashboard: localhost:6333/dashboard)
 uv run ecoscan-vettorizza       # indicizza le schede su Qdrant
 uv run ecoscan-vettorizza --verifica   # controlla che l'indicizzazione sia corretta
+uv run ecoscan-sonda            # misura dove finisce la scheda attesa per domande note
 uv run ecoscan-vettorizza --cerca "contenitore del latte" --comune Napoli  # ricerca ibrida
 
 ollama pull gemma3:4b           # modello multimodale (~3 GB), vedi D79 nel diario
@@ -143,6 +144,7 @@ Qdrant sta in modalità `server` o `in-process`.
 | `db/carica.py` | Load: ricostruisce il database dai file normalizzati |
 | `db/indicizza.py` | Schede ricercabili, indice FTS5 a trigrammi e ricerca lessicale |
 | `db/vettorizza.py` | Indicizzazione su Qdrant, ricerca semantica e fusione RRF |
+| `db/sonda.py` | Misura della qualità del recupero su domande note |
 
 ## Documentazione
 

@@ -74,6 +74,10 @@ class VettorizzatoreOllama:
         return self._dimensione
 
     def _prompt(self, testo: str, come: str) -> str:
+        """I prefissi previsti da EmbeddingGemma, se non li applica già Ollama (vedi
+        ECOSCAN_PREFISSI_EMBEDDING: applicarli due volte peggiora il recupero)."""
+        if not conf.PREFISSI_EMBEDDING:
+            return testo
         return f"task: search result | query: {testo}" if come == "query" else f"title: none | text: {testo}"
 
     def vettorizza(self, testi: Sequence[str], come: str = "documento") -> list[list[float]]:

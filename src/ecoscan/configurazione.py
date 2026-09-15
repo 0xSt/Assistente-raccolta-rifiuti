@@ -47,6 +47,10 @@ OLLAMA_KEEP_ALIVE = _testo("ECOSCAN_OLLAMA_KEEP_ALIVE", "30m")
 # Lato lungo massimo delle immagini inviate al modello. Le foto degli smartphone sono molto
 # più grandi di quanto il modello guardi davvero: mandarle intere costa byte, non dettaglio.
 LATO_MAX_IMMAGINE = _intero("ECOSCAN_LATO_MAX_IMMAGINE", 1024)
+# EmbeddingGemma prevede prefissi diversi per documenti e interrogazioni. Alcune versioni di
+# Ollama però li applicano già da sé: in quel caso i nostri li duplicherebbero, peggiorando
+# il recupero. L'interruttore serve a misurare quale delle due configurazioni funziona.
+PREFISSI_EMBEDDING = _testo("ECOSCAN_PREFISSI_EMBEDDING", "si").lower() not in ("no", "0", "false")
 # Quante schede si vettorizzano per chiamata
 LOTTO_EMBEDDING = _intero("ECOSCAN_LOTTO_EMBEDDING", 32)
 
@@ -57,5 +61,6 @@ def riepilogo() -> dict[str, str]:
     return {"qdrant": QDRANT, "ollama": OLLAMA, "modello": MODELLO_EMBEDDING,
             "modello_visione": MODELLO_VISIONE, "keep_alive": OLLAMA_KEEP_ALIVE,
             "lato_max_immagine": str(LATO_MAX_IMMAGINE),
+            "prefissi_embedding": "si" if PREFISSI_EMBEDDING else "no",
             "lotto": str(LOTTO_EMBEDDING),
             "modalita_qdrant": "server" if QDRANT.startswith(("http://", "https://")) else "in-process"}

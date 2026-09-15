@@ -118,6 +118,7 @@ Formato: decisione, motivazione, stato.
 | D73 | Il chiarimento nasce dai dati, non dall'intuito del modello: se fra i candidati ci sono omonimi con destinazioni diverse, la condizione si chiede | "Capsule del caffè in plastica" con e senza residuo vanno in contenitori diversi e dalla foto non si distingue | Accettata |
 | D75 | Le richieste a Ollama passano `keep_alive` (30 minuti di norma) | Senza, il modello viene scaricato e ricaricato fra una chiamata e l'altra: su CPU sono decine di secondi per passaggio, e l'agente ne fa fino a tre | Accettata |
 | D82 | Il modello di visione produce anche **sinonimi** e **categoria** dell'oggetto, usati come formulazioni aggiuntive | È il ponte fra il vocabolario del modello e quello della fonte: il modello dice "sandalo", ASIA scrive "Scarpe". Con la sola parola "sandalo" la ricerca semantica restituiva parole che le somigliano nella forma ("Salse", "Sdraio", "Scaldabagno") | Accettata |
+| D86 | Il retrieval si misura con le **sonde**: domande note e scheda attesa, con la posizione raggiunta da ciascun metodo | Guardando i primi cinque risultati non si sa se la scheda giusta sia sesta o assente. Senza quel dato ogni modifica al recupero è un tentativo alla cieca | Accettata |
 | D84 | Sinonimi e categoria sono **obbligatori** nello schema di uscita del riconoscimento | Lasciati facoltativi il modello li omette, e la ricerca perde il ponte col vocabolario della fonte: è successo alla prima prova con la ciabatta | Accettata |
 | D85 | La descrizione passata alla scelta include categoria e sinonimi, e il prompt dichiara la categoria **vincolante** | Senza, un nome ambiguo viene reinterpretato: davanti a "ciabatta" il modello ha risposto "è un tipo di pane" e ha scelto una busta per alimenti | Accettata |
 | D83 | Il modello dichiara il **tipo di corrispondenza** (stesso oggetto, sinonimo, categoria, solo materiale, nessuna) e l'agente scarta le ultime due | Non ci si affida alla prosa né alla buona volontà: il modello si impegna su un'etichetta e la politica la applica il codice. La regola sta nell'agente, non nell'adattatore Ollama, così vale per qualunque modello | Accettata |
@@ -216,6 +217,14 @@ Cose imparate che non sono decisioni, ma che conviene ricordare.
 ---
 
 ## Cronologia
+
+### v0.20.0 — 12/09/2026
+
+**Aggiunto.** `ecoscan-sonda`: 14 domande note con la scheda attesa (in `data/riferimento/sonde.csv`), e per ognuna la posizione raggiunta da lessicale, semantico e ibrido. Gira in pochi secondi perché non usa il modello di visione, quindi si può ripetere a ogni modifica del recupero. È il primo pezzo di valutazione, limitato al retrieval.
+
+**Aggiunto.** `ECOSCAN_PREFISSI_EMBEDDING`: permette di indicizzare senza i prefissi di EmbeddingGemma. Serve a verificare un sospetto preciso, cioè che Ollama li applichi già da sé e che i nostri li duplichino, peggiorando il recupero. Non è una correzione: è il modo per misurare quale configurazione funziona.
+
+**Osservato.** Dopo la correzione dei prompt il riconoscimento della ciabatta è perfetto ("sandalo", sinonimi "ciabatta, calzatura", categoria "calzatura"), ma il recupero continua a fallire: cercando "calzatura" il primo risultato è "Laccio per scarpe" e "Scarpe utilizzabile" non compare. Il problema è ora isolato nella ricerca semantica su testi brevi.
 
 ### v0.19.1 — 12/09/2026
 
