@@ -321,3 +321,19 @@ def test_lo_schema_del_riconoscimento_esige_sinonimi_e_categoria():
     """Lasciati facoltativi il modello li omette: è successo alla prima prova."""
     from ecoscan.agente.modelli import SCHEMA_RICONOSCIMENTO
     assert {"sinonimi", "categoria"} <= set(SCHEMA_RICONOSCIMENTO["required"])
+
+
+def test_ogni_formulazione_porta_il_suo_primo_risultato(ambiente):
+    """Con molte formulazioni la fusione premia chi compare in molte classifiche: una scheda
+    trovata al primo posto da una sola formulazione può restare fuori dai candidati."""
+    from ecoscan.agente.recupero import _fondi_garantendo_i_primi
+
+    classifiche = {
+        "a": [{"scheda_id": 1, "testo": "comune"}, {"scheda_id": 2, "testo": "x"}],
+        "b": [{"scheda_id": 1, "testo": "comune"}, {"scheda_id": 3, "testo": "y"}],
+        "solitaria": [{"scheda_id": 99, "testo": "Scarpe utilizzabile"}],
+    }
+    fusi = _fondi_garantendo_i_primi(classifiche, k=2)
+    identificatori = [r["scheda_id"] for r in fusi]
+    assert 1 in identificatori          # trovata da due formulazioni: resta in cima
+    assert 99 in identificatori         # prima per una sola formulazione: garantita

@@ -135,3 +135,22 @@ def test_il_codice_materiale_entra_nel_testo():
     from ecoscan.db.indicizza import testo_voce
     assert testo_voce("Simbolo GL o GLS", [], "70") == "Simbolo GL o GLS 70"
     assert testo_voce("Cartone da pizza", ["unto"], None) == "Cartone da pizza unto"
+
+
+def test_le_parole_di_servizio_non_entrano_nella_ricerca():
+    """"cartone della pizza unto" falliva perché "dell" compare in "Polvere dell'aspirapolvere":
+    la ricerca in AND trovava quel documento e non ripiegava su OR."""
+    from ecoscan.db.indicizza import termini
+    assert termini("cartone della pizza unto") == ["carton", "pizz", "unto"]
+    assert "con" not in termini("bottiglia con tappo")
+
+
+def test_una_domanda_di_sole_parole_di_servizio_non_resta_vuota():
+    from ecoscan.db.indicizza import termini
+    assert termini("della per con") != []
+
+
+def test_la_negazione_resta_un_termine():
+    """Distingue "Scarpe utilizzabile" da "Scarpe non utilizzabile"."""
+    from ecoscan.db.indicizza import termini
+    assert "non" in termini("scarpe non utilizzabili")

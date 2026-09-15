@@ -118,6 +118,9 @@ Formato: decisione, motivazione, stato.
 | D73 | Il chiarimento nasce dai dati, non dall'intuito del modello: se fra i candidati ci sono omonimi con destinazioni diverse, la condizione si chiede | "Capsule del caffè in plastica" con e senza residuo vanno in contenitori diversi e dalla foto non si distingue | Accettata |
 | D75 | Le richieste a Ollama passano `keep_alive` (30 minuti di norma) | Senza, il modello viene scaricato e ricaricato fra una chiamata e l'altra: su CPU sono decine di secondi per passaggio, e l'agente ne fa fino a tre | Accettata |
 | D82 | Il modello di visione produce anche **sinonimi** e **categoria** dell'oggetto, usati come formulazioni aggiuntive | È il ponte fra il vocabolario del modello e quello della fonte: il modello dice "sandalo", ASIA scrive "Scarpe". Con la sola parola "sandalo" la ricerca semantica restituiva parole che le somigliano nella forma ("Salse", "Sdraio", "Scaldabagno") | Accettata |
+| D87 | I prefissi di EmbeddingGemma **restano attivi**: misurato, non supposto | Con i prefissi 10 sonde su 14, senza 9; "tetrapak" si trova solo con i prefissi. L'ipotesi che Ollama li applicasse già da sé è smentita dai numeri | Accettata |
+| D88 | Preposizioni e articoli si tolgono dalla ricerca lessicale; "non" resta | "cartone della pizza unto" falliva perché "dell" compare in "Polvere dell'aspirapolvere": la ricerca in AND trovava quel documento e non ripiegava su OR. "non" invece distingue "Scarpe utilizzabile" da "Scarpe non utilizzabile" | Accettata |
+| D89 | Ogni formulazione porta fra i candidati almeno il proprio primo risultato | Con otto classifiche la fusione premia chi compare in molte: "calzatura" trova "Scarpe" al primo posto, ma fusa con le altre la voce giusta spariva | Accettata |
 | D86 | Il retrieval si misura con le **sonde**: domande note e scheda attesa, con la posizione raggiunta da ciascun metodo | Guardando i primi cinque risultati non si sa se la scheda giusta sia sesta o assente. Senza quel dato ogni modifica al recupero è un tentativo alla cieca | Accettata |
 | D84 | Sinonimi e categoria sono **obbligatori** nello schema di uscita del riconoscimento | Lasciati facoltativi il modello li omette, e la ricerca perde il ponte col vocabolario della fonte: è successo alla prima prova con la ciabatta | Accettata |
 | D85 | La descrizione passata alla scelta include categoria e sinonimi, e il prompt dichiara la categoria **vincolante** | Senza, un nome ambiguo viene reinterpretato: davanti a "ciabatta" il modello ha risposto "è un tipo di pane" e ha scelto una busta per alimenti | Accettata |
@@ -201,6 +204,7 @@ Cose imparate che non sono decisioni, ma che conviene ricordare.
 - **Divergenze fra comuni utili da citare**: bicchiere di vetro (Napoli non riciclabile, Torino vetro); tappo di sughero (Napoli organico, Torino centro di raccolta o organico); pentole e padelle (Napoli plastica e metalli, Torino centro di raccolta). Una convergenza: il vetro dei profumi non è riciclabile in entrambi.
 - **I nomi degli oggetti sono ambigui, e il modello sceglie il senso sbagliato.** "Ciabatta" in italiano è una calzatura e un tipo di pane: il modello ha imboccato la seconda strada e ha scelto "busta per alimenti", dichiarando pure la corrispondenza come "sinonimo". La categoria, resa obbligatoria e mostrata anche nella scelta, chiude quella strada.
 - **Un campo facoltativo in uno schema di uscita è un campo che il modello ometterà.**
+- **Due delle quattro sonde fallite erano sbagliate io.** Mi aspettavo "Cartone unto per pizze", ma il Transform sposta la condizione in fondo e il testo indicizzato è "Cartone per pizze unto". Un banco di prova va verificato contro i dati veri, altrimenti misura sé stesso.
 - **Il vocabolario del modello e quello della fonte non coincidono.** Il modello riconosce "sandalo", il dizionario di ASIA elenca "Scarpa", "Scarpe", "Pantofole di stoffa", "Stivali". Cercando "sandalo" da solo, la ricerca semantica ha restituito "Salse", "Sdraio" e "Scaldabagno": parole che somigliano nella forma, non nel significato. È il limite di una ricerca semantica su testi di una parola sola, e si risolve chiedendo al modello i sinonimi, che conosce.
 - **Un riconoscimento giusto non basta: conta come si formula la domanda.** Gemma 3 ha riconosciuto correttamente "sandalo, gomma, plastica, tessuto", ma la ricerca con quella frase intera ha restituito gomme da masticare e righelli di plastica. Il riconoscimento era buono, il retrieval no.
 - **Gemma 4 dichiara `vision` ma non interpreta le fotografie.** Supera le prove su immagini sintetiche semplici (un colore pieno, indovinabile) e fallisce su tutto il resto: tre colori su tre sbagliati, la domanda sulla posizione sbagliata, e davanti a qualsiasi foto risponde "un modulo" o "una griglia di blocchi". Gemma 3 da 4 miliardi di parametri, con **lo stesso codice e gli stessi byte**, descrive correttamente una ciabatta Adidas usurata e una bottiglia di acqua minerale. Il confronto fra due modelli sullo stesso ingresso è ciò che ha chiuso l'indagine.
@@ -217,6 +221,18 @@ Cose imparate che non sono decisioni, ma che conviene ricordare.
 ---
 
 ## Cronologia
+
+### v0.20.1 — 12/09/2026
+
+Tutto nato dal primo giro di sonde.
+
+**Misurato.** I prefissi di EmbeddingGemma servono: 10 sonde su 14 con, 9 senza, e "tetrapak" si trova solo con i prefissi. L'ipotesi che Ollama li applicasse già da sé è smentita.
+
+**Corretto (errore nelle sonde).** Due sonde attendevano "Cartone unto per pizze", ma il testo indicizzato è "Cartone per pizze unto": il Transform sposta la condizione in fondo. Non erano fallimenti del recupero.
+
+**Corretto.** Preposizioni e articoli venivano usati come termini di ricerca: "cartone della pizza unto" falliva perché "dell" compare in "Polvere dell'aspirapolvere", quindi la ricerca in AND trovava qualcosa e non ripiegava su OR. "non" resta un termine, perché distingue le condizioni.
+
+**Corretto.** Con otto classifiche da fondere, una scheda trovata al primo posto da una sola formulazione poteva restare fuori dai candidati: è il caso di "calzatura", che trova "Scarpe" al primo posto. Ora ogni formulazione porta almeno il proprio primo risultato.
 
 ### v0.20.0 — 12/09/2026
 

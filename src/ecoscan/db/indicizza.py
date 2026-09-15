@@ -30,6 +30,13 @@ from ecoscan.percorsi import DATI
 
 DB = DATI / "ecoscan.db"
 LUNGHEZZA_MINIMA_TERMINE = 3  # sotto i 3 caratteri il tokenizer a trigrammi non produce nulla
+# Preposizioni e articoli: non aiutano a distinguere una scheda e in AND fanno danno.
+# "cartone della pizza unto" falliva perché "dell" compare in "Polvere dell'aspirapolvere"
+# e non in "Cartone per pizze unto": la ricerca trovava qualcosa, quindi non ripiegava su OR.
+# "non" resta: distingue "Scarpe utilizzabile" da "Scarpe non utilizzabile".
+PAROLE_DI_SERVIZIO = {"del", "dello", "della", "dei", "degli", "delle", "dal", "dalla",
+                      "nel", "nella", "sul", "sulla", "con", "per", "tra", "fra", "una",
+                      "uno", "gli", "che", "cui", "suo", "sua", "loro", "questo", "questa"}
 
 SCHEMA_SERVING = """
 DROP TABLE IF EXISTS scheda_fts;
@@ -115,7 +122,10 @@ def termini(query: str) -> list[str]:
     piatto = "".join(c for c in unicodedata.normalize("NFD", query.lower())
                      if unicodedata.category(c) != "Mn")
     parole = re.findall(r"[a-z0-9]+", piatto)
-    return [radice(p) for p in parole if len(p) >= LUNGHEZZA_MINIMA_TERMINE]
+    utili = [p for p in parole
+             if len(p) >= LUNGHEZZA_MINIMA_TERMINE and p not in PAROLE_DI_SERVIZIO]
+    return [radice(p) for p in utili] or [radice(p) for p in parole
+                                          if len(p) >= LUNGHEZZA_MINIMA_TERMINE]
 
 
 def espressione_fts(query: str, operatore: str = "AND") -> str | None:
