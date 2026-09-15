@@ -80,3 +80,10 @@ def test_valore_non_numerico_segnalato(monkeypatch):
 
 def test_riepilogo_mostra_la_modalita():
     assert conf.riepilogo()["modalita_qdrant"] in ("server", "in-process")
+
+
+def test_il_modello_di_visione_predefinito_e_quello_che_funziona(tmp_path):
+    """Gemma 4 dichiara `vision` ma non interpreta le fotografie (D79): il predefinito deve
+    restare un modello verificato, altrimenti chi clona il progetto parte da un guasto."""
+    (tmp_path / "pyproject.toml").write_text("[project]\nname='x'\n")
+    assert leggi_configurazione(tmp_path)["modello_visione"] == "gemma3:4b"

@@ -33,8 +33,11 @@ QDRANT = _testo("ECOSCAN_QDRANT", str(DATI / "qdrant"))
 OLLAMA = _testo("ECOSCAN_OLLAMA", "http://localhost:11434/api/embed")
 # Modello di embedding: cambiarlo richiede di reindicizzare
 MODELLO_EMBEDDING = _testo("ECOSCAN_MODELLO_EMBEDDING", "embeddinggemma")
-# Modello multimodale che legge le foto e sceglie fra i candidati
-MODELLO_VISIONE = _testo("ECOSCAN_MODELLO_VISIONE", "gemma4:e2b")
+# Modello multimodale che legge le foto e sceglie fra i candidati.
+# Predefinito gemma3:4b: su questa installazione gemma4 (e2b ed e4b) non interpreta le
+# fotografie, pur dichiarando la capacità "vision" e superando le prove su immagini
+# sintetiche. Vedi docs/diario.md, decisione D79. Il modello resta sostituibile da .env.
+MODELLO_VISIONE = _testo("ECOSCAN_MODELLO_VISIONE", "gemma3:4b")
 # Endpoint di Ollama per le conversazioni (diverso da quello degli embedding)
 OLLAMA_CHAT = _testo("ECOSCAN_OLLAMA_CHAT", OLLAMA.replace("/api/embed", "/api/chat"))
 # Quanto Ollama tiene il modello in memoria dopo una richiesta. Senza questo, fra una

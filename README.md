@@ -4,7 +4,7 @@ Assistente per la raccolta differenziata che gira interamente in locale. L'utent
 
 Progetto universitario. Comuni del prototipo: **Napoli** (ASIA) e **Torino** (AMIAT).
 
-## Stato attuale (v0.16.2)
+## Stato attuale (v0.17.0)
 
 Il quadro completo è in [docs/diario.md](docs/diario.md).
 
@@ -69,7 +69,7 @@ uv run ecoscan-vettorizza       # indicizza le schede su Qdrant
 uv run ecoscan-vettorizza --verifica   # controlla che l'indicizzazione sia corretta
 uv run ecoscan-vettorizza --cerca "contenitore del latte" --comune Napoli  # ricerca ibrida
 
-ollama pull gemma4:e2b          # modello multimodale (~7 GB)
+ollama pull gemma3:4b           # modello multimodale (~3 GB), vedi D79 nel diario
 uv run ecoscan-analizza --foto foto/bottiglia.jpg --comune Napoli
 uv run ecoscan-analizza --oggetto "bottiglia di vetro" --comune Torino   # senza foto
 uv run ecoscan-analizza --foto foto/x.jpg --descrivi    # descrizione libera della foto
