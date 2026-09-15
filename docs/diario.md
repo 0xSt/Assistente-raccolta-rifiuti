@@ -117,6 +117,7 @@ Formato: decisione, motivazione, stato.
 | D72 | `analizza` (dalla foto) e `rispondi` (dal riconoscimento) sono separati | Permette di valutare retrieval e scelta senza rieseguire il modello di visione su ogni foto, che su CPU è il passaggio più lento | Accettata |
 | D73 | Il chiarimento nasce dai dati, non dall'intuito del modello: se fra i candidati ci sono omonimi con destinazioni diverse, la condizione si chiede | "Capsule del caffè in plastica" con e senza residuo vanno in contenitori diversi e dalla foto non si distingue | Accettata |
 | D75 | Le richieste a Ollama passano `keep_alive` (30 minuti di norma) | Senza, il modello viene scaricato e ricaricato fra una chiamata e l'altra: su CPU sono decine di secondi per passaggio, e l'agente ne fa fino a tre | Accettata |
+| D77 | Il canale immagine si verifica con un'immagine dal **contenuto noto** (un PNG di tinta unita generato a mano), non con una foto vera | Davanti a una foto non si può distinguere "vede male" da "non vede": davanti a un'immagine tutta rossa sì | Accettata |
 | D76 | La confidenza restituita dal modello viene normalizzata in 0-1 | I modelli rispondono spesso in percentuale ("100"): senza normalizzare, ogni soglia sarebbe inutile | Accettata |
 | D74 | Il contesto per il secondo giro torna al client ed è opaco | Backend senza stato, come deciso per il prototipo: niente sessioni da gestire e scadere | Accettata |
 | D69 | L'autorecupero accetta le prime 3 posizioni, non solo la prima | Le fonti contengono quasi sinonimi ("Televisore a tubo catodico" e "TV a tubo catodico") che si contendono legittimamente la testa della classifica. Fuori dalle prime posizioni, invece, c'è un vero disallineamento | Accettata |
@@ -189,7 +190,7 @@ Cose imparate che non sono decisioni, ma che conviene ricordare.
 - **ASIA pubblica poche esclusioni, e quasi solo come grafica.** Testo solo per il Vetro; dentro l'immagine per l'Umido; per Plastica e Carta non esistono proprio. Torino ne pubblica 27 contro le 11 di Napoli: la stessa informazione, con profondità molto diversa. Una fonte può essere incompleta *per come è pubblicata*, non per come la leggiamo: il controllo che distingue i due casi è ciò che ha permesso di capirlo in un giro solo.
 - **Le esclusioni spiegano il dizionario.** La pagina del vetro di Napoli esclude bicchieri, piatti, pirofile e lastre: esattamente le voci che nel dizionario finiscono nel non riciclabile. Ciò che sembrava incoerenza è una regola dichiarata.
 - **Divergenze fra comuni utili da citare**: bicchiere di vetro (Napoli non riciclabile, Torino vetro); tappo di sughero (Napoli organico, Torino centro di raccolta o organico); pentole e padelle (Napoli plastica e metalli, Torino centro di raccolta). Una convergenza: il vetro dei profumi non è riciclabile in entrambi.
-- **Prima di ritoccare un prompt, verificare che il modello riceva davvero l'immagine.** Un modello che descrive "uno schema su carta con inchiostro" davanti alla foto di una ciabatta sta probabilmente rispondendo senza vedere nulla: è il comportamento tipico di chi riceve solo il testo. Da qui la modalità `--descrivi`, che chiede una descrizione libera senza schemi né istruzioni nostre.
+- **Il modello non riceveva le immagini.** Foto diverse (una bottiglia, una ciabatta) producevano la stessa descrizione: "una griglia di blocchi con numeri e testo". Due descrizioni identiche per immagini diverse sono la prova che l'immagine non arriva; una sola descrizione sbagliata non lo sarebbe stata. Da qui prima `--descrivi` e poi `--diagnostica`, che usa un'immagine dal contenuto noto.
 - **Un processo lungo senza avanzamento sembra rotto.** L'estrazione di Napoli dura 15 minuti e non stampava nulla: Stef l'ha giustamente creduta bloccata. Vale per ogni comando che superi qualche secondo.
 - **In `.gitignore` non esistono commenti a fine riga.** `*.db  # nota` è un nome di file letterale: il database è finito in git per questo. Ora c'è un test che lo impedisce.
 - **ASIA ha voci quasi gemelle con destinazioni diverse.** "Televisore a tubo catodico" va all'isola ecologica **o all'ecopunto elettrodomestici**, "TV a tubo catodico" solo all'isola; per lo schermo piatto invece le due versioni concordano. La deduplicazione non poteva accorgersene, perché i nomi differiscono e le destinazioni non coincidono. È emerso dall'autorecupero dell'indice vettoriale, cioè da un controllo tecnico che ha scoperto un problema di dati.
@@ -201,6 +202,12 @@ Cose imparate che non sono decisioni, ma che conviene ricordare.
 ---
 
 ## Cronologia
+
+### v0.15.3 — 12/09/2026
+
+**Aggiunto.** `ecoscan-analizza --diagnostica`: tre controlli sul canale immagine, cioè versione di Ollama, `capabilities` dichiarate dal modello (deve comparire `vision`) e una prova con un PNG di tinta unita generato a mano, chiedendo di che colore è. È la prova decisiva: nessun modello che riceve un'immagine tutta rossa risponde "griglia di blocchi". 3 test verificano che il PNG generato sia valido, CRC compresi, per non incolpare il modello di un difetto nostro.
+
+**Stato.** Le prove di Stef hanno mostrato che il modello **non riceve le immagini**: due foto molto diverse producono la stessa descrizione generica. La diagnostica serve a stabilire se il problema sia la versione di Ollama, il modello senza capacità di visione, o il passaggio dell'immagine.
 
 ### v0.15.2 — 12/09/2026
 

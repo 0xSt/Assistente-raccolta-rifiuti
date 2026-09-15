@@ -8,7 +8,8 @@ Uso:
   uv run ecoscan-analizza --foto foto/bottiglia.jpg --comune Napoli
   uv run ecoscan-analizza --foto f.jpg --comune Torino --testo "è vuota"
   uv run ecoscan-analizza --oggetto "bottiglia di vetro" --comune Torino   # salta la foto
-  uv run ecoscan-analizza --foto f.jpg --descrivi     # diagnostica: il modello vede la foto?
+  uv run ecoscan-analizza --foto f.jpg --descrivi     # descrizione libera della foto
+  uv run ecoscan-analizza --diagnostica               # il canale immagine funziona?
 """
 from __future__ import annotations
 
@@ -82,12 +83,29 @@ def main() -> None:
     ap.add_argument("--oggetto", help="salta la foto e parte da questa descrizione")
     ap.add_argument("--comune", default="Napoli")
     ap.add_argument("--testo", help="informazione aggiuntiva dell'utente")
+    ap.add_argument("--diagnostica", action="store_true",
+                    help="verifica il canale immagine con un'immagine dal contenuto noto")
     ap.add_argument("--descrivi", action="store_true",
                     help="chiede solo una descrizione libera della foto, per capire se il "
                          "modello la riceve davvero")
     ap.add_argument("--db", type=Path, default=DB)
     ap.add_argument("-k", type=int, default=8, help="quanti candidati per livello")
     args = ap.parse_args()
+
+    if args.diagnostica:
+        from ecoscan.agente import diagnostica
+        print("Impostazioni: " + " | ".join(f"{k}={v}" for k, v in conf.riepilogo().items()))
+        print(f"\nVerifico il canale immagine verso {conf.MODELLO_VISIONE}...", flush=True)
+        esiti = diagnostica.esegui(conf.MODELLO_VISIONE, conf.OLLAMA_CHAT)
+        for ok, descrizione in esiti:
+            print(f"  {'OK     ' if ok else 'FALLITO'} {descrizione}")
+        if all(ok for ok, _ in esiti):
+            print("\nIl modello riceve e interpreta le immagini: se i riconoscimenti sono "
+                  "scadenti, il problema è nei prompt o nel modello, non nel canale.")
+        else:
+            print("\nIl canale immagine non funziona. Finché non è risolto, ritoccare i "
+                  "prompt non serve a nulla.")
+        raise SystemExit(0 if all(ok for ok, _ in esiti) else 1)
 
     if not args.foto and not args.oggetto:
         raise SystemExit("serve --foto oppure --oggetto")

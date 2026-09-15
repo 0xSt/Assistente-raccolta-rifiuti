@@ -4,7 +4,7 @@ Assistente per la raccolta differenziata che gira interamente in locale. L'utent
 
 Progetto universitario. Comuni del prototipo: **Napoli** (ASIA) e **Torino** (AMIAT).
 
-## Stato attuale (v0.15.2)
+## Stato attuale (v0.15.3)
 
 Il quadro completo è in [docs/diario.md](docs/diario.md).
 
@@ -72,7 +72,8 @@ uv run ecoscan-vettorizza --cerca "contenitore del latte" --comune Napoli  # ric
 ollama pull gemma4:e2b          # modello multimodale (~7 GB)
 uv run ecoscan-analizza --foto foto/bottiglia.jpg --comune Napoli
 uv run ecoscan-analizza --oggetto "bottiglia di vetro" --comune Torino   # senza foto
-uv run ecoscan-analizza --foto foto/x.jpg --descrivi    # diagnostica: il modello vede la foto?
+uv run ecoscan-analizza --foto foto/x.jpg --descrivi    # descrizione libera della foto
+uv run ecoscan-analizza --diagnostica                   # il canale immagine funziona?
 
 uv run pytest                   # i test Torino si saltano se il PDF non è presente
 uv run ecoscan-demo             # carica i dati nello schema ed esegue interrogazioni di esempio
@@ -132,6 +133,7 @@ Qdrant sta in modalità `server` o `in-process`.
 | `agente/recupero.py` | Candidati per livello di evidenza, arricchiti dal relazionale |
 | `agente/agente.py` | Orchestrazione: riconoscimento → cascata → scelta → risposta |
 | `agente/prova.py` | Comando per provare l'agente su una foto, con i tempi per fase |
+| `agente/diagnostica.py` | Verifica del canale immagine con un'immagine dal contenuto noto |
 | `prompt/` | I prompt come file versionati, con versione e impronta |
 | `percorsi.py` | Radice del progetto, cartelle dati, caricamento del `.env` |
 | `configurazione.py` | Impostazioni lette dal `.env`, con i valori predefiniti |
