@@ -438,3 +438,45 @@ def test_dopo_la_risposta_dell_utente_non_si_richiede(ambiente):
 def test_condizione_gia_nota(condizioni, testi, atteso):
     from ecoscan.agente.agente import condizione_gia_nota
     assert condizione_gia_nota(condizioni, testi) is atteso
+
+
+def test_la_condizione_dichiarata_decide_la_variante(ambiente):
+    """L'utente scrive "è con residuo": la scelta fra le due capsule non è del modello.
+    È il caso vero del cartone della pizza, dove "è unto" riceveva "Carta e Cartoncino"."""
+    class SceglieLaVarianteSbagliata(ModelloFinto):
+        def scegli(self, riconoscimento, candidati, testo_utente=None):
+            self.chiamate_scelta += 1
+            senza = [c for c in candidati if "senza residuo" in c.condizioni]
+            bersaglio = senza[0] if senza else candidati[0]
+            return Scelta(scheda_id=bersaglio.scheda_id, tipo_corrispondenza="stesso_oggetto",
+                          motivo="scelta sbagliata di proposito")
+
+    modello = SceglieLaVarianteSbagliata(
+        Riconoscimento(oggetto="Capsule del caffè in plastica", confidenza=0.9))
+    risposta = crea_agente(ambiente, modello).analizza(b"foto", "Torino",
+                                                       testo_utente="è con residuo")
+    if any("senza residuo" in c.condizioni for c in risposta.candidati):
+        assert risposta.condizioni == ["con residuo"]
+        assert "condizione dichiarata" in risposta.motivo
+
+
+@pytest.mark.parametrize("condizione, noto, atteso", [
+    ("unto", "il cartone è unto", True),
+    ("unto", "il cartone non è unto", False),       # negazione: è l'altra variante
+    ("unto", "cartone non unto", False),
+    ("unto", "cartone della pizza unto", True),     # il caso vero segnalato da Stef
+    ("non utilizzabile", "scarpe non utilizzabili", True),
+    ("utilizzabile", "scarpe non utilizzabile", False),
+    ("pulito", "è unto", False),
+])
+def test_la_negazione_non_confonde_le_varianti(condizione, noto, atteso):
+    from ecoscan.agente.agente import _menzionata
+    assert _menzionata(condizione, noto) is atteso
+
+
+def test_senza_testo_la_scelta_resta_al_modello():
+    from ecoscan.agente.agente import scegli_per_condizione
+    omonimi = [Candidato(1, 1, "a", nome="X", condizioni=["unto"]),
+               Candidato(2, 1, "b", nome="X", condizioni=["pulito"])]
+    assert scegli_per_condizione(omonimi, [None, None]) is None
+    assert scegli_per_condizione(omonimi, ["è unto", None]).scheda_id == 1

@@ -15,6 +15,7 @@ L'agente non dipende da FastAPI: la valutazione e i test lo chiamano direttament
 """
 from __future__ import annotations
 
+import re
 import sqlite3
 from dataclasses import asdict
 
@@ -23,22 +24,66 @@ from ecoscan.agente.modelli import ModelloVisione
 from ecoscan.agente.recupero import candidati as recupera
 from ecoscan.agente.recupero import condizioni_in_gioco
 from ecoscan.agente.tipi import TIPI_NON_VALIDI, Candidato, Riconoscimento, Risposta, Scelta
+from ecoscan.db.indicizza import radice
 
 CONFIDENZA_MINIMA = 0.2   # sotto, il riconoscimento non è affidabile abbastanza per cercare
+
+
+def _radicalizza(testo: str) -> str:
+    """Riduce ogni parola alla radice, come fa la ricerca.
+
+    Serve perché l'utente scrive al plurale e la condizione è al singolare: senza,
+    "non utilizzabile" non si riconoscerebbe in "scarpe non utilizzabili".
+    """
+    return " ".join(radice(p) for p in re.findall(r"[a-z0-9]+", testo.lower()))
+
+
+def _menzionata(condizione: str, noto: str) -> bool:
+    """La condizione compare nel testo, tenendo conto della negazione.
+
+    "unto" NON è menzionata in "non unto": senza questo controllo le due varianti di una
+    voce sarebbero indistinguibili proprio quando l'utente è stato più preciso.
+    """
+    c = _radicalizza(condizione or "")
+    testo = _radicalizza(noto or "")
+    if not c or c not in testo:
+        return False
+    if c.startswith("non "):
+        return True
+    return f"non {c}" not in testo
+
+
+def _testo_noto(testi: list[str | None]) -> str:
+    return " ".join(t for t in testi if t).lower()
 
 
 def condizione_gia_nota(condizioni: list[str], testi: list[str | None]) -> bool:
     """La condizione è già determinata da ciò che sappiamo?
 
     Se l'utente ha scritto "cartone della pizza unto", o se il modello ha visto lo stato
-    "unto", chiedere "è unto oppure pulito?" fa sembrare l'assistente distratto. Basta che
-    UNA delle condizioni in gioco compaia nel testo noto: significa che l'utente ha già
-    scelto fra le alternative.
+    "unto", chiedere "è unto oppure pulito?" fa sembrare l'assistente distratto.
     """
-    noto = " ".join(t for t in testi if t).lower()
+    noto = _testo_noto(testi)
+    return bool(noto) and any(_menzionata(c, noto) for c in condizioni)
+
+
+def scegli_per_condizione(omonimi: list[Candidato],
+                          testi: list[str | None]) -> Candidato | None:
+    """Fra voci con lo stesso nome, quella la cui condizione l'utente ha dichiarato.
+
+    Non è una scelta da lasciare al modello: se l'utente scrive "è unto", il cartone unto va
+    nell'organico e quello pulito nella carta. La differenza fra le due risposte è l'intero
+    scopo dell'applicazione, e il modello aveva scelto la variante sbagliata.
+    """
+    noto = _testo_noto(testi)
     if not noto:
-        return False
-    return any(c.lower() in noto for c in condizioni if c)
+        return None
+    migliore, punteggio_migliore = None, 0
+    for candidato in omonimi:
+        punteggio = sum(1 for c in candidato.condizioni if _menzionata(c, noto))
+        if punteggio > punteggio_migliore:
+            migliore, punteggio_migliore = candidato, punteggio
+    return migliore
 
 
 class Agente:
@@ -71,8 +116,18 @@ class Agente:
         # apparteneva a "Scarpe", un'altra voce presente fra i candidati.
         omonimi = [c for c in candidati
                    if c.nome and scelto.nome and c.nome.lower() == scelto.nome.lower()]
-        condizioni = condizioni_in_gioco(omonimi)
         noti = [testo_utente, riconoscimento.stato]
+
+        # Se l'utente ha dichiarato la condizione, la scelta fra omonimi la fa il codice:
+        # "è unto" manda il cartone nell'organico, non nella carta, e il modello aveva
+        # scelto la variante sbagliata.
+        motivo_condizione = ""
+        if (per_condizione := scegli_per_condizione(omonimi, noti)) and per_condizione is not scelto:
+            scelto = per_condizione
+            motivo_condizione = (f"variante scelta in base alla condizione dichiarata: "
+                                 f"{', '.join(scelto.condizioni)}")
+
+        condizioni = condizioni_in_gioco(omonimi)
         # non si chiede due volte, e non si chiede ciò che è già stato detto
         zitto = gia_chiesto or condizione_gia_nota(condizioni or scelto.condizioni, noti)
         chiarimento = None if zitto else scelta.chiarimento
@@ -84,7 +139,8 @@ class Agente:
             destinazioni=scelto.destinazioni, polarita=scelto.polarita,
             condizioni=scelto.condizioni, avvertenza=scelto.avvertenza,
             fonte=scelto.fonte, riferimento=scelto.riferimento,
-            chiarimento=chiarimento, motivo=scelta.motivo,
+            chiarimento=chiarimento,
+            motivo=" · ".join(p for p in (scelta.motivo, motivo_condizione) if p),
             tipo_corrispondenza=scelta.tipo_corrispondenza,
             candidati=candidati, riconoscimento=riconoscimento,
         )
