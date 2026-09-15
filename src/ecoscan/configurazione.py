@@ -41,6 +41,9 @@ OLLAMA_CHAT = _testo("ECOSCAN_OLLAMA_CHAT", OLLAMA.replace("/api/embed", "/api/c
 # chiamata e l'altra il modello viene scaricato e ricaricato: su CPU sono decine di secondi
 # buttati a ogni passaggio. Costa memoria: metterlo a "0" lo scarica subito.
 OLLAMA_KEEP_ALIVE = _testo("ECOSCAN_OLLAMA_KEEP_ALIVE", "30m")
+# Lato lungo massimo delle immagini inviate al modello. Le foto degli smartphone sono molto
+# più grandi di quanto il modello guardi davvero: mandarle intere costa byte, non dettaglio.
+LATO_MAX_IMMAGINE = _intero("ECOSCAN_LATO_MAX_IMMAGINE", 1024)
 # Quante schede si vettorizzano per chiamata
 LOTTO_EMBEDDING = _intero("ECOSCAN_LOTTO_EMBEDDING", 32)
 
@@ -50,5 +53,6 @@ def riepilogo() -> dict[str, str]:
     che una variabile non era impostata come si credeva."""
     return {"qdrant": QDRANT, "ollama": OLLAMA, "modello": MODELLO_EMBEDDING,
             "modello_visione": MODELLO_VISIONE, "keep_alive": OLLAMA_KEEP_ALIVE,
+            "lato_max_immagine": str(LATO_MAX_IMMAGINE),
             "lotto": str(LOTTO_EMBEDDING),
             "modalita_qdrant": "server" if QDRANT.startswith(("http://", "https://")) else "in-process"}

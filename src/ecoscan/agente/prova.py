@@ -10,6 +10,7 @@ Uso:
   uv run ecoscan-analizza --oggetto "bottiglia di vetro" --comune Torino   # salta la foto
   uv run ecoscan-analizza --foto f.jpg --descrivi     # descrizione libera della foto
   uv run ecoscan-analizza --diagnostica               # il canale immagine funziona?
+  uv run ecoscan-analizza --foto f.jpg --scalini      # la stessa foto a misure decrescenti
 """
 from __future__ import annotations
 
@@ -85,6 +86,9 @@ def main() -> None:
     ap.add_argument("--testo", help="informazione aggiuntiva dell'utente")
     ap.add_argument("--diagnostica", action="store_true",
                     help="verifica il canale immagine con un'immagine dal contenuto noto")
+    ap.add_argument("--scalini", action="store_true",
+                    help="descrive la stessa foto a dimensioni decrescenti, per capire se "
+                         "il problema è la dimensione dell'immagine")
     ap.add_argument("--descrivi", action="store_true",
                     help="chiede solo una descrizione libera della foto, per capire se il "
                          "modello la riceve davvero")
@@ -111,18 +115,36 @@ def main() -> None:
         raise SystemExit("serve --foto oppure --oggetto")
     if args.foto and not args.foto.is_file():
         raise SystemExit(f"foto non trovata: {args.foto}")
-    if args.descrivi and not args.foto:
-        raise SystemExit("--descrivi richiede --foto")
+    if (args.descrivi or args.scalini) and not args.foto:
+        raise SystemExit("--descrivi e --scalini richiedono --foto")
     if not args.descrivi and not args.db.is_file():
         raise SystemExit(f"Database non trovato: {args.db}\nLancia prima: uv run ecoscan-carica")
 
     print("Impostazioni: " + " | ".join(f"{k}={v}" for k, v in conf.riepilogo().items()))
     modello = ModelloOllama()
 
+    if args.scalini:
+        from ecoscan.agente import diagnostica
+        from ecoscan.agente.immagini import informazioni
+        foto = args.foto.read_bytes()
+        print(f"\nFoto originale: {informazioni(foto)}")
+        print("Descrivo la stessa foto a dimensioni decrescenti...\n", flush=True)
+        for lato, descrizione_immagine, risposta in diagnostica.scalini(modello.nome,
+                                                                        conf.OLLAMA_CHAT, foto):
+            print(f"  lato max {lato:5} ({descrizione_immagine})")
+            print(f"    -> {risposta[:160]}\n", flush=True)
+        print("Se le descrizioni diventano sensate solo sotto una certa misura, il problema "
+              "è la dimensione dell'immagine.")
+        return
+
     if args.descrivi:
+        from ecoscan.agente.immagini import informazioni, prepara
+        foto = args.foto.read_bytes()
+        print(f"\nFoto originale:     {informazioni(foto)}")
+        print(f"Inviata al modello: {informazioni(prepara(foto, modello.lato_max))}")
         print(f"\nChiedo a {modello.nome} di descrivere {args.foto.name}...", flush=True)
         with cronometro("descrizione"):
-            descrizione = modello.descrivi(args.foto.read_bytes())
+            descrizione = modello.descrivi(foto)
         print(f"\n## Descrizione libera\n  {descrizione.strip()}")
         print(f"\nTempo: {DURATE['descrizione']:.1f} s")
         print("\nSe la descrizione non c'entra nulla con la foto, il modello non la sta "

@@ -22,6 +22,7 @@ from typing import Protocol, Sequence
 
 from ecoscan import configurazione as conf
 from ecoscan import prompt as prompt_
+from ecoscan.agente.immagini import prepara
 from ecoscan.agente.tipi import Candidato, Riconoscimento, Scelta
 
 SCHEMA_RICONOSCIMENTO = {
@@ -89,12 +90,17 @@ class ModelloOllama:
     """Gemma 4 via Ollama, con output vincolato a uno schema JSON."""
 
     def __init__(self, modello: str | None = None, url: str | None = None,
-                 temperatura: float = 0.0):
+                 temperatura: float = 0.0, lato_max: int | None = None):
         self.nome = modello or conf.MODELLO_VISIONE
         self.url = url or conf.OLLAMA_CHAT
         self.temperatura = temperatura
+        self.lato_max = lato_max or conf.LATO_MAX_IMMAGINE
 
     # ---------------------------------------------------------------- chiamate
+
+    def _codifica(self, immagine: bytes) -> str:
+        """Ridimensiona e ricodifica prima di inviare: vedi agente/immagini.py."""
+        return base64.b64encode(prepara(immagine, self.lato_max)).decode()
 
     def _chiama(self, messaggio: dict, schema: dict | None = None) -> str:
         """Una richiesta a Ollama. `keep_alive` evita di ricaricare il modello ogni volta."""
@@ -128,7 +134,7 @@ class ModelloOllama:
         """
         domanda = domanda or "Descrivi in italiano che cosa vedi in questa immagine."
         return self._chiama({"role": "user", "content": domanda,
-                             "images": [base64.b64encode(immagine).decode()]})
+                             "images": [self._codifica(immagine)]})
 
     # ---------------------------------------------------------------- passaggi
 
@@ -137,7 +143,7 @@ class ModelloOllama:
         if testo_utente:
             istruzioni += f"\n\nL'utente aggiunge questa informazione: {testo_utente}"
         dati = self._chiama_json({"role": "user", "content": istruzioni,
-                                  "images": [base64.b64encode(immagine).decode()]},
+                                  "images": [self._codifica(immagine)]},
                                  SCHEMA_RICONOSCIMENTO)
         return Riconoscimento(
             oggetto=(dati.get("oggetto") or "").strip(),

@@ -1,6 +1,6 @@
 [project]
 name = "ecoscan-local"
-version = "0.15.3"
+version = "0.16.0"
 description = "Assistente locale per la raccolta differenziata: ETL da fonti comunali, schema dati e retrieval ibrido"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -11,6 +11,7 @@ dependencies = [
     "lxml>=5.0",
     "qdrant-client>=1.12,<1.13",  # allineata al server del docker-compose
     "python-dotenv>=1.0",
+    "pillow>=12.3.0",
 ]
 
 [project.scripts]

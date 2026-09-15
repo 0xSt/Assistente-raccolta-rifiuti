@@ -73,6 +73,32 @@ def prova_colore(url_chat: str, modello: str, colore: str = "rosso") -> str:
     return dati["message"]["content"].strip()
 
 
+def scalini(modello: str, url_chat: str, foto: bytes,
+            lati=(2048, 1024, 512, 256)) -> list[tuple[int, str, str]]:
+    """Descrive la STESSA foto a dimensioni decrescenti.
+
+    Se le descrizioni diventano sensate solo sotto una certa misura, il problema è la
+    dimensione dell'immagine, non il modello né i prompt. Se restano tutte assurde, la
+    dimensione non c'entra.
+    """
+    import base64
+
+    from ecoscan.agente.immagini import informazioni, prepara
+
+    esiti = []
+    for lato in lati:
+        ridotta = prepara(foto, lato_max=lato)
+        dati = _chiedi(url_chat, {
+            "model": modello, "stream": False, "keep_alive": conf.OLLAMA_KEEP_ALIVE,
+            "options": {"temperature": 0.0},
+            "messages": [{"role": "user",
+                          "content": "In una frase, che oggetto è ritratto in questa immagine?",
+                          "images": [base64.b64encode(ridotta).decode()]}],
+        }, timeout=900)
+        esiti.append((lato, str(informazioni(ridotta)), dati["message"]["content"].strip()))
+    return esiti
+
+
 def esegui(modello: str, url_chat: str) -> list[tuple[bool, str]]:
     base = url_chat.split("/api/")[0]
     esiti: list[tuple[bool, str]] = []

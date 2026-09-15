@@ -117,6 +117,7 @@ Formato: decisione, motivazione, stato.
 | D72 | `analizza` (dalla foto) e `rispondi` (dal riconoscimento) sono separati | Permette di valutare retrieval e scelta senza rieseguire il modello di visione su ogni foto, che su CPU è il passaggio più lento | Accettata |
 | D73 | Il chiarimento nasce dai dati, non dall'intuito del modello: se fra i candidati ci sono omonimi con destinazioni diverse, la condizione si chiede | "Capsule del caffè in plastica" con e senza residuo vanno in contenitori diversi e dalla foto non si distingue | Accettata |
 | D75 | Le richieste a Ollama passano `keep_alive` (30 minuti di norma) | Senza, il modello viene scaricato e ricaricato fra una chiamata e l'altra: su CPU sono decine di secondi per passaggio, e l'agente ne fa fino a tre | Accettata |
+| D78 | Le immagini vengono ridimensionate e ricodificate (RGB, JPEG, lato lungo 1024) prima dell'invio | Il modello le rimpicciolisce comunque: mandarle intere costa byte e non aggiunge dettaglio. La conversione in RGB elimina inoltre canali alfa e scale di grigio, che possono essere interpretati male | Accettata |
 | D77 | Il canale immagine si verifica con un'immagine dal **contenuto noto** (un PNG di tinta unita generato a mano), non con una foto vera | Davanti a una foto non si può distinguere "vede male" da "non vede": davanti a un'immagine tutta rossa sì | Accettata |
 | D76 | La confidenza restituita dal modello viene normalizzata in 0-1 | I modelli rispondono spesso in percentuale ("100"): senza normalizzare, ogni soglia sarebbe inutile | Accettata |
 | D74 | Il contesto per il secondo giro torna al client ed è opaco | Backend senza stato, come deciso per il prototipo: niente sessioni da gestire e scadere | Accettata |
@@ -202,6 +203,14 @@ Cose imparate che non sono decisioni, ma che conviene ricordare.
 ---
 
 ## Cronologia
+
+### v0.16.0 — 12/09/2026
+
+**Accertato.** Il canale immagine funziona: Ollama 0.34, `gemma4:e2b` dichiara `vision`, e l'immagine di tinta unita viene riconosciuta. Il guasto sta quindi fra l'immagine di prova (64 pixel, 178 byte) e le foto vere (megapixel, megabyte).
+
+**Aggiunto.** `agente/immagini.py`: prima dell'invio le immagini diventano JPEG RGB con lato lungo 1024. È ciò che il modello farebbe comunque, ma sotto il nostro controllo, e toglie di mezzo canali alfa e scale di grigio. 8 test.
+
+**Aggiunto.** `ecoscan-analizza --foto ... --scalini`: descrive la **stessa** foto a 2048, 1024, 512 e 256 pixel. Se le descrizioni diventano sensate sotto una certa misura, il problema è la dimensione; se restano assurde a ogni misura, la dimensione non c'entra e va cercato altrove. `--descrivi` mostra ora formato, dimensioni e peso di ciò che parte davvero.
 
 ### v0.15.3 — 12/09/2026
 
