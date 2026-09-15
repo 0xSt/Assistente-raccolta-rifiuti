@@ -337,3 +337,16 @@ def test_ogni_formulazione_porta_il_suo_primo_risultato(ambiente):
     identificatori = [r["scheda_id"] for r in fusi]
     assert 1 in identificatori          # trovata da due formulazioni: resta in cima
     assert 99 in identificatori         # prima per una sola formulazione: garantita
+
+
+@pytest.mark.parametrize("valore, atteso", [
+    ("0", None),                                    # risposta reale del modello
+    ("", None),
+    ("Sì", None),
+    ("È vuota o contiene ancora residui?", "È vuota o contiene ancora residui?"),
+])
+def test_un_chiarimento_che_non_e_una_domanda_viene_ignorato(valore, atteso):
+    """Il campo è facoltativo e il modello lo riempie comunque: "0" mostrato all'utente
+    sarebbe incomprensibile."""
+    from ecoscan.agente.modelli import _chiarimento
+    assert _chiarimento(valore) == atteso

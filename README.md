@@ -4,7 +4,7 @@ Assistente per la raccolta differenziata che gira interamente in locale. L'utent
 
 Progetto universitario. Comuni del prototipo: **Napoli** (ASIA) e **Torino** (AMIAT).
 
-## Stato attuale (v0.20.1)
+## Stato attuale (v0.20.2)
 
 Il quadro completo è in [docs/diario.md](docs/diario.md).
 

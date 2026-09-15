@@ -118,6 +118,8 @@ Formato: decisione, motivazione, stato.
 | D73 | Il chiarimento nasce dai dati, non dall'intuito del modello: se fra i candidati ci sono omonimi con destinazioni diverse, la condizione si chiede | "Capsule del caffè in plastica" con e senza residuo vanno in contenitori diversi e dalla foto non si distingue | Accettata |
 | D75 | Le richieste a Ollama passano `keep_alive` (30 minuti di norma) | Senza, il modello viene scaricato e ricaricato fra una chiamata e l'altra: su CPU sono decine di secondi per passaggio, e l'agente ne fa fino a tre | Accettata |
 | D82 | Il modello di visione produce anche **sinonimi** e **categoria** dell'oggetto, usati come formulazioni aggiuntive | È il ponte fra il vocabolario del modello e quello della fonte: il modello dice "sandalo", ASIA scrive "Scarpe". Con la sola parola "sandalo" la ricerca semantica restituiva parole che le somigliano nella forma ("Salse", "Sdraio", "Scaldabagno") | Accettata |
+| D90 | La sonda riporta **quale scheda** ha soddisfatto l'attesa, e il primo risultato quando fallisce | Cercando "Scarpe" come sottostringa si accettava "Laccio per scarpe": un falso positivo va visto, non dedotto confrontando due output diversi | Accettata |
+| D91 | Il chiarimento viene tenuto solo se è davvero una domanda (almeno dieci caratteri e un punto interrogativo) | Il campo è facoltativo e il modello lo riempie comunque: ha risposto "0", che mostrato all'utente sarebbe incomprensibile | Accettata |
 | D87 | I prefissi di EmbeddingGemma **restano attivi**: misurato, non supposto | Con i prefissi 10 sonde su 14, senza 9; "tetrapak" si trova solo con i prefissi. L'ipotesi che Ollama li applicasse già da sé è smentita dai numeri | Accettata |
 | D88 | Preposizioni e articoli si tolgono dalla ricerca lessicale; "non" resta | "cartone della pizza unto" falliva perché "dell" compare in "Polvere dell'aspirapolvere": la ricerca in AND trovava quel documento e non ripiegava su OR. "non" invece distingue "Scarpe utilizzabile" da "Scarpe non utilizzabile" | Accettata |
 | D89 | Ogni formulazione porta fra i candidati almeno il proprio primo risultato | Con otto classifiche la fusione premia chi compare in molte: "calzatura" trova "Scarpe" al primo posto, ma fusa con le altre la voce giusta spariva | Accettata |
@@ -204,6 +206,7 @@ Cose imparate che non sono decisioni, ma che conviene ricordare.
 - **Divergenze fra comuni utili da citare**: bicchiere di vetro (Napoli non riciclabile, Torino vetro); tappo di sughero (Napoli organico, Torino centro di raccolta o organico); pentole e padelle (Napoli plastica e metalli, Torino centro di raccolta). Una convergenza: il vetro dei profumi non è riciclabile in entrambi.
 - **I nomi degli oggetti sono ambigui, e il modello sceglie il senso sbagliato.** "Ciabatta" in italiano è una calzatura e un tipo di pane: il modello ha imboccato la seconda strada e ha scelto "busta per alimenti", dichiarando pure la corrispondenza come "sinonimo". La categoria, resa obbligatoria e mostrata anche nella scelta, chiude quella strada.
 - **Un campo facoltativo in uno schema di uscita è un campo che il modello ometterà.**
+- **Una misura troppo indulgente è peggio di nessuna misura.** La sonda dichiarava che "calzatura" trovava "Scarpe" al primo posto; l'agente, con la stessa domanda, mostrava "Laccio per scarpe". Erano lo stesso risultato: il confronto per sottostringa accettava la parola dentro un altro oggetto. Un banco di prova che promuove risultati sbagliati indirizza il lavoro nella direzione opposta a quella giusta.
 - **Due delle quattro sonde fallite erano sbagliate io.** Mi aspettavo "Cartone unto per pizze", ma il Transform sposta la condizione in fondo e il testo indicizzato è "Cartone per pizze unto". Un banco di prova va verificato contro i dati veri, altrimenti misura sé stesso.
 - **Il vocabolario del modello e quello della fonte non coincidono.** Il modello riconosce "sandalo", il dizionario di ASIA elenca "Scarpa", "Scarpe", "Pantofole di stoffa", "Stivali". Cercando "sandalo" da solo, la ricerca semantica ha restituito "Salse", "Sdraio" e "Scaldabagno": parole che somigliano nella forma, non nel significato. È il limite di una ricerca semantica su testi di una parola sola, e si risolve chiedendo al modello i sinonimi, che conosce.
 - **Un riconoscimento giusto non basta: conta come si formula la domanda.** Gemma 3 ha riconosciuto correttamente "sandalo, gomma, plastica, tessuto", ma la ricerca con quella frase intera ha restituito gomme da masticare e righelli di plastica. Il riconoscimento era buono, il retrieval no.
@@ -221,6 +224,14 @@ Cose imparate che non sono decisioni, ma che conviene ricordare.
 ---
 
 ## Cronologia
+
+### v0.20.2 — 12/09/2026
+
+**Corretto (errore di misura).** La sonda confrontava per sottostringa: cercando "Scarpe" accettava "Laccio per scarpe", che è un altro oggetto. Tre sonde su quattordici erano falsi positivi. Ora la tabella mostra **quale scheda** ha soddisfatto l'attesa e, quando fallisce, qual era il primo risultato; le attese su "Scarpe" sono state rese precise.
+
+**Corretto.** Il chiarimento veniva mostrato anche quando non era una domanda: il modello aveva risposto "0". Ora si tiene solo se contiene un punto interrogativo ed è abbastanza lungo.
+
+**Risultato delle sonde dopo le correzioni della v0.20.1**: 12 su 14 trovate, i cartoni della pizza al primo posto in entrambi i comuni. Restano fuori "sandalo" e "ciabatta".
 
 ### v0.20.1 — 12/09/2026
 

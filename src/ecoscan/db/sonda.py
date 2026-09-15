@@ -44,6 +44,8 @@ class Sonda:
 class Esito:
     sonda: Sonda
     posizioni: dict[str, int | None]   # metodo -> posizione (1 = primo), None = non trovata
+    trovato: str = ""                  # testo della scheda che ha soddisfatto l'attesa
+    primo: str = ""                    # testo del primo risultato ibrido, trovato o no
 
     @property
     def migliore(self) -> int | None:
@@ -60,12 +62,18 @@ def carica_sonde(percorso: Path = SONDE) -> list[Sonda]:
                 for r in csv.DictReader(fh) if r["domanda"].strip()]
 
 
-def _posizione(risultati: list[dict], atteso: str) -> int | None:
+def _posizione(risultati: list[dict], atteso: str) -> tuple[int | None, str]:
+    """Posizione e testo della prima scheda che soddisfa l'attesa.
+
+    Restituire anche il testo non è un di più: cercando "Scarpe" come sottostringa si
+    accetta "Laccio per scarpe", che è un altro oggetto. Un falso positivo va visto, non
+    dedotto confrontando due output diversi.
+    """
     bersaglio = atteso.lower()
     for posizione, r in enumerate(risultati, start=1):
         if bersaglio in (r.get("testo") or "").lower():
-            return posizione
-    return None
+            return posizione, r.get("testo") or ""
+    return None, ""
 
 
 def esegui(db: sqlite3.Connection, qdrant, vettorizzatore, sonde: list[Sonda],
@@ -75,23 +83,28 @@ def esegui(db: sqlite3.Connection, qdrant, vettorizzatore, sonde: list[Sonda],
         lessicale = cerca_lessicale(db, sonda.domanda, sonda.comune, k=k)
         semantica = cerca_semantica(qdrant, sonda.domanda, sonda.comune, vettorizzatore, k=k)
         ibrida = fondi_rrf({"lessicale": lessicale, "semantica": semantica}, k=k)
-        esiti.append(Esito(sonda, {
-            "lessicale": _posizione(lessicale, sonda.atteso),
-            "semantica": _posizione(semantica, sonda.atteso),
-            "ibrida": _posizione(ibrida, sonda.atteso),
-        }))
+        posizioni, trovato = {}, ""
+        for metodo, risultati in (("lessicale", lessicale), ("semantica", semantica),
+                                  ("ibrida", ibrida)):
+            posizioni[metodo], testo = _posizione(risultati, sonda.atteso)
+            trovato = trovato or testo
+        esiti.append(Esito(sonda, posizioni, trovato=trovato,
+                           primo=(ibrida[0].get("testo") or "") if ibrida else ""))
     return esiti
 
 
 def riepilogo(esiti: list[Esito], k: int) -> None:
-    print(f"{'domanda':34} {'attesa':28} {'less.':>6} {'sem.':>6} {'ibr.':>6}")
-    print("-" * 84)
+    print(f"{'domanda':30} {'attesa':26} {'less.':>6} {'sem.':>6} {'ibr.':>6}  trovato / primo")
+    print("-" * 112)
     for e in esiti:
         def mostra(metodo: str) -> str:
             p = e.posizioni[metodo]
             return f"#{p}" if p else "-"
-        print(f"{e.sonda.domanda[:33]:34} {e.sonda.atteso[:27]:28} "
-              f"{mostra('lessicale'):>6} {mostra('semantica'):>6} {mostra('ibrida'):>6}")
+        # il testo trovato smaschera i falsi positivi; senza, "Scarpe" sembra trovato
+        # anche quando la scheda è "Laccio per scarpe"
+        dettaglio = e.trovato or (f"(primo: {e.primo})" if e.primo else "")
+        print(f"{e.sonda.domanda[:29]:30} {e.sonda.atteso[:25]:26} "
+              f"{mostra('lessicale'):>6} {mostra('semantica'):>6} {mostra('ibrida'):>6}  {dettaglio[:40]}")
 
     print()
     for metodo in ("lessicale", "semantica", "ibrida"):

@@ -8,15 +8,17 @@ import pytest
 from ecoscan.db.sonda import Esito, Sonda, _posizione, carica_sonde, riepilogo
 
 
-def test_posizione_trovata_per_sottostringa():
+def test_la_sonda_dice_quale_scheda_ha_trovato():
+    """Cercando "Scarpe" come sottostringa si accetta "Laccio per scarpe", che è un altro
+    oggetto: restituire il testo trovato rende visibile il falso positivo."""
     risultati = [{"testo": "Laccio per scarpe"}, {"testo": "Scarpe utilizzabile"}]
-    assert _posizione(risultati, "Scarpe") == 1        # "scarpe" è dentro "Laccio per scarpe"
-    assert _posizione(risultati, "Scarpe utilizz") == 2
+    assert _posizione(risultati, "Scarpe") == (1, "Laccio per scarpe")
+    assert _posizione(risultati, "Scarpe utilizz") == (2, "Scarpe utilizzabile")
 
 
 def test_posizione_assente():
-    assert _posizione([{"testo": "Biscotto"}], "Scarpe") is None
-    assert _posizione([], "Scarpe") is None
+    assert _posizione([{"testo": "Biscotto"}], "Scarpe") == (None, "")
+    assert _posizione([], "Scarpe") == (None, "")
 
 
 def test_il_file_delle_sonde_e_versionato_e_valido():
@@ -40,10 +42,18 @@ def test_migliore_prende_la_posizione_piu_alta():
 
 def test_il_riepilogo_segnala_le_domande_mai_trovate(capsys):
     esiti = [Esito(Sonda("Napoli", "sandalo", "Scarpe"),
-                   {"lessicale": None, "semantica": None, "ibrida": None}),
+                   {"lessicale": None, "semantica": None, "ibrida": None}, primo="Salse"),
              Esito(Sonda("Napoli", "bottiglia", "Bottiglia"),
-                   {"lessicale": 1, "semantica": 1, "ibrida": 1})]
+                   {"lessicale": 1, "semantica": 1, "ibrida": 1}, trovato="Bottiglia in plastica")]
     riepilogo(esiti, k=20)
     uscita = capsys.readouterr().out
     assert "Mai trovate" in uscita and "sandalo" in uscita
     assert "al primo posto 1" in uscita
+
+
+def test_il_riepilogo_mostra_il_primo_risultato_quando_l_attesa_fallisce(capsys):
+    """Sapere cosa ha trovato al posto giusto indirizza la correzione."""
+    riepilogo([Esito(Sonda("Napoli", "sandalo", "Scarpe utilizzabile"),
+                     {"lessicale": None, "semantica": None, "ibrida": None},
+                     primo="Salse")], k=20)
+    assert "primo: Salse" in capsys.readouterr().out

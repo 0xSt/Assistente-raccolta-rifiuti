@@ -67,6 +67,16 @@ class ModelloVisione(Protocol):
                testo_utente: str | None = None) -> Scelta: ...
 
 
+def _chiarimento(valore) -> str | None:
+    """Tiene il chiarimento solo se è davvero una domanda.
+
+    Il campo è facoltativo e il modello lo riempie comunque: ha già risposto "0", che
+    mostrato all'utente sarebbe incomprensibile.
+    """
+    testo = (valore or "").strip()
+    return testo if len(testo) >= 10 and "?" in testo else None
+
+
 def _confidenza(valore) -> float:
     """Normalizza la confidenza in 0-1: i modelli rispondono spesso in percentuale."""
     try:
@@ -192,4 +202,4 @@ class ModelloOllama:
             return Scelta(scheda_id=None, tipo_corrispondenza=tipo or "nessuna",
                           motivo=motivo or "nessuna voce corrisponde")
         return Scelta(scheda_id=candidati[numero - 1].scheda_id, tipo_corrispondenza=tipo,
-                      motivo=motivo, chiarimento=(dati.get("chiarimento") or "").strip() or None)
+                      motivo=motivo, chiarimento=_chiarimento(dati.get("chiarimento")))
