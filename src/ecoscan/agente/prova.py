@@ -96,12 +96,13 @@ def main() -> None:
     ap.add_argument("--db", type=Path, default=DB)
     ap.add_argument("-k", type=int, default=8, help="quanti candidati per livello")
     args = ap.parse_args()
+    nome_modello = args.modello or conf.MODELLO_VISIONE
 
     if args.diagnostica:
         from ecoscan.agente import diagnostica
         print("Impostazioni: " + " | ".join(f"{k}={v}" for k, v in conf.riepilogo().items()))
-        print(f"\nVerifico il canale immagine verso {modello.nome}...", flush=True)
-        esiti = diagnostica.esegui(modello.nome, conf.OLLAMA_CHAT)
+        print(f"\nVerifico il canale immagine verso {nome_modello}...", flush=True)
+        esiti = diagnostica.esegui(nome_modello, conf.OLLAMA_CHAT)
         for ok, descrizione in esiti:
             print(f"  {'OK     ' if ok else 'FALLITO'} {descrizione}")
         if all(ok for ok, _ in esiti):

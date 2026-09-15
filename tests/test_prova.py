@@ -67,3 +67,30 @@ def test_il_riconoscimento_mostra_la_query_usata(capsys):
                                          stato="vuota", confidenza=0.8))
     uscita = capsys.readouterr().out
     assert "query usata: 'bottiglia vetro vuota'" in uscita and "0.80" in uscita
+
+
+def test_la_diagnostica_parte_senza_toccare_il_database(monkeypatch, capsys):
+    """La diagnostica del canale immagine non ha bisogno né del database né di una foto:
+    deve poter girare anche su un'installazione appena montata."""
+    from ecoscan.agente import diagnostica
+
+    monkeypatch.setattr(diagnostica, "esegui", lambda modello, url: [(True, f"finto su {modello}")])
+    assert esegui(["--diagnostica"], monkeypatch) == "0"
+    assert "finto su" in capsys.readouterr().out
+
+
+def test_la_diagnostica_usa_il_modello_indicato(monkeypatch, capsys):
+    from ecoscan.agente import diagnostica
+
+    visti = []
+    monkeypatch.setattr(diagnostica, "esegui",
+                        lambda modello, url: visti.append(modello) or [(True, "ok")])
+    esegui(["--diagnostica", "--modello", "gemma3:4b"], monkeypatch)
+    assert visti == ["gemma3:4b"]
+
+
+def test_la_diagnostica_fallita_esce_con_codice_1(monkeypatch):
+    from ecoscan.agente import diagnostica
+
+    monkeypatch.setattr(diagnostica, "esegui", lambda modello, url: [(False, "canale rotto")])
+    assert esegui(["--diagnostica"], monkeypatch) == "1"
