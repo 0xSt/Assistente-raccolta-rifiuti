@@ -42,7 +42,8 @@ Va aggiornato **a ogni cambiamento sostanziale**, non a ogni riga di codice. In 
 | Serving — indice lessicale | Fatto: 1072 schede sui due comuni |
 | Serving — vettori e ricerca ibrida | Fatto: **Qdrant** (denso), EmbeddingGemma su Ollama, fusione RRF con FTS5 |
 | Agente | Fatto: riconoscimento, cascata dei livelli, scelta vincolata, risposta. Indipendente da HTTP |
-| API, frontend, MLflow, Docker | Da fare |
+| API FastAPI | Fatto: analizza, continua, cerca, comuni, salute, riscontro |
+| Frontend, MLflow, Docker | Da fare |
 | Regole di categoria — Napoli | Completo per quanto la fonte pubblica: 38 ammessi, 11 esclusi (5 Vetro estratti + 6 Umido trascritti a mano), 2 assenze verificate |
 | Regole di categoria — Torino | Estratte: 10 schede, 30 ammessi, 27 esclusi |
 | Revisione manuale | **Completa**: 32 decisioni prese (16 per comune), 0 aperte, 0 voci da revisionare |
@@ -119,6 +120,9 @@ Formato: decisione, motivazione, stato.
 | D75 | Le richieste a Ollama passano `keep_alive` (30 minuti di norma) | Senza, il modello viene scaricato e ricaricato fra una chiamata e l'altra: su CPU sono decine di secondi per passaggio, e l'agente ne fa fino a tre | Accettata |
 | D82 | Il modello di visione produce anche **sinonimi** e **categoria** dell'oggetto, usati come formulazioni aggiuntive | È il ponte fra il vocabolario del modello e quello della fonte: il modello dice "sandalo", ASIA scrive "Scarpe". Con la sola parola "sandalo" la ricerca semantica restituiva parole che le somigliano nella forma ("Salse", "Sdraio", "Scaldabagno") | Accettata |
 | D90 | La sonda riporta **quale scheda** ha soddisfatto l'attesa, e il primo risultato quando fallisce | Cercando "Scarpe" come sottostringa si accettava "Laccio per scarpe": un falso positivo va visto, non dedotto confrontando due output diversi | Accettata |
+| D94 | Il backend apre il database in **sola lettura** | L'ETL resta una serie di comandi separati: il servizio che risponde alle richieste non può corrompere ciò che gli serve per rispondere. Il vincolo è nel codice (`mode=ro`), non una promessa | Accettata |
+| D95 | Gli schemi delle API sono tipi Pydantic distinti dai tipi interni dell'agente | Permette di cambiare i tipi interni senza rompere il contratto col frontend, e viceversa | Accettata |
+| D96 | La rotta `/riscontro` registra il giudizio dell'utente su una risposta | Ogni riga è un esempio etichettato da una persona: è il modo meno costoso di costruire il set di valutazione, che oggi non esiste | Accettata |
 | D93 | Il chiarimento riguarda solo gli omonimi della voce **scelta** | Chiedere "utilizzabile o non utilizzabile?" dopo aver scelto "Stivali" confonde: quella condizione apparteneva a "Scarpe", un'altra voce presente fra i candidati | Accettata |
 | D91 | Il chiarimento viene tenuto solo se è davvero una domanda (almeno dieci caratteri e un punto interrogativo) | Il campo è facoltativo e il modello lo riempie comunque: ha risposto "0", che mostrato all'utente sarebbe incomprensibile | Accettata |
 | D87 | I prefissi di EmbeddingGemma **restano attivi**: misurato, non supposto | Con i prefissi 10 sonde su 14, senza 9; "tetrapak" si trova solo con i prefissi. L'ipotesi che Ollama li applicasse già da sé è smentita dai numeri | Accettata |
@@ -227,6 +231,16 @@ Cose imparate che non sono decisioni, ma che conviene ricordare.
 ---
 
 ## Cronologia
+
+### v0.23.0 — 12/09/2026
+
+**Aggiunto.** Le API del backend (`api/`) e il comando `ecoscan-api`. Sei rotte: `/analizza` (foto, comune, testo facoltativo), `/continua` (risposta a un chiarimento, senza rileggere la foto), `/cerca` (solo testo, per valutazione e diagnosi), `/comuni`, `/salute` (stato di database, Qdrant e Ollama) e `/riscontro`. Documentazione interattiva su `/docs`.
+
+**Scelte.** Backend senza stato: il contesto torna al client e viene rimandato. Database in sola lettura. Schemi Pydantic separati dai tipi interni dell'agente. Risorse costruite una volta all'avvio, perché aprire una connessione per richiesta ricaricherebbe anche il modello.
+
+**Test.** 12 test con risorse finte: database in memoria, Qdrant in-process, modello programmabile. Nessun container, nessuna rete, nessun modello scaricato.
+
+**Verifica.** La ciabatta ora funziona: l'agente sceglie "Scarpe utilizzabile" dichiarando "categoria", e il chiarimento sulle condizioni è pertinente alla voce scelta.
 
 ### v0.22.0 — 12/09/2026
 

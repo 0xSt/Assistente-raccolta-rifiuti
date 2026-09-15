@@ -4,7 +4,7 @@ Assistente per la raccolta differenziata che gira interamente in locale. L'utent
 
 Progetto universitario. Comuni del prototipo: **Napoli** (ASIA) e **Torino** (AMIAT).
 
-## Stato attuale (v0.22.0)
+## Stato attuale (v0.23.0)
 
 Il quadro completo è in [docs/diario.md](docs/diario.md).
 
@@ -20,7 +20,8 @@ Il quadro completo è in [docs/diario.md](docs/diario.md).
 | Serving — indice lessicale | Fatto: schede, FTS5 a trigrammi, ricerca per comune |
 | Serving — embedding e ricerca ibrida | Fatto: Qdrant + EmbeddingGemma, fusione RRF con FTS5 |
 | Agente (riconoscimento, cascata, scelta, risposta) | Fatto: usabile senza HTTP |
-| API FastAPI, frontend, MLflow, Docker | Da fare |
+| API FastAPI | Fatto: sei rotte, backend senza stato e di sola lettura |
+| Frontend, MLflow, Docker | Da fare |
 | Valutazione (foto etichettate, metriche) | Da fare |
 | Backend, frontend, modello | Da fare |
 
@@ -68,6 +69,8 @@ docker compose up -d qdrant     # database vettoriale (dashboard: localhost:6333
 uv run ecoscan-vettorizza       # indicizza le schede su Qdrant
 uv run ecoscan-vettorizza --verifica   # controlla che l'indicizzazione sia corretta
 uv run ecoscan-sonda            # misura dove finisce la scheda attesa per domande note
+
+uv run ecoscan-api              # backend: http://localhost:8000/docs
 uv run ecoscan-vettorizza --cerca "contenitore del latte" --comune Napoli  # ricerca ibrida
 
 ollama pull gemma3:4b           # modello multimodale (~3 GB), vedi D79 nel diario
@@ -136,6 +139,9 @@ Qdrant sta in modalità `server` o `in-process`.
 | `agente/agente.py` | Orchestrazione: riconoscimento → cascata → scelta → risposta |
 | `agente/prova.py` | Comando per provare l'agente su una foto, con i tempi per fase |
 | `agente/diagnostica.py` | Verifica del canale immagine con un'immagine dal contenuto noto |
+| `api/app.py` | Rotte FastAPI: analizza, continua, cerca, comuni, salute, riscontro |
+| `api/risorse.py` | Connessioni e agente condivisi, database in sola lettura |
+| `api/schemi.py` | Forma pubblica di ingressi e uscite (Pydantic) |
 | `agente/immagini.py` | Ridimensionamento e ricodifica delle foto prima dell'invio |
 | `prompt/` | I prompt come file versionati, con versione e impronta |
 | `percorsi.py` | Radice del progetto, cartelle dati, caricamento del `.env` |
