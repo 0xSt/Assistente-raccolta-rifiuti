@@ -76,25 +76,32 @@ def candidati(db: sqlite3.Connection, qdrant, vettorizzatore, query: str | Seque
     return arricchisci(db, _fondi_garantendo_i_primi(classifiche, k))
 
 
-PRIMI_GARANTITI = 2   # quanti risultati di ciascuna formulazione entrano comunque
+PRIMI_GARANTITI = 2     # quanti risultati di ciascuna formulazione entrano comunque
+MASSIMO_CANDIDATI = 12  # oltre, il prompt della scelta si allunga senza aggiungere scelte utili
 
 
 def _fondi_garantendo_i_primi(classifiche: dict[str, list[dict]], k: int,
-                              garantiti: int = PRIMI_GARANTITI) -> list[dict]:
+                              garantiti: int = PRIMI_GARANTITI,
+                              massimo: int = MASSIMO_CANDIDATI) -> list[dict]:
     """Fonde con RRF, ma garantisce i primi risultati di OGNI formulazione.
 
-    Con più formulazioni la fusione premia chi compare in molte classifiche, e una scheda
-    trovata al primo posto da una sola formulazione può restare fuori. È successo con
-    "calzatura", che trova "Scarpe" al primo posto: fusa con le altre sette classifiche,
-    la voce giusta spariva dai candidati mostrati al modello.
+    Con otto classifiche la fusione premia chi compare in molte, e una scheda trovata da una
+    sola formulazione può restare fuori. Si garantiscono DUE posizioni e non una perché la
+    misura lo ha mostrato: "calzatura" trova "Scarpe utilizzabile" al secondo posto, dietro
+    "Laccio per scarpe".
+
+    Il tetto serve al passaggio successivo: un elenco lungo allunga il prompt della scelta
+    senza aggiungere scelte utili, e su CPU il tempo si paga.
     """
     fusi = fondi_rrf(classifiche, k=k)
     presenti = {r["scheda_id"] for r in fusi}
-    for metodo, risultati in classifiche.items():
-        for posizione, risultato in enumerate(risultati[:garantiti], start=1):
-            if risultato["scheda_id"] not in presenti:
-                aggiunto = dict(risultato)
-                aggiunto["posizioni"] = {metodo: posizione}
+    for posizione in range(garantiti):
+        for metodo, risultati in classifiche.items():
+            if len(fusi) >= massimo:
+                return fusi
+            if len(risultati) > posizione and risultati[posizione]["scheda_id"] not in presenti:
+                aggiunto = dict(risultati[posizione])
+                aggiunto["posizioni"] = {metodo: posizione + 1}
                 fusi.append(aggiunto)
                 presenti.add(aggiunto["scheda_id"])
     return fusi
