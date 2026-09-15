@@ -4,7 +4,7 @@ Assistente per la raccolta differenziata che gira interamente in locale. L'utent
 
 Progetto universitario. Comuni del prototipo: **Napoli** (ASIA) e **Torino** (AMIAT).
 
-## Stato attuale (v0.23.0)
+## Stato attuale (v0.24.0)
 
 Il quadro completo è in [docs/diario.md](docs/diario.md).
 
@@ -21,7 +21,8 @@ Il quadro completo è in [docs/diario.md](docs/diario.md).
 | Serving — embedding e ricerca ibrida | Fatto: Qdrant + EmbeddingGemma, fusione RRF con FTS5 |
 | Agente (riconoscimento, cascata, scelta, risposta) | Fatto: usabile senza HTTP |
 | API FastAPI | Fatto: sei rotte, backend senza stato e di sola lettura |
-| Frontend, MLflow, Docker | Da fare |
+| Frontend a chat (Streamlit) | Fatto: allegato immagine, chiarimenti, riscontro |
+| MLflow, Docker | Da fare |
 | Valutazione (foto etichettate, metriche) | Da fare |
 | Backend, frontend, modello | Da fare |
 
@@ -71,6 +72,7 @@ uv run ecoscan-vettorizza --verifica   # controlla che l'indicizzazione sia corr
 uv run ecoscan-sonda            # misura dove finisce la scheda attesa per domande note
 
 uv run ecoscan-api              # backend: http://localhost:8000/docs
+uv run ecoscan-frontend         # interfaccia a chat: http://localhost:8501
 uv run ecoscan-vettorizza --cerca "contenitore del latte" --comune Napoli  # ricerca ibrida
 
 ollama pull gemma3:4b           # modello multimodale (~3 GB), vedi D79 nel diario
@@ -142,6 +144,9 @@ Qdrant sta in modalità `server` o `in-process`.
 | `api/app.py` | Rotte FastAPI: analizza, continua, cerca, comuni, salute, riscontro |
 | `api/risorse.py` | Connessioni e agente condivisi, database in sola lettura |
 | `api/schemi.py` | Forma pubblica di ingressi e uscite (Pydantic) |
+| `frontend/app.py` | Interfaccia a chat in Streamlit, con allegato immagine |
+| `frontend/cliente.py` | Unico punto di contatto col backend |
+| `frontend/presentazione.py` | Da risposta dell'API a messaggio leggibile |
 | `agente/immagini.py` | Ridimensionamento e ricodifica delle foto prima dell'invio |
 | `prompt/` | I prompt come file versionati, con versione e impronta |
 | `percorsi.py` | Radice del progetto, cartelle dati, caricamento del `.env` |

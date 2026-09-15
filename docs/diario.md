@@ -43,7 +43,8 @@ Va aggiornato **a ogni cambiamento sostanziale**, non a ogni riga di codice. In 
 | Serving — vettori e ricerca ibrida | Fatto: **Qdrant** (denso), EmbeddingGemma su Ollama, fusione RRF con FTS5 |
 | Agente | Fatto: riconoscimento, cascata dei livelli, scelta vincolata, risposta. Indipendente da HTTP |
 | API FastAPI | Fatto: analizza, continua, cerca, comuni, salute, riscontro |
-| Frontend, MLflow, Docker | Da fare |
+| Frontend a chat | Fatto: Streamlit, allegato immagine, chiarimenti, riscontro |
+| MLflow, Docker | Da fare |
 | Regole di categoria — Napoli | Completo per quanto la fonte pubblica: 38 ammessi, 11 esclusi (5 Vetro estratti + 6 Umido trascritti a mano), 2 assenze verificate |
 | Regole di categoria — Torino | Estratte: 10 schede, 30 ammessi, 27 esclusi |
 | Revisione manuale | **Completa**: 32 decisioni prese (16 per comune), 0 aperte, 0 voci da revisionare |
@@ -122,6 +123,9 @@ Formato: decisione, motivazione, stato.
 | D90 | La sonda riporta **quale scheda** ha soddisfatto l'attesa, e il primo risultato quando fallisce | Cercando "Scarpe" come sottostringa si accettava "Laccio per scarpe": un falso positivo va visto, non dedotto confrontando due output diversi | Accettata |
 | D94 | Il backend apre il database in **sola lettura** | L'ETL resta una serie di comandi separati: il servizio che risponde alle richieste non può corrompere ciò che gli serve per rispondere. Il vincolo è nel codice (`mode=ro`), non una promessa | Accettata |
 | D95 | Gli schemi delle API sono tipi Pydantic distinti dai tipi interni dell'agente | Permette di cambiare i tipi interni senza rompere il contratto col frontend, e viceversa | Accettata |
+| D97 | Il frontend è una **chat con allegato**, non un modulo con campi | È il gesto che le persone già conoscono dagli assistenti; e la conversazione serve davvero, perché l'agente fa domande quando la condizione decide la destinazione | Accettata |
+| D98 | Il frontend parla solo con le API, e un test verifica che non importi l'agente né il database | Se importasse il backend, la valutazione misurerebbe qualcosa di diverso da ciò che usa l'utente | Accettata |
+| D99 | La formattazione dei messaggi sta in un modulo a parte, con i suoi test | È la parte che si sbaglia più facilmente: una regola di esclusione presentata male dice l'opposto del vero | Accettata |
 | D96 | La rotta `/riscontro` registra il giudizio dell'utente su una risposta | Ogni riga è un esempio etichettato da una persona: è il modo meno costoso di costruire il set di valutazione, che oggi non esiste | Accettata |
 | D93 | Il chiarimento riguarda solo gli omonimi della voce **scelta** | Chiedere "utilizzabile o non utilizzabile?" dopo aver scelto "Stivali" confonde: quella condizione apparteneva a "Scarpe", un'altra voce presente fra i candidati | Accettata |
 | D91 | Il chiarimento viene tenuto solo se è davvero una domanda (almeno dieci caratteri e un punto interrogativo) | Il campo è facoltativo e il modello lo riempie comunque: ha risposto "0", che mostrato all'utente sarebbe incomprensibile | Accettata |
@@ -231,6 +235,12 @@ Cose imparate che non sono decisioni, ma che conviene ricordare.
 ---
 
 ## Cronologia
+
+### v0.24.0 — 12/09/2026
+
+**Aggiunto.** Frontend a chat in Streamlit (`frontend/`) e comando `ecoscan-frontend`. Si allega la foto dal campo unico in basso, come negli assistenti più diffusi; la risposta arriva come messaggio, con il livello di evidenza spiegato a parole e la fonte in nota. Quando l'agente chiede un chiarimento, la risposta dell'utente prosegue la conversazione tramite `/continua`, senza rileggere la foto. Due bottoni raccolgono il riscontro.
+
+**Struttura.** Tre moduli: `cliente.py` (unico punto di contatto col backend, con messaggi d'errore che dicono cosa fare), `presentazione.py` (da risposta dell'API a testo leggibile) e `app.py` (interfaccia). 14 test sui primi due; l'interfaccia non si prova, ma le parti che si sbagliano davvero sì.
 
 ### v0.23.0 — 12/09/2026
 
