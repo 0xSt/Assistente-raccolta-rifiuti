@@ -118,7 +118,7 @@ Formato: decisione, motivazione, stato.
 | D73 | Il chiarimento nasce dai dati, non dall'intuito del modello: se fra i candidati ci sono omonimi con destinazioni diverse, la condizione si chiede | "Capsule del caffè in plastica" con e senza residuo vanno in contenitori diversi e dalla foto non si distingue | Accettata |
 | D75 | Le richieste a Ollama passano `keep_alive` (30 minuti di norma) | Senza, il modello viene scaricato e ricaricato fra una chiamata e l'altra: su CPU sono decine di secondi per passaggio, e l'agente ne fa fino a tre | Accettata |
 | D78 | Le immagini vengono ridimensionate e ricodificate (RGB, JPEG, lato lungo 1024) prima dell'invio | Il modello le rimpicciolisce comunque: mandarle intere costa byte e non aggiunge dettaglio. La conversione in RGB elimina inoltre canali alfa e scale di grigio, che possono essere interpretati male | Accettata |
-| D77 | Il canale immagine si verifica con un'immagine dal **contenuto noto** (un PNG di tinta unita generato a mano), non con una foto vera | Davanti a una foto non si può distinguere "vede male" da "non vede": davanti a un'immagine tutta rossa sì | Accettata |
+| D77 | Il canale immagine si verifica con immagini dal **contenuto noto**: tre colori pieni e una divisa a metà, con domanda sulla posizione | Davanti a una foto non si distingue "vede male" da "non vede". Una sola domanda sul colore però si può indovinare: tre colori e una posizione no | Accettata |
 | D76 | La confidenza restituita dal modello viene normalizzata in 0-1 | I modelli rispondono spesso in percentuale ("100"): senza normalizzare, ogni soglia sarebbe inutile | Accettata |
 | D74 | Il contesto per il secondo giro torna al client ed è opaco | Backend senza stato, come deciso per il prototipo: niente sessioni da gestire e scadere | Accettata |
 | D69 | L'autorecupero accetta le prime 3 posizioni, non solo la prima | Le fonti contengono quasi sinonimi ("Televisore a tubo catodico" e "TV a tubo catodico") che si contendono legittimamente la testa della classifica. Fuori dalle prime posizioni, invece, c'è un vero disallineamento | Accettata |
@@ -203,6 +203,14 @@ Cose imparate che non sono decisioni, ma che conviene ricordare.
 ---
 
 ## Cronologia
+
+### v0.16.1 — 12/09/2026
+
+**Accertato.** La dimensione dell'immagine **non** è la causa: a 2048, 1024 e 512 pixel il modello descrive sempre "una griglia di quadrati", e a 256 non risponde affatto.
+
+**Modificato.** La diagnostica è ora più difficile da superare per caso: tre colori pieni invece di uno, più un'immagine divisa a metà con una domanda sulla **posizione** del colore. Un solo test sul colore si poteva indovinare.
+
+**Aggiunto.** `--modello` sul comando di prova, per confrontare due modelli senza toccare la configurazione. È il modo per stabilire se il difetto sia di `gemma4:e2b` o dell'installazione.
 
 ### v0.16.0 — 12/09/2026
 

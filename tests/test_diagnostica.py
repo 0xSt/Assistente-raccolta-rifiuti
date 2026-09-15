@@ -40,3 +40,19 @@ def test_i_pixel_sono_davvero_del_colore_chiesto():
     riga = grezzo[:1 + 3 * lato]
     assert riga[0] == 0                       # filtro nessuno
     assert tuple(riga[1:4]) == COLORI["verde"]
+
+
+def test_l_immagine_a_due_meta_ha_i_due_colori_al_posto_giusto():
+    """La domanda sulla posizione non si può indovinare: serve che l'immagine sia davvero
+    divisa a metà."""
+    import zlib
+
+    from ecoscan.agente.diagnostica import png_due_meta
+
+    lato = 8
+    dati = png_due_meta(COLORI["verde"], COLORI["rosso"], lato=lato)
+    inizio = dati.index(b"IDAT") + 4
+    fine = dati.index(b"IEND") - 8
+    riga = zlib.decompress(dati[inizio:fine])[:1 + 3 * lato]
+    assert tuple(riga[1:4]) == COLORI["verde"]                    # primo pixel a sinistra
+    assert tuple(riga[1 + 3 * (lato - 1):1 + 3 * lato]) == COLORI["rosso"]   # ultimo a destra

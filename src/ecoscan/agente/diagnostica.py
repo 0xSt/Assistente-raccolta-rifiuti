@@ -18,6 +18,8 @@ import zlib
 from ecoscan import configurazione as conf
 
 COLORI = {"rosso": (220, 20, 20), "verde": (20, 160, 60), "blu": (30, 60, 200)}
+# Una domanda sul colore di un'immagine tinta unita si può indovinare. Tre colori diversi
+# e una domanda sulla POSIZIONE no: servono a distinguere "vede" da "ha tirato a indovinare".
 
 
 def png_tinta_unita(colore: tuple[int, int, int], lato: int = 256) -> bytes:
@@ -30,6 +32,22 @@ def png_tinta_unita(colore: tuple[int, int, int], lato: int = 256) -> bytes:
         return struct.pack(">I", len(dati)) + corpo + struct.pack(">I", zlib.crc32(corpo))
 
     intestazione = struct.pack(">IIBBBBB", lato, lato, 8, 2, 0, 0, 0)  # 8 bit, RGB
+    return (b"\x89PNG\r\n\x1a\n" + blocco(b"IHDR", intestazione)
+            + blocco(b"IDAT", zlib.compress(grezzo)) + blocco(b"IEND", b""))
+
+
+def png_due_meta(sinistra: tuple[int, int, int], destra: tuple[int, int, int],
+                 lato: int = 256) -> bytes:
+    """Metà di un colore e metà di un altro: verifica che il modello colga anche la posizione."""
+    meta = lato // 2
+    riga = b"\x00" + bytes(sinistra) * meta + bytes(destra) * (lato - meta)
+    grezzo = riga * lato
+
+    def blocco(tipo: bytes, dati: bytes) -> bytes:
+        corpo = tipo + dati
+        return struct.pack(">I", len(dati)) + corpo + struct.pack(">I", zlib.crc32(corpo))
+
+    intestazione = struct.pack(">IIBBBBB", lato, lato, 8, 2, 0, 0, 0)
     return (b"\x89PNG\r\n\x1a\n" + blocco(b"IHDR", intestazione)
             + blocco(b"IDAT", zlib.compress(grezzo)) + blocco(b"IEND", b""))
 
@@ -60,17 +78,28 @@ def capacita_modello(base: str, modello: str) -> list[str]:
     return dati.get("capabilities") or []
 
 
-def prova_colore(url_chat: str, modello: str, colore: str = "rosso") -> str:
-    immagine = png_tinta_unita(COLORI[colore])
+def _domanda_con_immagine(url_chat: str, modello: str, immagine: bytes, domanda: str) -> str:
     import base64
     dati = _chiedi(url_chat, {
         "model": modello, "stream": False, "keep_alive": conf.OLLAMA_KEEP_ALIVE,
         "options": {"temperature": 0.0},
-        "messages": [{"role": "user",
-                      "content": "Rispondi con una sola parola: di che colore è questa immagine?",
+        "messages": [{"role": "user", "content": domanda,
                       "images": [base64.b64encode(immagine).decode()]}],
     }, timeout=600)
     return dati["message"]["content"].strip()
+
+
+def prova_colore(url_chat: str, modello: str, colore: str = "rosso") -> str:
+    return _domanda_con_immagine(
+        url_chat, modello, png_tinta_unita(COLORI[colore]),
+        "Rispondi con una sola parola: di che colore è questa immagine?")
+
+
+def prova_posizione(url_chat: str, modello: str, sinistra: str, destra: str) -> str:
+    return _domanda_con_immagine(
+        url_chat, modello, png_due_meta(COLORI[sinistra], COLORI[destra]),
+        "L'immagine è divisa in due metà di colori diversi. Rispondi con una sola parola: "
+        "di che colore è la metà SINISTRA?")
 
 
 def scalini(modello: str, url_chat: str, foto: bytes,
@@ -110,12 +139,22 @@ def esegui(modello: str, url_chat: str) -> list[tuple[bool, str]]:
     esiti.append(("vision" in capacita,
                   f"capacità dichiarate da {modello}: {', '.join(capacita) or '(nessuna)'}"))
 
-    atteso = "rosso"
+    # tre colori diversi: indovinarli tutti e tre per caso è improbabile
+    for atteso in ("rosso", "verde", "blu"):
+        try:
+            risposta = prova_colore(url_chat, modello, atteso)
+        except Exception as errore:
+            esiti.append((False, f"prova del colore ({atteso}) fallita: {errore}"))
+            return esiti
+        esiti.append((atteso in risposta.lower(),
+                      f"immagine tutta {atteso}, il modello risponde: {risposta[:60]!r}"))
+
+    # la posizione non si indovina: richiede di guardare davvero dove sta cosa
     try:
-        risposta = prova_colore(url_chat, modello, atteso)
+        risposta = prova_posizione(url_chat, modello, "verde", "rosso")
     except Exception as errore:
-        esiti.append((False, f"prova del colore fallita: {errore}"))
+        esiti.append((False, f"prova della posizione fallita: {errore}"))
         return esiti
-    esiti.append((atteso in risposta.lower(),
-                  f"immagine tutta {atteso}, il modello risponde: {risposta[:80]!r}"))
+    esiti.append(("verde" in risposta.lower(),
+                  f"metà sinistra verde e metà destra rossa, il modello risponde: {risposta[:60]!r}"))
     return esiti

@@ -84,6 +84,7 @@ def main() -> None:
     ap.add_argument("--oggetto", help="salta la foto e parte da questa descrizione")
     ap.add_argument("--comune", default="Napoli")
     ap.add_argument("--testo", help="informazione aggiuntiva dell'utente")
+    ap.add_argument("--modello", help="sovrascrive ECOSCAN_MODELLO_VISIONE, per confrontare modelli")
     ap.add_argument("--diagnostica", action="store_true",
                     help="verifica il canale immagine con un'immagine dal contenuto noto")
     ap.add_argument("--scalini", action="store_true",
@@ -99,8 +100,8 @@ def main() -> None:
     if args.diagnostica:
         from ecoscan.agente import diagnostica
         print("Impostazioni: " + " | ".join(f"{k}={v}" for k, v in conf.riepilogo().items()))
-        print(f"\nVerifico il canale immagine verso {conf.MODELLO_VISIONE}...", flush=True)
-        esiti = diagnostica.esegui(conf.MODELLO_VISIONE, conf.OLLAMA_CHAT)
+        print(f"\nVerifico il canale immagine verso {modello.nome}...", flush=True)
+        esiti = diagnostica.esegui(modello.nome, conf.OLLAMA_CHAT)
         for ok, descrizione in esiti:
             print(f"  {'OK     ' if ok else 'FALLITO'} {descrizione}")
         if all(ok for ok, _ in esiti):
@@ -121,7 +122,7 @@ def main() -> None:
         raise SystemExit(f"Database non trovato: {args.db}\nLancia prima: uv run ecoscan-carica")
 
     print("Impostazioni: " + " | ".join(f"{k}={v}" for k, v in conf.riepilogo().items()))
-    modello = ModelloOllama()
+    modello = ModelloOllama(args.modello)
 
     if args.scalini:
         from ecoscan.agente import diagnostica
