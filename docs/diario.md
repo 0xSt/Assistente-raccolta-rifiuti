@@ -127,6 +127,7 @@ Formato: decisione, motivazione, stato.
 | D98 | Il frontend parla solo con le API, e un test verifica che non importi l'agente né il database | Se importasse il backend, la valutazione misurerebbe qualcosa di diverso da ciò che usa l'utente | Accettata |
 | D99 | La formattazione dei messaggi sta in un modulo a parte, con i suoi test | È la parte che si sbaglia più facilmente: una regola di esclusione presentata male dice l'opposto del vero | Accettata |
 | D96 | La rotta `/riscontro` registra il giudizio dell'utente su una risposta | Ogni riga è un esempio etichettato da una persona: è il modo meno costoso di costruire il set di valutazione, che oggi non esiste | Accettata |
+| D100 | Non si chiede una condizione già nota, né si ripete una domanda a cui l'utente ha risposto | L'utente aveva scritto "cartone della pizza unto" e l'agente chiedeva comunque "unto oppure pulito?"; rispondendo, la stessa domanda tornava identica. Un assistente che non ascolta è peggio di uno che non sa | Accettata |
 | D93 | Il chiarimento riguarda solo gli omonimi della voce **scelta** | Chiedere "utilizzabile o non utilizzabile?" dopo aver scelto "Stivali" confonde: quella condizione apparteneva a "Scarpe", un'altra voce presente fra i candidati | Accettata |
 | D91 | Il chiarimento viene tenuto solo se è davvero una domanda (almeno dieci caratteri e un punto interrogativo) | Il campo è facoltativo e il modello lo riempie comunque: ha risposto "0", che mostrato all'utente sarebbe incomprensibile | Accettata |
 | D87 | I prefissi di EmbeddingGemma **restano attivi**: misurato, non supposto | Con i prefissi 10 sonde su 14, senza 9; "tetrapak" si trova solo con i prefissi. L'ipotesi che Ollama li applicasse già da sé è smentita dai numeri | Accettata |
@@ -214,6 +215,7 @@ Cose imparate che non sono decisioni, ma che conviene ricordare.
 - **ASIA pubblica poche esclusioni, e quasi solo come grafica.** Testo solo per il Vetro; dentro l'immagine per l'Umido; per Plastica e Carta non esistono proprio. Torino ne pubblica 27 contro le 11 di Napoli: la stessa informazione, con profondità molto diversa. Una fonte può essere incompleta *per come è pubblicata*, non per come la leggiamo: il controllo che distingue i due casi è ciò che ha permesso di capirlo in un giro solo.
 - **Le esclusioni spiegano il dizionario.** La pagina del vetro di Napoli esclude bicchieri, piatti, pirofile e lastre: esattamente le voci che nel dizionario finiscono nel non riciclabile. Ciò che sembrava incoerenza è una regola dichiarata.
 - **Divergenze fra comuni utili da citare**: bicchiere di vetro (Napoli non riciclabile, Torino vetro); tappo di sughero (Napoli organico, Torino centro di raccolta o organico); pentole e padelle (Napoli plastica e metalli, Torino centro di raccolta). Una convergenza: il vetro dei profumi non è riciclabile in entrambi.
+- **Chiedere ciò che è già stato detto vanifica la conversazione.** Il chiarimento nasceva dai dati (omonimi con destinazioni diverse) senza guardare ciò che l'utente aveva scritto né lo stato visto nella foto. E `continua` ricalcolava la domanda da zero, quindi la riproponeva identica: un giro senza uscita.
 - **I nomi degli oggetti sono ambigui, e il modello sceglie il senso sbagliato.** "Ciabatta" in italiano è una calzatura e un tipo di pane: il modello ha imboccato la seconda strada e ha scelto "busta per alimenti", dichiarando pure la corrispondenza come "sinonimo". La categoria, resa obbligatoria e mostrata anche nella scelta, chiude quella strada.
 - **Un campo facoltativo in uno schema di uscita è un campo che il modello ometterà.**
 - **Una misura troppo indulgente è peggio di nessuna misura.** La sonda dichiarava che "calzatura" trovava "Scarpe" al primo posto; l'agente, con la stessa domanda, mostrava "Laccio per scarpe". Erano lo stesso risultato: il confronto per sottostringa accettava la parola dentro un altro oggetto. Un banco di prova che promuove risultati sbagliati indirizza il lavoro nella direzione opposta a quella giusta.
@@ -235,6 +237,14 @@ Cose imparate che non sono decisioni, ma che conviene ricordare.
 ---
 
 ## Cronologia
+
+### v0.24.1 — 12/09/2026
+
+Due difetti emersi dalla prima conversazione vera nel frontend, con un cartone della pizza unto.
+
+**Corretto.** L'agente chiedeva "è unto oppure pulito?" anche quando l'utente lo aveva già scritto nel messaggio, o quando il modello lo aveva visto nella foto. Ora la domanda si fa solo se la condizione non è già determinata da ciò che si sa.
+
+**Corretto.** Rispondendo al chiarimento, `continua` ricalcolava la domanda e la riproponeva identica: l'utente restava in un giro senza uscita. Dopo una risposta la domanda non si ripete.
 
 ### v0.24.0 — 12/09/2026
 

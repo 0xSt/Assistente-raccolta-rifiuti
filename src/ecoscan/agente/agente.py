@@ -27,6 +27,20 @@ from ecoscan.agente.tipi import TIPI_NON_VALIDI, Candidato, Riconoscimento, Risp
 CONFIDENZA_MINIMA = 0.2   # sotto, il riconoscimento non è affidabile abbastanza per cercare
 
 
+def condizione_gia_nota(condizioni: list[str], testi: list[str | None]) -> bool:
+    """La condizione è già determinata da ciò che sappiamo?
+
+    Se l'utente ha scritto "cartone della pizza unto", o se il modello ha visto lo stato
+    "unto", chiedere "è unto oppure pulito?" fa sembrare l'assistente distratto. Basta che
+    UNA delle condizioni in gioco compaia nel testo noto: significa che l'utente ha già
+    scelto fra le alternative.
+    """
+    noto = " ".join(t for t in testi if t).lower()
+    if not noto:
+        return False
+    return any(c.lower() in noto for c in condizioni if c)
+
+
 class Agente:
     def __init__(self, db: sqlite3.Connection, qdrant, vettorizzatore, modello: ModelloVisione,
                  k: int = 10):
@@ -50,14 +64,19 @@ class Agente:
         return trovati, scelta
 
     def _componi(self, scelto: Candidato, riconoscimento: Riconoscimento, scelta: Scelta,
-                 comune: str, candidati: list[Candidato]) -> Risposta:
+                 comune: str, candidati: list[Candidato], testo_utente: str | None = None,
+                 gia_chiesto: bool = False) -> Risposta:
         # Il chiarimento deve riguardare la voce SCELTA: chiedere "utilizzabile o non
         # utilizzabile?" dopo aver scelto "Stivali" confonde, perché la condizione
         # apparteneva a "Scarpe", un'altra voce presente fra i candidati.
         omonimi = [c for c in candidati
                    if c.nome and scelto.nome and c.nome.lower() == scelto.nome.lower()]
-        chiarimento = scelta.chiarimento
-        if not chiarimento and (condizioni := condizioni_in_gioco(omonimi)):
+        condizioni = condizioni_in_gioco(omonimi)
+        noti = [testo_utente, riconoscimento.stato]
+        # non si chiede due volte, e non si chiede ciò che è già stato detto
+        zitto = gia_chiesto or condizione_gia_nota(condizioni or scelto.condizioni, noti)
+        chiarimento = None if zitto else scelta.chiarimento
+        if not zitto and not chiarimento and condizioni:
             chiarimento = ("Per esserne certo devo sapere se l'oggetto è: "
                            + " oppure ".join(condizioni) + "?")
         return Risposta(
@@ -78,7 +97,8 @@ class Agente:
         return self.rispondi(riconoscimento, comune, testo_utente, contesto)
 
     def rispondi(self, riconoscimento: Riconoscimento, comune: str,
-                 testo_utente: str | None = None, contesto: dict | None = None) -> Risposta:
+                 testo_utente: str | None = None, contesto: dict | None = None,
+                 gia_chiesto: bool = False) -> Risposta:
         """Dal riconoscimento alla risposta. Separato da `analizza` per poter valutare il
         retrieval e la scelta senza rieseguire il modello di visione su ogni foto."""
         base = {"comune": comune, "riconoscimento": riconoscimento,
@@ -96,7 +116,8 @@ class Agente:
             tutti.extend(trovati)
             if scelta.scheda_id is not None:
                 scelto = next(c for c in trovati if c.scheda_id == scelta.scheda_id)
-                risposta = self._componi(scelto, riconoscimento, scelta, comune, trovati)
+                risposta = self._componi(scelto, riconoscimento, scelta, comune, trovati,
+                                         testo_utente=testo_utente, gia_chiesto=gia_chiesto)
                 # si mostrano i candidati di TUTTI i livelli provati: se la scelta è caduta
                 # sul livello 2, vedere cosa era stato scartato al livello 1 spiega il perché
                 risposta.candidati = tutti
@@ -118,9 +139,13 @@ class Agente:
 
     def continua(self, contesto: dict, risposta_utente: str) -> Risposta:
         """Secondo giro dopo un chiarimento: si riparte dal riconoscimento già fatto,
-        aggiungendo ciò che l'utente ha detto. Nessuna nuova lettura della foto."""
+        aggiungendo ciò che l'utente ha detto. Nessuna nuova lettura della foto.
+
+        `gia_chiesto` impedisce di riproporre la stessa domanda: l'utente ha risposto, e
+        ripetergliela lo lascerebbe in un giro senza uscita.
+        """
         riconoscimento = Riconoscimento(**contesto["riconoscimento"])
         testo = " ".join(filter(None, [contesto.get("testo_utente"), risposta_utente]))
         arricchito = Riconoscimento(**{**contesto["riconoscimento"],
                                        "stato": risposta_utente or riconoscimento.stato})
-        return self.rispondi(arricchito, contesto["comune"], testo)
+        return self.rispondi(arricchito, contesto["comune"], testo, gia_chiesto=True)

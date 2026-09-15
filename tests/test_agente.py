@@ -394,3 +394,47 @@ def test_il_chiarimento_riguarda_solo_la_voce_scelta(ambiente):
     # ...ma fra gli omonimi di "Stivali" non c'è nulla da chiedere
     omonimi = [c for c in [*scarpe, stivali] if c.nome.lower() == stivali.nome.lower()]
     assert condizioni_in_gioco(omonimi) == []
+
+
+def test_non_chiede_una_condizione_che_l_utente_ha_gia_detto(ambiente):
+    """L'utente scrive "cartone della pizza unto": richiedere "unto oppure pulito?" fa
+    sembrare l'assistente distratto."""
+    modello = ModelloFinto(Riconoscimento(oggetto="capsula del caffè in plastica",
+                                          materiali=["plastica"], confidenza=0.9))
+    agente = crea_agente(ambiente, modello)
+    senza = agente.analizza(b"foto", "Torino")
+    con = agente.analizza(b"foto", "Torino", testo_utente="è con residuo")
+    if senza.chiarimento:                    # solo se il caso presenta davvero omonimi
+        assert con.chiarimento is None
+
+
+def test_non_chiede_una_condizione_gia_vista_nella_foto(ambiente):
+    modello = ModelloFinto(Riconoscimento(oggetto="capsula del caffè in plastica",
+                                          stato="con residuo", confidenza=0.9))
+    risposta = crea_agente(ambiente, modello).analizza(b"foto", "Torino")
+    assert risposta.chiarimento is None
+
+
+def test_dopo_la_risposta_dell_utente_non_si_richiede(ambiente):
+    """Ripetere la stessa domanda lascia l'utente in un giro senza uscita: è successo
+    davvero con il cartone della pizza."""
+    modello = ModelloFinto(Riconoscimento(oggetto="capsula del caffè in plastica",
+                                          materiali=["plastica"], confidenza=0.9),
+                           chiarimento="È vuota o con residui?")
+    agente = crea_agente(ambiente, modello)
+    prima = agente.analizza(b"foto", "Torino")
+    assert prima.chiarimento                      # la prima volta si chiede
+    dopo = agente.continua(prima.contesto, "è con residuo")
+    assert dopo.chiarimento is None and dopo.definitiva
+
+
+@pytest.mark.parametrize("condizioni, testi, atteso", [
+    (["unto", "pulito"], ["cartone della pizza unto", None], True),
+    (["unto", "pulito"], [None, "unto"], True),              # visto nella foto
+    (["unto", "pulito"], ["un cartone", None], False),
+    (["con residuo"], [None, None], False),
+    ([], ["unto"], False),
+])
+def test_condizione_gia_nota(condizioni, testi, atteso):
+    from ecoscan.agente.agente import condizione_gia_nota
+    assert condizione_gia_nota(condizioni, testi) is atteso
