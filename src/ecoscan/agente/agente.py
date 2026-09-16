@@ -14,6 +14,7 @@ decide la **variante**, perché è lì che si gioca la differenza fra organico e
 """
 from __future__ import annotations
 
+from contextlib import contextmanager
 from dataclasses import asdict
 
 from ecoscan import prompt as prompt_
@@ -21,8 +22,15 @@ from ecoscan.agente.modelli import ModelloVisione
 from ecoscan.agente.recupero import candidati as recupera
 from ecoscan.agente.recupero import nomina_l_oggetto, scegli_variante
 from ecoscan.agente.tipi import TIPI_NON_VALIDI, Candidato, Riconoscimento, Risposta, Scelta
+from ecoscan.osservabilita.tracciamento import Traccia, impronta
 
 CONFIDENZA_MINIMA = 0.2   # sotto, il riconoscimento non è affidabile abbastanza per cercare
+
+
+@contextmanager
+def _senza_misura(nome: str):
+    """Quando non si sta tracciando, misurare le fasi non serve."""
+    yield
 
 
 def domande(riconoscimento: Riconoscimento, testo_utente: str | None = None) -> list[str]:
@@ -41,8 +49,10 @@ def domande(riconoscimento: Riconoscimento, testo_utente: str | None = None) -> 
 
 
 class Agente:
-    def __init__(self, qdrant, vettorizzatore, modello: ModelloVisione, k: int = 8):
+    def __init__(self, qdrant, vettorizzatore, modello: ModelloVisione, k: int = 8,
+                 tracciatore=None):
         self.qdrant, self.vettorizzatore, self.modello, self.k = qdrant, vettorizzatore, modello, k
+        self.tracciatore = tracciatore
 
     # ------------------------------------------------------------------ passaggi
 
@@ -100,12 +110,35 @@ class Agente:
 
     def analizza(self, immagine: bytes, comune: str, testo_utente: str | None = None,
                  contesto: dict | None = None) -> Risposta:
-        riconoscimento = self.modello.riconosci(immagine, testo_utente)
-        return self.rispondi(riconoscimento, comune, testo_utente, contesto)
+        traccia = Traccia(comune=comune, modello_visione=self.modello.nome,
+                          modello_embedding=getattr(self.vettorizzatore, "nome", ""),
+                          impronta_foto=impronta(immagine), testo_utente=testo_utente)
+        with traccia.fase("riconoscimento"):
+            riconoscimento = self.modello.riconosci(immagine, testo_utente)
+        risposta = self.rispondi(riconoscimento, comune, testo_utente, contesto, traccia=traccia)
+        self._registra(traccia, risposta)
+        return risposta
+
+    def _registra(self, traccia: Traccia, risposta: Risposta) -> None:
+        """Il tracciamento non è mai bloccante: se MLflow non risponde, l'utente ha comunque
+        la sua risposta."""
+        if not self.tracciatore:
+            return
+        traccia.prompt = risposta.contesto.get("prompt", [])
+        traccia.oggetto = risposta.oggetto
+        traccia.confidenza = risposta.riconoscimento.confidenza if risposta.riconoscimento else 0.0
+        traccia.livello_evidenza = risposta.livello_evidenza
+        traccia.candidati = len(risposta.candidati)
+        traccia.tipo_corrispondenza = risposta.tipo_corrispondenza
+        traccia.chiarimento = bool(risposta.chiarimento)
+        traccia.definitiva = risposta.definitiva
+        traccia.contraddizione = risposta.contraddizione
+        traccia.destinazioni = risposta.destinazioni
+        self.tracciatore.registra(traccia)
 
     def rispondi(self, riconoscimento: Riconoscimento, comune: str,
                  testo_utente: str | None = None, contesto: dict | None = None,
-                 gia_chiesto: bool = False) -> Risposta:
+                 gia_chiesto: bool = False, traccia: Traccia | None = None) -> Risposta:
         """Dal riconoscimento alla risposta. Separato da `analizza` per poter valutare
         recupero e scelta senza rieseguire il modello di visione su ogni foto."""
         base = {"comune": comune, "riconoscimento": riconoscimento,
@@ -118,8 +151,11 @@ class Agente:
                             **base)
 
         tutti: list[Candidato] = []
+        misura = traccia.fase if traccia else _senza_misura
         for livello in (1, 2):
-            trovati, scelta = self._scegli_nel_livello(riconoscimento, comune, livello, testo_utente)
+            with misura(f"livello{livello}"):
+                trovati, scelta = self._scegli_nel_livello(riconoscimento, comune, livello,
+                                                           testo_utente)
             tutti.extend(trovati)
             if scelta.scheda_id is not None:
                 scelto = next(c for c in trovati if c.id == scelta.scheda_id)
@@ -150,4 +186,9 @@ class Agente:
         testo = " ".join(filter(None, [contesto.get("testo_utente"), risposta_utente]))
         arricchito = Riconoscimento(**{**contesto["riconoscimento"],
                                        "stato": risposta_utente or None})
-        return self.rispondi(arricchito, contesto["comune"], testo, gia_chiesto=True)
+        traccia = Traccia(comune=contesto["comune"], modello_visione=self.modello.nome,
+                          testo_utente=testo)
+        risposta = self.rispondi(arricchito, contesto["comune"], testo, gia_chiesto=True,
+                                 traccia=traccia)
+        self._registra(traccia, risposta)
+        return risposta

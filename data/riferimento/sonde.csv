@@ -1,17 +1,29 @@
 comune,domanda,atteso,nota
-Napoli,sandalo,Scarpe utilizzabile,"il modello riconosce \"sandalo\": il dizionario scrive \"Scarpe\""
-Napoli,calzatura,Scarpe utilizzabile,categoria generale
-Napoli,ciabatta,Scarpe utilizzabile,nome ambiguo: calzatura o pane
-Napoli,sandalo calzatura,Scarpe utilizzabile,oggetto piu categoria: toglie l'ambiguita alla parola sola
-Napoli,ciabatta calzatura,Scarpe utilizzabile,oggetto piu categoria
-Napoli,bottiglia di plastica,Bottiglia in plastica,caso facile di controllo
-Napoli,contenitore del latte,Cartone per latte,parafrasi
-Napoli,capsula del caffè,Capsula caffè,due voci distinte per condizione
-Napoli,lattina di alluminio,Lattina in alluminio,
-Napoli,cartone della pizza unto,Cartone per pizze unto,"condizione decisiva; il testo indicizzato porta la condizione in fondo"
+Napoli,cartone della pizza unto,Cartone per pizze,il caso che ha guidato buona parte del lavoro
+Torino,cartone della pizza unto,Cartone da pizza,a Torino la condizione si chiama "sporco"
+Napoli,bottiglia di plastica,Bottiglia in plastica,controllo facile
+Torino,bottiglia di plastica,Bottiglie di plastica,controllo facile
+Napoli,lattina di alluminio,Lattina in alluminio,controllo facile
+Napoli,giornale,Giornale,controllo facile
+Torino,giornali e riviste,Giornali,controllo facile
+Napoli,bicchiere di vetro,Bicchiere di vetro,controllo facile
+Torino,bicchieri di vetro,Bicchieri di vetro,singolare contro plurale
+Napoli,pile del telecomando,Pile,parafrasi d'uso
+Napoli,lampadina a led,Lampadina,parafrasi d'uso
+Napoli,il cartone del latte,Cartone per latte,parafrasi d'uso
+Napoli,la scatoletta del tonno,Scatolette per tonno,parafrasi d'uso
+Napoli,il barattolo dello yogurt,Vasetto in plastica per alimenti,parafrasi d'uso
+Napoli,il flacone del detersivo,Flacone in plastica,parafrasi d'uso
+Torino,il contenitore del latte a lunga conservazione,Contenitori in Tetra Pak,parafrasi d'uso
+Napoli,capsula del caffè,Capsula caffè,oggetto con piu varianti
+Napoli,sandalo,Scarpa,il modello dice "sandalo": la fonte scrive "Scarpa"
+Napoli,calzatura,Scarpa,categoria generale
+Napoli,ciabatta,Scarpa,nome ambiguo: calzatura o pane
+Napoli,simbolo PAP 21,Simbolo PAP,codice materiale: aggancio esatto
+Napoli,PAP 20,Simbolo PAP,codice materiale senza la parola "simbolo"
+Napoli,ALU 41,Simbolo ALU,codice materiale
+Napoli,C/PAP 84,Simbolo C/PAP,codice materiale con la barra
 Torino,tetrapak,Tetra Pak,la fonte scrive "Tetra Pak" con lo spazio
-Torino,bicchiere di vetro,Bicchieri di vetro,singolare contro plurale
-Torino,cartone della pizza unto,Cartone da pizza solo se compostabile,"condizione decisiva; a Torino l'ammissibilità è condizionata"
-Torino,bottiglia di plastica,Bottiglie di plastica,caso facile di controllo
-Torino,pila stilo,Pile,
-Torino,lampadina a led,Lampadine,
+Torino,pila stilo,Pile,parafrasi d'uso
+Torino,pentola vecchia,Pentole,parafrasi d'uso
+Torino,specchio rotto,Specchi,parafrasi d'uso

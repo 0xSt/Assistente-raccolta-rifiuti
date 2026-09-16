@@ -53,6 +53,13 @@ LATO_MAX_IMMAGINE = _intero("ECOSCAN_LATO_MAX_IMMAGINE", 1024)
 PREFISSI_EMBEDDING = _testo("ECOSCAN_PREFISSI_EMBEDDING", "si").lower() not in ("no", "0", "false")
 # Dove il frontend trova il backend. In Docker diventa il nome del servizio.
 API = _testo("ECOSCAN_API", "http://localhost:8000/api/v1")
+# Tracciamento su MLflow. Non è mai bloccante: se il server non risponde, le risposte
+# continuano ad arrivare e i dati semplicemente non vengono registrati.
+MLFLOW = _testo("ECOSCAN_MLFLOW", "http://localhost:5000")
+MLFLOW_ESPERIMENTO = _testo("ECOSCAN_MLFLOW_ESPERIMENTO", "ecoscan-chat")
+MLFLOW_ATTIVO = _testo("ECOSCAN_MLFLOW_ATTIVO", "si").lower() not in ("no", "0", "false")
+# Secondi di attesa prima di rinunciare: un tracciamento non bloccante fallisce in fretta
+MLFLOW_ATTESA = _intero("ECOSCAN_MLFLOW_ATTESA", 3)
 # Quante schede si vettorizzano per chiamata
 LOTTO_EMBEDDING = _intero("ECOSCAN_LOTTO_EMBEDDING", 32)
 
@@ -63,6 +70,6 @@ def riepilogo() -> dict[str, str]:
     return {"qdrant": QDRANT, "ollama": OLLAMA, "modello": MODELLO_EMBEDDING,
             "modello_visione": MODELLO_VISIONE, "keep_alive": OLLAMA_KEEP_ALIVE,
             "lato_max_immagine": str(LATO_MAX_IMMAGINE),
-            "prefissi_embedding": "si" if PREFISSI_EMBEDDING else "no", "api": API,
+            "prefissi_embedding": "si" if PREFISSI_EMBEDDING else "no", "api": API, "mlflow": MLFLOW if MLFLOW_ATTIVO else "spento",
             "lotto": str(LOTTO_EMBEDDING),
             "modalita_qdrant": "server" if QDRANT.startswith(("http://", "https://")) else "in-process"}

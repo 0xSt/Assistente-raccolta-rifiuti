@@ -43,6 +43,7 @@ Va aggiornato **a ogni cambiamento sostanziale**, non a ogni riga di codice. In 
 | Agente | Fatto: riconoscimento, cascata dei livelli, scelta vincolata, risposta. Indipendente da HTTP |
 | API FastAPI | Fatto: analizza, continua, cerca, comuni, salute, riscontro |
 | Frontend a chat | Fatto: Streamlit, allegato immagine, chiarimenti, riscontro |
+| Osservabilità | Fatto: tracce su MLflow non bloccanti, registro dei prompt |
 | MLflow, Docker | Da fare |
 | Regole di categoria — Napoli | Completo per quanto la fonte pubblica: 38 ammessi, 11 esclusi (5 Vetro estratti + 6 Umido trascritti a mano), 2 assenze verificate |
 | Regole di categoria — Torino | Estratte: 10 schede, 30 ammessi, 27 esclusi |
@@ -127,6 +128,10 @@ Formato: decisione, motivazione, stato.
 | D99 | La formattazione dei messaggi sta in un modulo a parte, con i suoi test | È la parte che si sbaglia più facilmente: una regola di esclusione presentata male dice l'opposto del vero | Accettata |
 | D96 | La rotta `/riscontro` registra il giudizio dell'utente su una risposta | Ogni riga è un esempio etichettato da una persona: è il modo meno costoso di costruire il set di valutazione, che oggi non esiste | Accettata |
 | D111 | **Una sola strategia di ricerca: la semantica.** Rimossi FTS5, trigrammi, riduzione alla radice, parole di servizio, fusione RRF, garanzie e tetti | Le sonde mostravano che l'ibrido non cambiava il risultato: 14 su 16 in entrambi i casi, con un caso migliorato e uno peggiorato. Un secondo metodo tenuto per prudenza è complessità senza guadagno | Accettata |
+| D116 | Il tracciamento su MLflow **non è mai bloccante** e fallisce in fretta (tre secondi, un solo tentativo) | Serve a capire come va il sistema, non a farlo funzionare. Senza i limiti sui tentativi il client riprova per minuti e la risposta all'utente resta appesa | Accettata |
+| D117 | Delle foto si registra solo l'**impronta**, mai l'immagine | Due richieste sulla stessa foto si riconoscono, ma l'immagine non lascia il computer di chi l'ha scattata: è coerente con un progetto che gira in locale | Accettata |
+| D118 | I prompt restano file in git; il registro di MLflow li **collega alle run** che li hanno usati | La verità e il diff stanno in git; MLflow serve a sapere quale versione ha prodotto un certo risultato | Accettata |
+| D119 | Le sonde coprono tre famiglie: codici materiale, parafrasi d'uso e controlli facili | Senza le prime due il banco di prova misura solo i casi comodi; senza i terzi non ci si accorge di una rottura | Accettata |
 | D114 | I candidati arrivano al modello **ordinati per somiglianza** | Il modello legge un elenco, e l'ordine è un'informazione che prima gli veniva nascosta | Accettata |
 | D115 | Se un documento **nomina proprio l'oggetto** riconosciuto, vince su quello generico, e la preferenza la applica il codice | Davanti a un cartone della pizza il modello ha scelto "Cartone da imballaggio" mentre "Cartone per pizze" era il primo risultato con il punteggio più alto | Accettata |
 | D112 | I **codici materiale** si agganciano in modo esatto con un'espressione regolare, non con una ricerca | Un codice ("PAP 21") è un identificatore, non un testo: era l'unico caso in cui il lessicale batteva il semantico, e tre righe lo risolvono meglio di duecento | Accettata |
@@ -254,6 +259,18 @@ Cose imparate che non sono decisioni, ma che conviene ricordare.
 ---
 
 ## Cronologia
+
+### v0.28.0 — 12/09/2026
+
+**Sonde riscritte.** Da 16 a 28, con attese verificate contro i documenti reali (un test lo controlla, perché due sonde erano già fallite per un'attesa scritta a memoria). Tre famiglie: codici materiale ("PAP 21", "ALU 41", "C/PAP 84"), parafrasi d'uso ("la scatoletta del tonno", "il flacone del detersivo", "pile del telecomando") e controlli facili.
+
+**Aggiunto.** `osservabilita/tracciamento.py`: una run MLflow per richiesta, con parametri (comune, modelli, versione dei prompt, impronta della foto), metriche (livello di evidenza, candidati, confidenza, **tempi per fase**) ed etichette (oggetto, tipo di corrispondenza, chiarimento, destinazioni). Delle foto si registra solo l'impronta.
+
+**Aggiunto.** `osservabilita/prompt_registrati.py` e il comando `ecoscan-prompt`: elenca i prompt con versione e impronta, e li pubblica nel registro di MLflow.
+
+**Aggiunto.** Il servizio `mlflow` nel `docker-compose`, con database e artefatti su volume.
+
+**Corretto prima ancora di sbagliare.** Il primo test ha bloccato l'esecuzione per cinque minuti: il client MLflow riprovava a lungo. Un tracciamento non bloccante deve fallire in fretta, e ora rinuncia dopo tre secondi e un tentativo. 10 test, fra cui uno che verifica che l'avviso compaia una volta sola.
 
 ### v0.27.1 — 12/09/2026
 

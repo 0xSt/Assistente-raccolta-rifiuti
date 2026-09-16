@@ -15,5 +15,26 @@ services:
       timeout: 3s
       retries: 10
 
+  mlflow:
+    # Immagine ufficiale: il server usa SQLite per i metadati e una cartella per gli
+    # artefatti. Entrambi su volume, così le run sopravvivono al riavvio.
+    image: ghcr.io/mlflow/mlflow:v3.6.0
+    container_name: ecoscan_mlflow
+    command: >
+      mlflow server
+      --host 0.0.0.0 --port 5000
+      --backend-store-uri sqlite:////mlflow/mlflow.db
+      --artifacts-destination /mlflow/artefatti
+    ports:
+      - "5000:5000"   # interfaccia: http://localhost:5000
+    volumes:
+      - mlflow_dati:/mlflow
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c ':> /dev/tcp/127.0.0.1/5000' || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+
 volumes:
   qdrant_dati:
+  mlflow_dati:

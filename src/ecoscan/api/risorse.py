@@ -19,6 +19,7 @@ from ecoscan import configurazione as conf
 from ecoscan.agente.agente import Agente
 from ecoscan.agente.modelli import ModelloOllama, ModelloVisione
 from ecoscan.db.vettorizza import COLLEZIONE, DB, VettorizzatoreOllama, apri_qdrant
+from ecoscan.osservabilita.tracciamento import Tracciatore
 
 
 def apri_database_in_lettura(percorso: Path) -> sqlite3.Connection:
@@ -43,7 +44,7 @@ class Risorse:
         vettorizzatore = VettorizzatoreOllama()
         modello = ModelloOllama()
         return cls(db, qdrant, vettorizzatore, modello,
-                   Agente(qdrant, vettorizzatore, modello, k=k))
+                   Agente(qdrant, vettorizzatore, modello, k=k, tracciatore=Tracciatore()))
 
     def chiudi(self) -> None:
         self.db.close()
