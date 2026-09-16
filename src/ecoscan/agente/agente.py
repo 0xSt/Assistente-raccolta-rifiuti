@@ -19,7 +19,7 @@ from dataclasses import asdict
 from ecoscan import prompt as prompt_
 from ecoscan.agente.modelli import ModelloVisione
 from ecoscan.agente.recupero import candidati as recupera
-from ecoscan.agente.recupero import menzionata, scegli_variante
+from ecoscan.agente.recupero import nomina_l_oggetto, scegli_variante
 from ecoscan.agente.tipi import TIPI_NON_VALIDI, Candidato, Riconoscimento, Risposta, Scelta
 
 CONFIDENZA_MINIMA = 0.2   # sotto, il riconoscimento non è affidabile abbastanza per cercare
@@ -64,6 +64,16 @@ class Agente:
                  comune: str, candidati: list[Candidato], testo_utente: str | None,
                  gia_chiesto: bool) -> Risposta:
         noti = [testo_utente, riconoscimento.stato]
+        motivo = scelta.motivo
+
+        # Il modello preferisce il documento generico a quello specifico: davanti a un
+        # cartone della pizza ha scelto "Cartone da imballaggio" mentre "Cartone per pizze"
+        # era il primo risultato. Se un documento nomina proprio l'oggetto, vince.
+        if not nomina_l_oggetto(scelto, riconoscimento, testo_utente):
+            specifici = [c for c in candidati if nomina_l_oggetto(c, riconoscimento, testo_utente)]
+            if specifici:
+                scelto = specifici[0]
+                motivo = f"{motivo} · scelto il documento che nomina l'oggetto".strip(" ·")
         variante, da_chiarire = scegli_variante(scelto, noti)
 
         chiarimento = None
@@ -82,7 +92,7 @@ class Agente:
             destinazioni=destinazioni, polarita=scelto.polarita, condizioni=condizioni,
             avvertenza=avvertenza, fonte=scelto.fonte, riferimento=scelto.riferimento,
             chiarimento=chiarimento, tipo_corrispondenza=scelta.tipo_corrispondenza,
-            motivo=scelta.motivo, candidati=candidati, riconoscimento=riconoscimento,
+            motivo=motivo, candidati=candidati, riconoscimento=riconoscimento,
             contraddizione=scelto.contraddizione,
         )
 

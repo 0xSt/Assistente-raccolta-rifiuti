@@ -27,6 +27,13 @@ CONDIZIONI_EQUIVALENTI = {
 }
 
 
+# Preposizioni e articoli: non dicono nulla sull'oggetto. "cartone della pizza" e "Cartone
+# per pizze" sono lo stesso oggetto, e differiscono solo per una di queste parole.
+PAROLE_DI_SERVIZIO = {"dell", "della", "del", "dei", "degli", "delle", "dal", "dalla",
+                      "nel", "nella", "sul", "sulla", "con", "per", "tra", "fra", "una",
+                      "uno", "gli", "che", "cui", "questo", "questa", "sono", "essere"}
+
+
 def radice(parola: str) -> str:
     """Toglie la vocale finale alle parole lunghe: l'utente scrive al plurale e la fonte
     al singolare ("non utilizzabili" contro "non utilizzabile")."""
@@ -69,8 +76,32 @@ def candidati(qdrant, vettorizzatore, domande: list[str], comune: str, livello: 
             if payload.get("livello") == livello:
                 trovati.setdefault(payload["id"], Candidato.da_payload(payload))
         for payload in cerca(qdrant, domanda, comune, vettorizzatore, livello=livello, k=k):
-            trovati.setdefault(payload["id"], Candidato.da_payload(payload))
-    return list(trovati.values())[:k + 4]
+            esistente = trovati.get(payload["id"])
+            if esistente is None:
+                trovati[payload["id"]] = Candidato.da_payload(payload)
+            else:
+                # lo stesso documento trovato da più domande: vale il punteggio migliore
+                esistente.punteggio = max(esistente.punteggio, payload.get("punteggio", 0.0))
+    # ordinati per somiglianza: il modello legge un elenco, e l'ordine è un'informazione
+    ordinati = sorted(trovati.values(), key=lambda c: (c.per_codice is None, -c.punteggio))
+    return ordinati[:k + 4]
+
+
+def nomina_l_oggetto(candidato: Candidato, riconoscimento: Riconoscimento,
+                     testo_utente: str | None = None) -> bool:
+    """Il documento nomina proprio l'oggetto riconosciuto?
+
+    "Cartone della pizza" e "Cartone per pizze" condividono le parole che contano; "Cartone
+    da imballaggio" no. Serve a preferire il documento specifico a quello generico, che è
+    l'errore che il modello continua a fare.
+    """
+    nome = _radicalizza(candidato.nome or candidato.testo.split(".")[0])
+    for testo in (riconoscimento.oggetto, testo_utente):
+        parole = [p for p in _radicalizza(testo or "").split()
+                  if len(p) >= 4 and p not in PAROLE_DI_SERVIZIO]
+        if parole and all(p in nome for p in parole):
+            return True
+    return False
 
 
 def scegli_variante(candidato: Candidato, testi: list[str | None]) -> tuple[Variante | None, list[str]]:
@@ -95,6 +126,8 @@ def scegli_variante(candidato: Candidato, testi: list[str | None]) -> tuple[Vari
         if any(menzionata(c, noto) for c in variante.condizioni):
             return variante, []
 
-    # nessuna corrisponde: si chiede, elencando le alternative come le scrive la fonte
-    condizioni = [v.condizione or "nessuna condizione" for v in varianti]
-    return None, condizioni
+    # Nessuna corrisponde: si chiede, elencando le condizioni come le scrive la fonte.
+    # Le varianti senza condizione non si nominano: "grandi quantità oppure nessuna
+    # condizione?" è una domanda a cui nessuno saprebbe rispondere.
+    condizioni = [v.condizione for v in varianti if v.condizione]
+    return None, condizioni if len(condizioni) >= 2 else []

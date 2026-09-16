@@ -204,3 +204,49 @@ def test_il_contesto_permette_di_continuare_senza_rileggere_la_foto(ambiente):
     modello.riconosci = lambda *a, **k: letture.__setitem__("n", letture["n"] + 1)
     agente.continua(prima.contesto, "è vuota")
     assert letture["n"] == 0
+
+
+def test_i_candidati_sono_ordinati_per_somiglianza(ambiente):
+    """L'ordine è un'informazione: il modello legge un elenco."""
+    trovati = candidati(ambiente.qdrant, ambiente.vettorizzatore,
+                        ["cartone da pizza", "carta"], "Torino", livello=1)
+    punteggi = [c.punteggio for c in trovati]
+    assert punteggi == sorted(punteggi, reverse=True)
+
+
+def test_nomina_l_oggetto_distingue_lo_specifico_dal_generico():
+    """"Cartone per pizze" nomina l'oggetto, "Cartone da imballaggio" no."""
+    from ecoscan.agente.recupero import nomina_l_oggetto
+    riconoscimento = Riconoscimento(oggetto="cartone della pizza")
+    specifico = Candidato(id="a", livello=1, testo="Cartone per pizze. …", nome="Cartone per pizze")
+    generico = Candidato(id="b", livello=1, testo="Cartone da imballaggio. …",
+                         nome="Cartone da imballaggio")
+    assert nomina_l_oggetto(specifico, riconoscimento)
+    assert not nomina_l_oggetto(generico, riconoscimento)
+
+
+def test_il_documento_che_nomina_l_oggetto_vince_sul_generico(ambiente):
+    """Il modello ha scelto "Cartone da imballaggio" mentre "Cartone per pizze" era il primo
+    risultato: la preferenza per lo specifico la applica il codice."""
+    class SceglieIlGenerico(ModelloFinto):
+        def scegli(self, riconoscimento, candidati, testo_utente=None):
+            self.chiamate_scelta += 1
+            generici = [c for c in candidati if "pizza" not in (c.nome or "").lower()]
+            bersaglio = generici[0] if generici else candidati[0]
+            return Scelta(scheda_id=bersaglio.id, tipo_corrispondenza="categoria",
+                          motivo="voce generica")
+
+    modello = SceglieIlGenerico(Riconoscimento(oggetto="cartone da pizza", confidenza=0.9))
+    risposta = crea_agente(ambiente, modello).analizza(b"foto", "Torino", testo_utente="è sporco")
+    if any("pizza" in (c.nome or "").lower() for c in risposta.candidati):
+        assert risposta.destinazioni == ["organico"]
+        assert "nomina l'oggetto" in risposta.motivo
+
+
+def test_il_chiarimento_non_propone_condizioni_vuote():
+    """"grandi quantità oppure nessuna condizione?" è una domanda senza risposta."""
+    candidato = Candidato(id="x", livello=1, testo="Scatolone", nome="Scatolone",
+                          varianti=[Variante([], ["carta"]),
+                                    Variante(["grandi quantità"], ["isola"])])
+    variante, da_chiarire = scegli_variante(candidato, [None, None])
+    assert variante is None and da_chiarire == []

@@ -127,6 +127,8 @@ Formato: decisione, motivazione, stato.
 | D99 | La formattazione dei messaggi sta in un modulo a parte, con i suoi test | È la parte che si sbaglia più facilmente: una regola di esclusione presentata male dice l'opposto del vero | Accettata |
 | D96 | La rotta `/riscontro` registra il giudizio dell'utente su una risposta | Ogni riga è un esempio etichettato da una persona: è il modo meno costoso di costruire il set di valutazione, che oggi non esiste | Accettata |
 | D111 | **Una sola strategia di ricerca: la semantica.** Rimossi FTS5, trigrammi, riduzione alla radice, parole di servizio, fusione RRF, garanzie e tetti | Le sonde mostravano che l'ibrido non cambiava il risultato: 14 su 16 in entrambi i casi, con un caso migliorato e uno peggiorato. Un secondo metodo tenuto per prudenza è complessità senza guadagno | Accettata |
+| D114 | I candidati arrivano al modello **ordinati per somiglianza** | Il modello legge un elenco, e l'ordine è un'informazione che prima gli veniva nascosta | Accettata |
+| D115 | Se un documento **nomina proprio l'oggetto** riconosciuto, vince su quello generico, e la preferenza la applica il codice | Davanti a un cartone della pizza il modello ha scelto "Cartone da imballaggio" mentre "Cartone per pizze" era il primo risultato con il punteggio più alto | Accettata |
 | D112 | I **codici materiale** si agganciano in modo esatto con un'espressione regolare, non con una ricerca | Un codice ("PAP 21") è un identificatore, non un testo: era l'unico caso in cui il lessicale batteva il semantico, e tre righe lo risolvono meglio di duecento | Accettata |
 | D113 | L'agente non legge più dal relazionale a tempo di risposta: tutto ciò che serve è nel payload del documento | Superata la divisione "Qdrant trova, SQLite risponde" (D61): con le destinazioni nel testo e nel payload, il backend interroga un archivio solo. SQLite resta il punto di arrivo dell'ETL, da cui i documenti si costruiscono | Accettata |
 | D61 | Nel payload di Qdrant solo ciò che serve a cercare; destinazioni, condizioni e provenienza restano in SQLite | Superata da D113, per decisione di Stef: le destinazioni entrano nel testo indicizzato e nel payload. Il rischio di due verità è chiuso dalla ricostruzione totale | Superata da D113 |
@@ -252,6 +254,14 @@ Cose imparate che non sono decisioni, ma che conviene ricordare.
 ---
 
 ## Cronologia
+
+### v0.27.1 — 12/09/2026
+
+**Risultato del recupero.** Con i documenti nuovi, "Cartone per pizze. Se è pulito va in Carta e Cartoncino; se è unto va in Organico" è il primo risultato con 0.609: il recupero sul caso che ci aveva fatto penare per sei giri funziona.
+
+**Corretto.** Il modello sceglieva comunque "Cartone da imballaggio". Tre interventi: i candidati arrivano ordinati per somiglianza; se un documento nomina proprio l'oggetto riconosciuto vince sul generico, e la preferenza la applica il codice; il confronto fra nomi ignora preposizioni e articoli, perché "cartone della pizza" e "Cartone per pizze" differiscono solo per quelli.
+
+**Corretto.** Il chiarimento chiedeva "grandi quantità oppure nessuna condizione?": le varianti senza condizione non si nominano più, e se resta una sola alternativa non si chiede.
 
 ### v0.27.0 — 12/09/2026
 
