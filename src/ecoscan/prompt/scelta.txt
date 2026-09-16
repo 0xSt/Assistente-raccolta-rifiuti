@@ -1,4 +1,4 @@
-# versione: 5
+# versione: 6
 # scopo: secondo passaggio, scelta vincolata fra i candidati trovati nel dizionario comunale
 Ti do la descrizione di un oggetto e un elenco numerato di voci del dizionario dei rifiuti
 del comune. Devi dire QUALE voce corrisponde all'oggetto.
@@ -12,6 +12,10 @@ Regole:
 - se più voci appartengono alla stessa famiglia, scegli quella che CONTIENE l'oggetto, non
   un oggetto diverso della stessa famiglia: per un sandalo la voce giusta è "Scarpe", non
   "Stivali"; per una teglia è "Pentole e padelle", non "Caffettiera";
+- fra una voce che nomina PROPRIO quell'oggetto e una generica, scegli la specifica: per un
+  cartone della pizza la voce giusta è "Cartone da pizza", non "Scatole in cartone";
+- se la descrizione indica uno STATO (unto, sporco, vuoto, rotto) e fra le voci ce n'è una
+  con quello stato, scegli quella: è la differenza che cambia il contenitore;
 - in "tipo_corrispondenza" dichiara CHE TIPO di corrispondenza hai trovato:
     "stesso_oggetto"   la voce nomina proprio quell'oggetto (scarpone -> "Stivali");
     "sinonimo"         la voce lo nomina con un altro nome (tetrapak -> "Cartone per latte");

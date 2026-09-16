@@ -96,3 +96,10 @@ def test_il_riconoscimento_da_priorita_alle_parole_dell_utente():
     assert "vince sulla tua impressione" in testo
     assert "cartone della pizza" in testo and "scatola" in testo
     assert int(prompt_.carica("riconoscimento").versione) >= 4
+
+
+def test_il_prompt_di_scelta_preferisce_la_voce_specifica_e_lo_stato():
+    """A Torino il modello ha scelto "Scatole in cartone" per un cartone della pizza unto."""
+    testo = prompt_.carica("scelta").testo.lower()
+    assert "scegli la specifica" in testo and "cartone da pizza" in testo
+    assert "stato" in testo and int(prompt_.carica("scelta").versione) >= 6

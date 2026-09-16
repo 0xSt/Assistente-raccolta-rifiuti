@@ -504,3 +504,47 @@ def test_le_domande_non_si_ripetono():
     r = Riconoscimento(oggetto="bottiglia")
     poste = domande(r, "bottiglia")
     assert len(poste) == len(set(p.lower() for p in poste))
+
+
+@pytest.mark.parametrize("condizione, noto, atteso", [
+    ("sporco", "è unto", True),          # Torino scrive "sporco", l'utente dice "unto"
+    ("unto", "è sporco", True),
+    ("pulito", "è unto", False),
+    ("vuoto", "senza residui", True),
+    ("con residuo", "è unto", True),
+])
+def test_le_condizioni_equivalenti_fra_comuni(condizione, noto, atteso):
+    """Napoli scrive "unto", Torino "sporco": lo stesso stato con parole diverse."""
+    from ecoscan.agente.agente import _menzionata
+    assert _menzionata(condizione, noto) is atteso
+
+
+def test_affini_riconosce_la_voce_specifica_scartata_dal_modello():
+    """Il modello ha scelto "Scatole in cartone o cartoncino" mentre "Cartone da pizza" era
+    fra i candidati: gli omonimi della voce scelta non bastano a correggere."""
+    from ecoscan.agente.agente import affini
+
+    riconoscimento = Riconoscimento(oggetto="cartone della pizza", sinonimi=["scatola"])
+    candidati = [
+        Candidato(1, 1, "Scatole in cartone o cartoncino", nome="Scatole in cartone o cartoncino"),
+        Candidato(2, 1, "Cartone da pizza sporco", nome="Cartone da pizza", condizioni=["sporco"]),
+        Candidato(3, 1, "Sfalci d'erba", nome="Sfalci d'erba"),
+    ]
+    nomi = {c.nome for c in affini(candidati, riconoscimento, candidati[0])}
+    assert "Cartone da pizza" in nomi and "Sfalci d'erba" not in nomi
+
+
+def test_la_voce_specifica_con_lo_stato_vince_su_quella_generica(ambiente):
+    class SceglieLaGenerica(ModelloFinto):
+        def scegli(self, riconoscimento, candidati, testo_utente=None):
+            self.chiamate_scelta += 1
+            generiche = [c for c in candidati if "senza residuo" not in c.condizioni]
+            bersaglio = generiche[0] if generiche else candidati[0]
+            return Scelta(scheda_id=bersaglio.scheda_id, tipo_corrispondenza="stesso_oggetto",
+                          motivo="voce generica")
+
+    modello = SceglieLaGenerica(Riconoscimento(oggetto="capsula del caffè in plastica",
+                                               sinonimi=["capsula"], confidenza=0.9))
+    risposta = crea_agente(ambiente, modello).analizza(b"foto", "Torino", testo_utente="è vuota")
+    if any("senza residuo" in c.condizioni for c in risposta.candidati):
+        assert "senza residuo" in risposta.condizioni

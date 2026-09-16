@@ -38,19 +38,37 @@ def _radicalizza(testo: str) -> str:
     return " ".join(radice(p) for p in re.findall(r"[a-z0-9]+", testo.lower()))
 
 
+# Le fonti nominano lo stesso stato con parole diverse: Napoli scrive "unto", Torino
+# "sporco". Sono equivalenze fra CONDIZIONI, non sinonimi generici: restano poche e
+# verificate sui dati dei due comuni.
+CONDIZIONI_EQUIVALENTI = {
+    "unto": {"sporco"},
+    "sporco": {"unto"},
+    "pulito": {"non unto", "non sporco"},
+    "vuoto": {"senza residuo", "senza residui"},
+    "pieno": {"con residuo", "con residui"},
+    "con residuo": {"pieno", "sporco", "unto"},
+    "senza residuo": {"vuoto", "pulito"},
+}
+
+
 def _menzionata(condizione: str, noto: str) -> bool:
     """La condizione compare nel testo, tenendo conto della negazione.
 
     "unto" NON è menzionata in "non unto": senza questo controllo le due varianti di una
     voce sarebbero indistinguibili proprio quando l'utente è stato più preciso.
     """
-    c = _radicalizza(condizione or "")
     testo = _radicalizza(noto or "")
-    if not c or c not in testo:
+    if not testo:
         return False
-    if c.startswith("non "):
-        return True
-    return f"non {c}" not in testo
+    base = (condizione or "").lower().strip()
+    for variante in {base, *CONDIZIONI_EQUIVALENTI.get(base, set())}:
+        c = _radicalizza(variante)
+        if not c or c not in testo:
+            continue
+        if c.startswith("non ") or f"non {c}" not in testo:
+            return True
+    return False
 
 
 def _testo_noto(testi: list[str | None]) -> str:
@@ -82,6 +100,27 @@ def domande(riconoscimento: Riconoscimento, testo_utente: str | None = None) -> 
             if formulazione and formulazione.lower() not in {d.lower() for d in domande_}:
                 domande_.append(formulazione)
     return domande_
+
+
+def _radici(testo: str | None) -> set[str]:
+    return {radice(p) for p in re.findall(r"[a-z0-9]+", (testo or "").lower()) if len(p) >= 4}
+
+
+def affini(candidati: list[Candidato], riconoscimento: Riconoscimento,
+           scelto: Candidato | None = None) -> list[Candidato]:
+    """Candidati che parlano dello STESSO oggetto, anche con un nome diverso.
+
+    Non basta guardare gli omonimi della voce scelta: davanti a un cartone della pizza il
+    modello ha scelto la voce generica "Scatole in cartone o cartoncino" mentre "Cartone da
+    pizza" era fra i candidati. L'affinità si misura sulle parole condivise con l'oggetto
+    riconosciuto e i suoi sinonimi.
+    """
+    riferimento = _radici(" ".join([riconoscimento.oggetto, *riconoscimento.sinonimi]))
+    if scelto is not None:
+        riferimento |= _radici(scelto.nome)
+    if not riferimento:
+        return []
+    return [c for c in candidati if _radici(c.nome or c.testo) & riferimento]
 
 
 def scegli_per_condizione(omonimi: list[Candidato],
@@ -149,11 +188,14 @@ class Agente:
                    if c.nome and scelto.nome and c.nome.lower() == scelto.nome.lower()]
         noti = [testo_utente, riconoscimento.stato]
 
-        # Se l'utente ha dichiarato la condizione, la scelta fra omonimi la fa il codice:
-        # "è unto" manda il cartone nell'organico, non nella carta, e il modello aveva
-        # scelto la variante sbagliata.
+        # Se l'utente ha dichiarato la condizione, la scelta la fa il codice: "è unto" manda
+        # il cartone nell'organico, non nella carta. Si guardano gli omonimi e, se lì non
+        # c'è nulla, tutte le voci che parlano dello stesso oggetto: il modello può aver
+        # scelto una voce generica quando ne esisteva una specifica.
         motivo_condizione = ""
-        if (per_condizione := scegli_per_condizione(omonimi, noti)) and per_condizione is not scelto:
+        gruppo = omonimi if any(c.condizioni for c in omonimi) else affini(candidati, riconoscimento,
+                                                                          scelto)
+        if (per_condizione := scegli_per_condizione(gruppo, noti)) and per_condizione is not scelto:
             scelto = per_condizione
             motivo_condizione = (f"variante scelta in base alla condizione dichiarata: "
                                  f"{', '.join(scelto.condizioni)}")

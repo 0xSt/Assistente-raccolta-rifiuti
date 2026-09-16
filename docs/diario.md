@@ -127,6 +127,8 @@ Formato: decisione, motivazione, stato.
 | D98 | Il frontend parla solo con le API, e un test verifica che non importi l'agente né il database | Se importasse il backend, la valutazione misurerebbe qualcosa di diverso da ciò che usa l'utente | Accettata |
 | D99 | La formattazione dei messaggi sta in un modulo a parte, con i suoi test | È la parte che si sbaglia più facilmente: una regola di esclusione presentata male dice l'opposto del vero | Accettata |
 | D96 | La rotta `/riscontro` registra il giudizio dell'utente su una risposta | Ogni riga è un esempio etichettato da una persona: è il modo meno costoso di costruire il set di valutazione, che oggi non esiste | Accettata |
+| D105 | La correzione per condizione guarda anche le voci **affini**, non solo gli omonimi della voce scelta | A Torino il modello ha scelto "Scatole in cartone o cartoncino" mentre "Cartone da pizza" era fra i candidati: gli omonimi della voce scelta erano vuoti e nessuna correzione scattava | Accettata |
+| D106 | Poche **equivalenze fra condizioni**, verificate sui dati dei due comuni: unto ≈ sporco, vuoto ≈ senza residuo | Napoli scrive "unto", Torino "sporco": lo stesso stato con parole diverse. Restano un elenco corto e controllato, non un dizionario di sinonimi generico | Accettata |
 | D103 | Le parole dell'utente diventano **domande per l'indice**, non solo contesto per il modello | Chi scrive "cartone della pizza unto" ha appena detto cosa cercare. Prima quel testo arrivava solo al modello, e una descrizione precisa non aiutava il recupero | Accettata |
 | D104 | Nel riconoscimento, ciò che dice l'utente **vince** sull'impressione del modello | Davanti a un cartone della pizza il modello ha risposto "scatola", ignorando l'utente. L'utente l'oggetto ce l'ha in mano, il modello vede una fotografia | Accettata |
 | D101 | Se l'utente dichiara una condizione, la scelta fra voci omonime la fa il **codice**, non il modello | "È unto" manda il cartone nell'organico e quello pulito nella carta: la differenza fra le due risposte è l'intero scopo dell'applicazione, e il modello aveva scelto la variante sbagliata | Accettata |
@@ -219,6 +221,7 @@ Cose imparate che non sono decisioni, ma che conviene ricordare.
 - **ASIA pubblica poche esclusioni, e quasi solo come grafica.** Testo solo per il Vetro; dentro l'immagine per l'Umido; per Plastica e Carta non esistono proprio. Torino ne pubblica 27 contro le 11 di Napoli: la stessa informazione, con profondità molto diversa. Una fonte può essere incompleta *per come è pubblicata*, non per come la leggiamo: il controllo che distingue i due casi è ciò che ha permesso di capirlo in un giro solo.
 - **Le esclusioni spiegano il dizionario.** La pagina del vetro di Napoli esclude bicchieri, piatti, pirofile e lastre: esattamente le voci che nel dizionario finiscono nel non riciclabile. Ciò che sembrava incoerenza è una regola dichiarata.
 - **Divergenze fra comuni utili da citare**: bicchiere di vetro (Napoli non riciclabile, Torino vetro); tappo di sughero (Napoli organico, Torino centro di raccolta o organico); pentole e padelle (Napoli plastica e metalli, Torino centro di raccolta). Una convergenza: il vetro dei profumi non è riciclabile in entrambi.
+- **Due comuni nominano lo stesso stato con parole diverse.** Napoli scrive "unto", Torino "sporco": una correzione basata sul confronto letterale funziona in un comune e non nell'altro. È il tipo di differenza che si scopre solo provando entrambi.
 - **Le informazioni dell'utente vanno usate in tutti i punti in cui servono, non in uno solo.** Il testo "è unto" veniva passato al modello di visione e alla scelta, ma non alla ricerca: le domande poste all'indice erano "scatola", "cartone", "confezione". Un dato raccolto e non usato è peggio di un dato mancante, perché sembra di averlo già sfruttato.
 - **Togliere una domanda senza correggere la scelta peggiora le cose.** Smesso di chiedere "unto o pulito?", il sistema ha cominciato a rispondere "Carta e Cartoncino" a chi aveva scritto "è unto": prima l'errore era visibile, dopo no. Una decisione che cambia la risposta non va lasciata al modello se i dati bastano a prenderla.
 - **Chiedere ciò che è già stato detto vanifica la conversazione.** Il chiarimento nasceva dai dati (omonimi con destinazioni diverse) senza guardare ciò che l'utente aveva scritto né lo stato visto nella foto. E `continua` ricalcolava la domanda da zero, quindi la riproponeva identica: un giro senza uscita.
@@ -243,6 +246,16 @@ Cose imparate che non sono decisioni, ma che conviene ricordare.
 ---
 
 ## Cronologia
+
+### v0.25.1 — 12/09/2026
+
+**Risultato a Napoli.** Con la foto e "è unto" il riconoscimento dà "cartone della pizza" con stato "unto", e la risposta è "Cartone per pizze unto → Organico". Il percorso completo funziona.
+
+**Corretto (emerso a Torino).** Lo stesso caso dava "carta e cartone": il modello aveva scelto la voce generica "Scatole in cartone o cartoncino" mentre "Cartone da pizza" era fra i candidati, e la correzione per condizione guardava solo gli omonimi della voce scelta, che erano zero. Ora guarda anche le voci **affini**, cioè quelle che condividono parole con l'oggetto riconosciuto.
+
+**Aggiunto.** Un elenco corto di equivalenze fra condizioni (unto ≈ sporco, vuoto ≈ senza residuo), perché i due comuni nominano lo stesso stato con parole diverse.
+
+**Modificato.** Prompt di scelta alla versione 6: fra una voce che nomina proprio l'oggetto e una generica va scelta la specifica; se la descrizione indica uno stato e una voce lo riporta, è quella.
 
 ### v0.25.0 — 12/09/2026
 
