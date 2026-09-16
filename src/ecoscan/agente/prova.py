@@ -60,9 +60,9 @@ def stampa_risposta(risposta: Risposta) -> None:
     for c in risposta.candidati:
         marcatore = "->" if c.destinazioni else "  "
         etichetta = f"L{c.livello}" + (f" {c.polarita}" if c.polarita else "")
-        trovato = ", ".join(f"{m} #{p}" for m, p in c.posizioni.items())
-        print(f"  {etichetta:12} {c.testo[:42]:42} {marcatore} "
-              f"{' oppure '.join(c.destinazioni)[:34]:34} [{trovato}]")
+        origine = f"codice {c.per_codice}" if c.per_codice else f"{c.punteggio:.3f}"
+        print(f"  {etichetta:12} {c.testo[:52]:52} {marcatore} "
+              f"{' oppure '.join(c.destinazioni)[:26]:26} [{origine}]")
 
     print(f"\n## Risposta (livello di evidenza {risposta.livello_evidenza})")
     if risposta.destinazioni:
@@ -164,7 +164,7 @@ def main() -> None:
             raise SystemExit(f"comune sconosciuto: {args.comune}. Caricati: {', '.join(comuni)}")
 
         qdrant = apri_qdrant()
-        agente = Agente(db, qdrant, VettorizzatoreOllama(), modello, k=args.k)
+        agente = Agente(qdrant, VettorizzatoreOllama(), modello, k=args.k)
 
         if args.oggetto:
             riconoscimento = Riconoscimento(oggetto=args.oggetto, confidenza=1.0)

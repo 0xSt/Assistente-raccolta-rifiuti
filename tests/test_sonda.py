@@ -35,16 +35,16 @@ def test_ogni_sonda_difficile_ha_una_nota():
 
 
 def test_migliore_prende_la_posizione_piu_alta():
-    esito = Esito(Sonda("Napoli", "x", "y"), {"lessicale": None, "semantica": 7, "ibrida": 3})
-    assert esito.migliore == 3
-    assert Esito(Sonda("Napoli", "x", "y"), {"lessicale": None}).migliore is None
+    esito = Esito(Sonda("Napoli", "x", "y"), {"semantica": 7})
+    assert esito.migliore == 7
+    assert Esito(Sonda("Napoli", "x", "y"), {"semantica": None}).migliore is None
 
 
 def test_il_riepilogo_segnala_le_domande_mai_trovate(capsys):
     esiti = [Esito(Sonda("Napoli", "sandalo", "Scarpe"),
-                   {"lessicale": None, "semantica": None, "ibrida": None}, primo="Salse"),
+                   {"semantica": None}, primo="Salse"),
              Esito(Sonda("Napoli", "bottiglia", "Bottiglia"),
-                   {"lessicale": 1, "semantica": 1, "ibrida": 1}, trovato="Bottiglia in plastica")]
+                   {"semantica": 1}, trovato="Bottiglia in plastica")]
     riepilogo(esiti, k=20)
     uscita = capsys.readouterr().out
     assert "Mai trovate" in uscita and "sandalo" in uscita
@@ -54,6 +54,5 @@ def test_il_riepilogo_segnala_le_domande_mai_trovate(capsys):
 def test_il_riepilogo_mostra_il_primo_risultato_quando_l_attesa_fallisce(capsys):
     """Sapere cosa ha trovato al posto giusto indirizza la correzione."""
     riepilogo([Esito(Sonda("Napoli", "sandalo", "Scarpe utilizzabile"),
-                     {"lessicale": None, "semantica": None, "ibrida": None},
-                     primo="Salse")], k=20)
+                     {"semantica": None}, primo="Salse")], k=20)
     assert "primo: Salse" in capsys.readouterr().out

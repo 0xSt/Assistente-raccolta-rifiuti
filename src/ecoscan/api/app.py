@@ -98,7 +98,7 @@ def crea_app(risorse: Risorse | None = None, riscontri: Path = RISCONTRI) -> Fas
         controlla_comune(r, dati.comune)
         trovati = []
         for livello in ([dati.livello] if dati.livello else [1, 2]):
-            trovati.extend(recupera(r.db, r.qdrant, r.vettorizzatore, dati.domanda,
+            trovati.extend(recupera(r.qdrant, r.vettorizzatore, [dati.domanda],
                                     dati.comune, livello=livello, k=dati.k))
         return [CandidatoUscita.da(c) for c in trovati]
 

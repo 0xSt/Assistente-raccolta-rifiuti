@@ -1,127 +1,100 @@
-"""Dal testo ai candidati, arricchiti con i dati del relazionale.
+"""Dai documenti ai candidati, e dalla condizione dichiarata alla variante giusta.
 
-La ricerca trova delle schede; qui diventano `Candidato`, cioè oggetti che portano con sé
-destinazioni, condizioni, avvertenza e fonte. Quei dati arrivano **sempre da SQLite**, mai
-dal payload di Qdrant (D61): l'indice dice quali schede somigliano alla domanda, il
-relazionale dice cosa significano.
+La ricerca restituisce **documenti**: un oggetto con tutte le sue varianti, oppure una
+regola di categoria. Il modello sceglie l'oggetto, che è il compito in cui è bravo; la
+variante la sceglie il codice in base a ciò che l'utente ha detto, o la si chiede.
 
-La cascata dei livelli di evidenza (D10) è qui: prima le voci di dizionario (livello 1),
-poi le regole di categoria (livello 2). Non si mescolano in un'unica classifica, perché
-significano cose diverse: una voce dice dove va *quell'oggetto*, una regola dice cosa entra
-in *quel contenitore*.
+Tutto ciò che serve a rispondere è nel payload del documento: destinazioni, condizioni,
+avvertenza, fonte. Non c'è più nessuna lettura aggiuntiva dal relazionale.
 """
 from __future__ import annotations
 
-import sqlite3
-from typing import Sequence
+import re
 
-from ecoscan.agente.tipi import Candidato
-from ecoscan.db.indicizza import cerca as cerca_lessicale
-from ecoscan.db.vettorizza import cerca_semantica, fondi_rrf
+from ecoscan.agente.tipi import Candidato, Riconoscimento, Variante
+from ecoscan.db.vettorizza import cerca, cerca_per_codice
 
-
-def _dettagli(db: sqlite3.Connection, scheda_id: int) -> dict:
-    riga = db.execute("""
-        SELECT s.livello, s.testo, v.nome, v.avvertenza,
-               (SELECT group_concat(d.nome, '|') FROM voce_destinazione vd
-                  JOIN destinazione d ON d.id = vd.destinazione_id
-                 WHERE vd.voce_id = s.voce_id ORDER BY vd.ordine),
-               (SELECT group_concat(vc.condizione, '|') FROM voce_condizione vc
-                 WHERE vc.voce_id = s.voce_id),
-               r.polarita, r.fonte, r.riferimento, r.dettaglio,
-               (SELECT d.nome FROM destinazione d WHERE d.id = r.destinazione_id)
-        FROM scheda s
-        LEFT JOIN voce v ON v.id = s.voce_id
-        LEFT JOIN regola r ON r.id = s.regola_id
-        WHERE s.id = ?""", (scheda_id,)).fetchone()
-    if not riga:
-        return {}
-    livello, testo, nome, avvertenza, dest_voce, condizioni, polarita, fonte, rif, dettaglio, dest_regola = riga
-    return {
-        "livello": livello, "testo": testo, "nome": nome,
-        "condizioni": condizioni.split("|") if condizioni else [],
-        "destinazioni": dest_voce.split("|") if dest_voce else ([dest_regola] if dest_regola else []),
-        "polarita": polarita, "avvertenza": avvertenza or dettaglio,
-        "fonte": fonte, "riferimento": rif,
-    }
+# Le fonti nominano lo stesso stato con parole diverse: Napoli scrive "unto", Torino
+# "sporco". Poche equivalenze, verificate sui dati dei due comuni.
+CONDIZIONI_EQUIVALENTI = {
+    "unto": {"sporco"},
+    "sporco": {"unto"},
+    "pulito": {"non unto", "non sporco"},
+    "vuoto": {"senza residuo", "senza residui"},
+    "pieno": {"con residuo", "con residui"},
+    "con residuo": {"pieno", "sporco", "unto"},
+    "senza residuo": {"vuoto", "pulito"},
+}
 
 
-def arricchisci(db: sqlite3.Connection, risultati: Sequence[dict]) -> list[Candidato]:
-    candidati = []
-    for r in risultati:
-        dettagli = _dettagli(db, r["scheda_id"])
-        if not dettagli:
+def radice(parola: str) -> str:
+    """Toglie la vocale finale alle parole lunghe: l'utente scrive al plurale e la fonte
+    al singolare ("non utilizzabili" contro "non utilizzabile")."""
+    return parola[:-1] if len(parola) >= 5 and parola[-1] in "aeio" else parola
+
+
+def _radicalizza(testo: str) -> str:
+    return " ".join(radice(p) for p in re.findall(r"[a-z0-9]+", (testo or "").lower()))
+
+
+def menzionata(condizione: str, noto: str) -> bool:
+    """La condizione compare nel testo, tenendo conto della negazione.
+
+    "unto" NON è menzionata in "non unto": senza questo controllo le due varianti di un
+    oggetto sarebbero indistinguibili proprio quando l'utente è stato più preciso.
+    """
+    testo = _radicalizza(noto)
+    if not testo:
+        return False
+    base = (condizione or "").lower().strip()
+    for variante in {base, *CONDIZIONI_EQUIVALENTI.get(base, set())}:
+        c = _radicalizza(variante)
+        if not c or c not in testo:
             continue
-        candidati.append(Candidato(scheda_id=r["scheda_id"], posizioni=r.get("posizioni", {}),
-                                   **dettagli))
-    return candidati
+        if c.startswith("non ") or f"non {c}" not in testo:
+            return True
+    return False
 
 
-def candidati(db: sqlite3.Connection, qdrant, vettorizzatore, query: str | Sequence[str],
-              comune: str, livello: int, k: int = 8) -> list[Candidato]:
-    """Ricerca ibrida su un solo livello di evidenza, dentro un solo comune.
+def candidati(qdrant, vettorizzatore, domande: list[str], comune: str, livello: int,
+              k: int = 8) -> list[Candidato]:
+    """Una ricerca per ogni domanda, i risultati uniti senza duplicati.
 
-    `query` può essere una domanda sola o più formulazioni della stessa: in quel caso ogni
-    formulazione produce due classifiche (lessicale e semantica) e tutte vengono fuse con
-    RRF. Una voce trovata da più formulazioni sale, il che è esattamente ciò che si vuole.
+    Nessuna fusione da tarare: i documenti già trovati non si ripetono, gli altri si
+    accodano. Con documenti per oggetto bastano poche domande.
     """
-    domande = [query] if isinstance(query, str) else list(query)
-    classifiche: dict[str, list[dict]] = {}
-    for n, domanda in enumerate(d for d in domande if d and d.strip()):
-        classifiche[f"lessicale{n}"] = cerca_lessicale(db, domanda, comune, livello=livello, k=k)
-        classifiche[f"semantica{n}"] = cerca_semantica(qdrant, domanda, comune, vettorizzatore,
-                                                       livello=livello, k=k)
-    if not classifiche:
-        return []
-    return arricchisci(db, _fondi_garantendo_i_primi(classifiche, k))
+    trovati: dict[str, Candidato] = {}
+    for domanda in (d for d in domande if d and d.strip()):
+        for payload in cerca_per_codice(qdrant, domanda, comune, k=2):
+            if payload.get("livello") == livello:
+                trovati.setdefault(payload["id"], Candidato.da_payload(payload))
+        for payload in cerca(qdrant, domanda, comune, vettorizzatore, livello=livello, k=k):
+            trovati.setdefault(payload["id"], Candidato.da_payload(payload))
+    return list(trovati.values())[:k + 4]
 
 
-PRIMI_GARANTITI = 2     # quanti risultati di ciascuna formulazione entrano comunque
-MASSIMO_CANDIDATI = 12  # oltre, il prompt della scelta si allunga senza aggiungere scelte utili
+def scegli_variante(candidato: Candidato, testi: list[str | None]) -> tuple[Variante | None, list[str]]:
+    """La variante che corrisponde a ciò che sappiamo, e le condizioni ancora in gioco.
 
-
-def _fondi_garantendo_i_primi(classifiche: dict[str, list[dict]], k: int,
-                              garantiti: int = PRIMI_GARANTITI,
-                              massimo: int = MASSIMO_CANDIDATI) -> list[dict]:
-    """Fonde con RRF, ma garantisce i primi risultati di OGNI formulazione.
-
-    Con otto classifiche la fusione premia chi compare in molte, e una scheda trovata da una
-    sola formulazione può restare fuori. Si garantiscono DUE posizioni e non una perché la
-    misura lo ha mostrato: "calzatura" trova "Scarpe utilizzabile" al secondo posto, dietro
-    "Laccio per scarpe".
-
-    Il tetto serve al passaggio successivo: un elenco lungo allunga il prompt della scelta
-    senza aggiungere scelte utili, e su CPU il tempo si paga.
+    Se l'oggetto ha una variante sola, non c'è nulla da decidere. Se ne ha più d'una e
+    l'utente ha dichiarato la condizione, si prende quella: "è unto" manda il cartone
+    nell'organico e quello pulito nella carta, ed è la differenza che dà senso all'app.
+    Se nessuna corrisponde, le condizioni tornano indietro per farne una domanda.
     """
-    fusi = fondi_rrf(classifiche, k=k)
-    presenti = {r["scheda_id"] for r in fusi}
-    for posizione in range(garantiti):
-        for metodo, risultati in classifiche.items():
-            if len(fusi) >= massimo:
-                return fusi
-            if len(risultati) > posizione and risultati[posizione]["scheda_id"] not in presenti:
-                aggiunto = dict(risultati[posizione])
-                aggiunto["posizioni"] = {metodo: posizione + 1}
-                fusi.append(aggiunto)
-                presenti.add(aggiunto["scheda_id"])
-    return fusi
+    varianti = candidato.varianti
+    if not varianti:
+        return None, []
+    if len(varianti) == 1:
+        return varianti[0], []
 
+    noto = " ".join(t for t in testi if t)
+    for variante in varianti:
+        if variante.condizioni and all(menzionata(c, noto) for c in variante.condizioni):
+            return variante, []
+    for variante in varianti:
+        if any(menzionata(c, noto) for c in variante.condizioni):
+            return variante, []
 
-def condizioni_in_gioco(candidati_: Sequence[Candidato]) -> list[str]:
-    """Condizioni che distinguono candidati con lo STESSO nome ma destinazioni diverse.
-
-    È il segnale che serve una domanda all'utente invece di una risposta: "Capsule del caffè
-    in plastica" *con residuo* e *senza residuo* vanno in contenitori diversi, e dalla foto
-    la differenza spesso non si vede.
-    """
-    per_nome: dict[str, list[Candidato]] = {}
-    for c in candidati_:
-        if c.nome:
-            per_nome.setdefault(c.nome.lower(), []).append(c)
-    condizioni: list[str] = []
-    for gruppo in per_nome.values():
-        destinazioni = {tuple(c.destinazioni) for c in gruppo}
-        if len(gruppo) > 1 and len(destinazioni) > 1:
-            for c in gruppo:
-                condizioni.extend(x for x in c.condizioni if x not in condizioni)
-    return condizioni
+    # nessuna corrisponde: si chiede, elencando le alternative come le scrive la fonte
+    condizioni = [v.condizione or "nessuna condizione" for v in varianti]
+    return None, condizioni

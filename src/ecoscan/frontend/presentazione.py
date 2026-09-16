@@ -41,6 +41,9 @@ def corpo(risposta: dict) -> str:
 
     if livello == 3:
         righe.append("Puoi controllare sul sito del comune o portarlo a un centro di raccolta.")
+    if risposta.get("contraddizione"):
+        righe.append("Attenzione: la fonte del comune indica destinazioni diverse per lo "
+                     "stesso caso.")
     if chiarimento := risposta.get("chiarimento"):
         righe.append(f"**{chiarimento}**")
 
@@ -64,7 +67,7 @@ def riassunto_candidati(risposta: dict) -> list[dict]:
     """Righe per la tabella dei candidati: si mostra come l'agente è arrivato alla risposta."""
     return [{
         "livello": c.get("livello"),
-        "voce": c.get("testo"),
-        "destinazione": " oppure ".join(c.get("destinazioni") or []) or "-",
-        "trovata da": ", ".join(f"{m} #{p}" for m, p in (c.get("trovato_da") or {}).items()),
+        "documento": c.get("testo"),
+        "destinazioni": " oppure ".join(c.get("destinazioni") or []) or "-",
+        "somiglianza": round(c.get("punteggio") or 0.0, 3),
     } for c in risposta.get("candidati") or []]

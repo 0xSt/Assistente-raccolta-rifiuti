@@ -201,5 +201,5 @@ class ModelloOllama:
         if not 1 <= numero <= len(candidati):
             return Scelta(scheda_id=None, tipo_corrispondenza=tipo or "nessuna",
                           motivo=motivo or "nessuna voce corrisponde")
-        return Scelta(scheda_id=candidati[numero - 1].scheda_id, tipo_corrispondenza=tipo,
+        return Scelta(scheda_id=candidati[numero - 1].id, tipo_corrispondenza=tipo,
                       motivo=motivo, chiarimento=_chiarimento(dati.get("chiarimento")))

@@ -9,7 +9,7 @@ e verificata contro le destinazioni che compaiono davvero nelle voci normalizzat
 I testi NON vengono spezzati. Una cella come "Piatti, bicchieri e bicchierini da caffè in
 plastica anche sporchi" resta intera: separarla perderebbe la qualificazione che vale per
 tutti i termini, lo stesso errore già corretto sulle voci composte (D27b). Per la ricerca
-la cella intera funziona, perché trigrammi ed embedding lavorano su tutto il testo.
+la cella intera funziona, perché l'embedding lavora su tutto il testo.
 
 Uso:
   uv run ecoscan-regole            # entrambi i comuni -> data/normalizzato/regole.jsonl

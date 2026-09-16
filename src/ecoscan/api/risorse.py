@@ -18,7 +18,7 @@ from pathlib import Path
 from ecoscan import configurazione as conf
 from ecoscan.agente.agente import Agente
 from ecoscan.agente.modelli import ModelloOllama, ModelloVisione
-from ecoscan.db.vettorizza import DB, COLLEZIONE, VettorizzatoreOllama, apri_qdrant
+from ecoscan.db.vettorizza import COLLEZIONE, DB, VettorizzatoreOllama, apri_qdrant
 
 
 def apri_database_in_lettura(percorso: Path) -> sqlite3.Connection:
@@ -43,7 +43,7 @@ class Risorse:
         vettorizzatore = VettorizzatoreOllama()
         modello = ModelloOllama()
         return cls(db, qdrant, vettorizzatore, modello,
-                   Agente(db, qdrant, vettorizzatore, modello, k=k))
+                   Agente(qdrant, vettorizzatore, modello, k=k))
 
     def chiudi(self) -> None:
         self.db.close()

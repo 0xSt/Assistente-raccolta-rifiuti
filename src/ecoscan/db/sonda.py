@@ -7,7 +7,7 @@ al retrieval è un tentativo alla cieca.
 
 Ogni sonda è una riga di `data/riferimento/sonde.csv`: comune, domanda, e un pezzo di testo
 che deve comparire nella scheda attesa. Il comando riporta la posizione raggiunta da ciascun
-metodo (lessicale, semantico, ibrido).
+documento atteso.
 
 È il primo mattone della valutazione, ma sul solo retrieval: niente foto, niente modello di
 visione, quindi gira in pochi secondi e si può ripetere a ogni modifica.
@@ -25,8 +25,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from ecoscan import configurazione as conf
-from ecoscan.db.indicizza import cerca as cerca_lessicale
-from ecoscan.db.vettorizza import DB, VettorizzatoreOllama, apri_qdrant, cerca_semantica, fondi_rrf
+from ecoscan.db.vettorizza import DB, VettorizzatoreOllama, apri_qdrant, cerca, cerca_per_codice
 from ecoscan.percorsi import DATI
 
 SONDE = DATI / "riferimento" / "sonde.csv"
@@ -80,40 +79,33 @@ def esegui(db: sqlite3.Connection, qdrant, vettorizzatore, sonde: list[Sonda],
            k: int = 20) -> list[Esito]:
     esiti = []
     for sonda in sonde:
-        lessicale = cerca_lessicale(db, sonda.domanda, sonda.comune, k=k)
-        semantica = cerca_semantica(qdrant, sonda.domanda, sonda.comune, vettorizzatore, k=k)
-        ibrida = fondi_rrf({"lessicale": lessicale, "semantica": semantica}, k=k)
-        posizioni, trovato = {}, ""
-        for metodo, risultati in (("lessicale", lessicale), ("semantica", semantica),
-                                  ("ibrida", ibrida)):
-            posizioni[metodo], testo = _posizione(risultati, sonda.atteso)
-            trovato = trovato or testo
-        esiti.append(Esito(sonda, posizioni, trovato=trovato,
-                           primo=(ibrida[0].get("testo") or "") if ibrida else ""))
+        per_codice = cerca_per_codice(qdrant, sonda.domanda, sonda.comune, k=2)
+        semantica = cerca(qdrant, sonda.domanda, sonda.comune, vettorizzatore, k=k)
+        # i codici materiale si agganciano in modo esatto e precedono la ricerca
+        risultati = per_codice + [r for r in semantica
+                                  if r["id"] not in {p["id"] for p in per_codice}]
+        posizione, trovato = _posizione(risultati, sonda.atteso)
+        esiti.append(Esito(sonda, {"semantica": posizione}, trovato=trovato,
+                           primo=(risultati[0].get("testo") or "") if risultati else ""))
     return esiti
 
 
 def riepilogo(esiti: list[Esito], k: int) -> None:
-    print(f"{'domanda':30} {'attesa':26} {'less.':>6} {'sem.':>6} {'ibr.':>6}  trovato / primo")
-    print("-" * 112)
+    print(f"{'domanda':30} {'attesa':26} {'pos.':>6}  trovato / primo")
+    print("-" * 104)
     for e in esiti:
-        def mostra(metodo: str) -> str:
-            p = e.posizioni[metodo]
-            return f"#{p}" if p else "-"
-        # il testo trovato smaschera i falsi positivi; senza, "Scarpe" sembra trovato
-        # anche quando la scheda è "Laccio per scarpe"
+        posizione = e.posizioni["semantica"]
+        # il testo trovato smaschera i falsi positivi: senza, "Scarpe" sembra trovato
+        # anche quando il documento è "Laccio per scarpe"
         dettaglio = e.trovato or (f"(primo: {e.primo})" if e.primo else "")
         print(f"{e.sonda.domanda[:29]:30} {e.sonda.atteso[:25]:26} "
-              f"{mostra('lessicale'):>6} {mostra('semantica'):>6} {mostra('ibrida'):>6}  {dettaglio[:40]}")
+              f"{f'#{posizione}' if posizione else '-':>6}  {dettaglio[:44]}")
 
     print()
-    for metodo in ("lessicale", "semantica", "ibrida"):
-        posizioni = [e.posizioni[metodo] for e in esiti]
-        trovate = [p for p in posizioni if p]
-        primi = sum(1 for p in trovate if p == 1)
-        entro3 = sum(1 for p in trovate if p <= 3)
-        print(f"  {metodo:10} trovate {len(trovate)}/{len(esiti)} | "
-              f"al primo posto {primi} | fra i primi 3 {entro3}")
+    trovate = [e.posizioni["semantica"] for e in esiti if e.posizioni["semantica"]]
+    print(f"  trovate {len(trovate)}/{len(esiti)} | "
+          f"al primo posto {sum(1 for p in trovate if p == 1)} | "
+          f"fra i primi 3 {sum(1 for p in trovate if p <= 3)}")
     mai = [e.sonda.domanda for e in esiti if e.migliore is None]
     if mai:
         print(f"\nMai trovate entro i primi {k} risultati con nessun metodo: {', '.join(mai)}")
@@ -132,9 +124,8 @@ def main() -> None:
 
     sonde = carica_sonde(args.sonde)
     qdrant = apri_qdrant()
-    with sqlite3.connect(args.db) as db:
-        print(f"\n{len(sonde)} sonde, cerco la scheda attesa fra i primi {args.k} risultati\n")
-        riepilogo(esegui(db, qdrant, VettorizzatoreOllama(), sonde, args.k), args.k)
+    print(f"\n{len(sonde)} sonde, cerco il documento atteso fra i primi {args.k} risultati\n")
+    riepilogo(esegui(None, qdrant, VettorizzatoreOllama(), sonde, args.k), args.k)
 
 
 if __name__ == "__main__":

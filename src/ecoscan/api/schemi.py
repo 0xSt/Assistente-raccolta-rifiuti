@@ -25,22 +25,28 @@ class RiconoscimentoUscita(BaseModel):
                    materiali=r.materiali, stato=r.stato, confidenza=r.confidenza)
 
 
+class VarianteUscita(BaseModel):
+    condizione: str | None = None
+    destinazioni: list[str] = []
+    avvertenza: str | None = None
+
+
 class CandidatoUscita(BaseModel):
-    scheda_id: int
-    livello: int = Field(description="1 voce di dizionario, 2 regola di categoria")
+    id: str
+    livello: int = Field(description="1 oggetto di dizionario, 2 regola di categoria")
     testo: str
     nome: str | None = None
-    condizioni: list[str] = []
+    varianti: list[VarianteUscita] = []
     destinazioni: list[str] = []
     polarita: str | None = None
-    trovato_da: dict[str, int] = Field(default_factory=dict,
-                                       description="metodo di ricerca -> posizione")
+    punteggio: float = 0.0
 
     @classmethod
     def da(cls, c: Candidato) -> "CandidatoUscita":
-        return cls(scheda_id=c.scheda_id, livello=c.livello, testo=c.testo, nome=c.nome,
-                   condizioni=c.condizioni, destinazioni=c.destinazioni, polarita=c.polarita,
-                   trovato_da=c.posizioni)
+        return cls(id=c.id, livello=c.livello, testo=c.testo, nome=c.nome,
+                   varianti=[VarianteUscita(condizione=v.condizione, destinazioni=v.destinazioni,
+                                            avvertenza=v.avvertenza) for v in c.varianti],
+                   destinazioni=c.destinazioni, polarita=c.polarita, punteggio=c.punteggio)
 
 
 class RispostaUscita(BaseModel):
@@ -59,6 +65,7 @@ class RispostaUscita(BaseModel):
     definitiva: bool
     tipo_corrispondenza: str = ""
     motivo: str = ""
+    contraddizione: bool = False
     riconoscimento: RiconoscimentoUscita | None = None
     candidati: list[CandidatoUscita] = []
     contesto: dict = Field(
@@ -73,6 +80,7 @@ class RispostaUscita(BaseModel):
             avvertenza=r.avvertenza, fonte=r.fonte, riferimento=r.riferimento,
             chiarimento=r.chiarimento, definitiva=r.definitiva,
             tipo_corrispondenza=r.tipo_corrispondenza, motivo=r.motivo,
+            contraddizione=r.contraddizione,
             riconoscimento=RiconoscimentoUscita.da(r.riconoscimento) if r.riconoscimento else None,
             candidati=[CandidatoUscita.da(c) for c in r.candidati], contesto=r.contesto)
 

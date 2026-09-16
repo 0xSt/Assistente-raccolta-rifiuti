@@ -53,13 +53,23 @@ def test_il_chiarimento_e_evidenziato(capsys):
     assert "DA CHIEDERE" in uscita and "definitiva:  no" in uscita
 
 
-def test_i_candidati_mostrano_livello_e_provenienza(capsys):
+def test_i_candidati_mostrano_livello_e_somiglianza(capsys):
+    from ecoscan.agente.tipi import Variante
     stampa_risposta(Risposta(livello_evidenza=1, comune="Torino", destinazioni=["organico"],
-                             candidati=[Candidato(1, 1, "Bucce di frutta", nome="Bucce",
-                                                  destinazioni=["organico"],
-                                                  posizioni={"lessicale": 1, "semantica": 2})]))
+                             candidati=[Candidato(id="oggetto:Torino:bucce", livello=1,
+                                                  testo="Bucce di frutta. Va in organico.",
+                                                  nome="Bucce di frutta", punteggio=0.87,
+                                                  varianti=[Variante([], ["organico"])])]))
     uscita = capsys.readouterr().out
-    assert "L1" in uscita and "lessicale #1" in uscita and "semantica #2" in uscita
+    assert "L1" in uscita and "0.870" in uscita and "Bucce di frutta" in uscita
+
+
+def test_un_candidato_trovato_per_codice_lo_dichiara(capsys):
+    stampa_risposta(Risposta(livello_evidenza=1, comune="Torino", destinazioni=["carta"],
+                             candidati=[Candidato(id="oggetto:Torino:simbolo-pap", livello=1,
+                                                  testo="Simbolo PAP. Va in carta.",
+                                                  per_codice="PAP 21")]))
+    assert "codice PAP 21" in capsys.readouterr().out
 
 
 def test_il_riconoscimento_mostra_la_query_usata(capsys):

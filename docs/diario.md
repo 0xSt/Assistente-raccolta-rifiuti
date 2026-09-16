@@ -39,8 +39,7 @@ Va aggiornato **a ogni cambiamento sostanziale**, non a ogni riga di codice. In 
 | Transform Torino | Eseguito: **324 normalizzate**, 0 conflitti, 0 da revisionare |
 | Regole nel normalizzato | Fatto: **110 regole** collegate alle destinazioni (Napoli 50 su 4, Torino 60 su 9) |
 | Load relazionale | Fatto: `ecoscan-carica` ricostruisce `data/ecoscan.db` dai file normalizzati |
-| Serving — indice lessicale | Fatto: 1072 schede sui due comuni |
-| Serving — vettori e ricerca ibrida | Fatto: **Qdrant** (denso), EmbeddingGemma su Ollama, fusione RRF con FTS5 |
+| Serving | Documenti su Qdrant, sola ricerca semantica, aggancio esatto dei codici materiale |
 | Agente | Fatto: riconoscimento, cascata dei livelli, scelta vincolata, risposta. Indipendente da HTTP |
 | API FastAPI | Fatto: analizza, continua, cerca, comuni, salute, riscontro |
 | Frontend a chat | Fatto: Streamlit, allegato immagine, chiarimenti, riscontro |
@@ -127,6 +126,10 @@ Formato: decisione, motivazione, stato.
 | D98 | Il frontend parla solo con le API, e un test verifica che non importi l'agente né il database | Se importasse il backend, la valutazione misurerebbe qualcosa di diverso da ciò che usa l'utente | Accettata |
 | D99 | La formattazione dei messaggi sta in un modulo a parte, con i suoi test | È la parte che si sbaglia più facilmente: una regola di esclusione presentata male dice l'opposto del vero | Accettata |
 | D96 | La rotta `/riscontro` registra il giudizio dell'utente su una risposta | Ogni riga è un esempio etichettato da una persona: è il modo meno costoso di costruire il set di valutazione, che oggi non esiste | Accettata |
+| D111 | **Una sola strategia di ricerca: la semantica.** Rimossi FTS5, trigrammi, riduzione alla radice, parole di servizio, fusione RRF, garanzie e tetti | Le sonde mostravano che l'ibrido non cambiava il risultato: 14 su 16 in entrambi i casi, con un caso migliorato e uno peggiorato. Un secondo metodo tenuto per prudenza è complessità senza guadagno | Accettata |
+| D112 | I **codici materiale** si agganciano in modo esatto con un'espressione regolare, non con una ricerca | Un codice ("PAP 21") è un identificatore, non un testo: era l'unico caso in cui il lessicale batteva il semantico, e tre righe lo risolvono meglio di duecento | Accettata |
+| D113 | L'agente non legge più dal relazionale a tempo di risposta: tutto ciò che serve è nel payload del documento | Superata la divisione "Qdrant trova, SQLite risponde" (D61): con le destinazioni nel testo e nel payload, il backend interroga un archivio solo. SQLite resta il punto di arrivo dell'ETL, da cui i documenti si costruiscono | Accettata |
+| D61 | Nel payload di Qdrant solo ciò che serve a cercare; destinazioni, condizioni e provenienza restano in SQLite | Superata da D113, per decisione di Stef: le destinazioni entrano nel testo indicizzato e nel payload. Il rischio di due verità è chiuso dalla ricostruzione totale | Superata da D113 |
 | D107 | L'unità indicizzata diventa il **documento**: uno per oggetto con tutte le sue varianti, uno per ciascuna voce delle regole, uno per destinazione (non indicizzato) | Le vecchie schede erano frammenti di due o tre parole in italiano storto ("Scarpe utilizzabile", "Carta unto"): un embedding calcolato lì discrimina male. Con un documento per oggetto il modello riconosce l'oggetto e la variante la sceglie il codice | Accettata |
 | D108 | Le **destinazioni entrano nel testo indicizzato**; la risposta però si legge dal payload strutturato | Decisione di Stef. Il rischio di due verità che divergono è chiuso dalla ricostruzione totale: indice e database nascono dallo stesso comando | Accettata |
 | D109 | Le regole di categoria restano **corte e separate**, una per voce, con la polarità dentro la frase | Un testo lungo che mescola ammessi ed esclusi produce un embedding medio che non somiglia a nulla. E l'embedding non conosce il campo `polarita`: senza il "non" nel testo, un divieto si cerca come un'ammissione | Accettata |
@@ -158,7 +161,6 @@ Formato: decisione, motivazione, stato.
 | D69 | L'autorecupero accetta le prime 3 posizioni, non solo la prima | Le fonti contengono quasi sinonimi ("Televisore a tubo catodico" e "TV a tubo catodico") che si contendono legittimamente la testa della classifica. Fuori dalle prime posizioni, invece, c'è un vero disallineamento | Accettata |
 | D68 | Un controllo che fallisce deve dire **cosa** è fallito | L'autorecupero segnalava `29/30` senza indicare quale scheda: un avviso che non permette di agire costringe a indagare a mano ogni volta | Accettata |
 | D67 | La polarità è parte della risposta: una regola `escluso` si presenta come "NO <contenitore>" | Mostrare solo il nome della destinazione ribalta il significato: "Cartoni per bevande → imballaggi in plastica" leggeva come un'indicazione quando è un divieto | Accettata |
-| D61 | Nel payload di Qdrant solo ciò che serve a cercare e filtrare; destinazioni, condizioni e provenienza restano in SQLite | Duplicare la regola nel payload significherebbe avere due verità. La risposta viene sempre dal relazionale (D9) | Accettata |
 | D56 | Il vettorizzatore è dietro un'interfaccia (`Vettorizzatore`) | Permette i test senza rete e il cambio di modello senza toccare la ricerca | Accettata |
 | D57 | Un vettore si ricalcola solo se il testo della scheda è cambiato (impronta SHA-256) | Il calcolo è la parte lenta della pipeline: rieseguire dopo una modifica parziale deve costare poco | Accettata |
 | D58 | Prompt distinti per documento e interrogazione, come previsto da EmbeddingGemma | Il modello è addestrato con quei prefissi: usarli migliora il recupero e non costa nulla | Accettata |
@@ -250,6 +252,16 @@ Cose imparate che non sono decisioni, ma che conviene ricordare.
 ---
 
 ## Cronologia
+
+### v0.27.0 — 12/09/2026
+
+**Rimosso.** Tutta la ricerca lessicale e la fusione: `db/indicizza.py` (schede, FTS5 a trigrammi, riduzione alla radice, parole di servizio), la funzione `fondi_rrf`, la garanzia sui primi risultati di ogni formulazione, il tetto sui candidati, il comando `ecoscan-indicizza`, e con loro `condizioni_in_gioco`, `affini` e `scegli_per_condizione`, che erano toppe rese inutili dalla nuova struttura.
+
+**Sostituito.** I documenti sono indicizzati su Qdrant con il loro payload; la ricerca è una sola query semantica filtrata per comune. I codici materiale si agganciano in modo esatto con un'espressione regolare: era l'unico caso in cui il lessicale vinceva.
+
+**Semplificato l'agente.** Il modello sceglie l'**oggetto**, il codice sceglie la **variante** in base alla condizione dichiarata, e se non è dichiarata si chiede. Il recupero passa da dieci classifiche fuse a una ricerca per formulazione, unite senza duplicati.
+
+**Test.** Riscritti su un ambiente condiviso in `tests/conftest.py` che costruisce database, documenti e indice. 303 test.
 
 ### v0.26.0 — 12/09/2026
 

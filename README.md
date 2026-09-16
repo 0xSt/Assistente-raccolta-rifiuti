@@ -4,7 +4,7 @@ Assistente per la raccolta differenziata che gira interamente in locale. L'utent
 
 Progetto universitario. Comuni del prototipo: **Napoli** (ASIA) e **Torino** (AMIAT).
 
-## Stato attuale (v0.26.0)
+## Stato attuale (v0.27.0)
 
 Il quadro completo è in [docs/diario.md](docs/diario.md).
 
@@ -17,8 +17,7 @@ Il quadro completo è in [docs/diario.md](docs/diario.md).
 | Regole di categoria | 110 normalizzate e collegate alle destinazioni |
 | Revisione manuale | 32 decisioni prese (3,5% delle voci), nessuna aperta |
 | Load relazionale | Fatto: comuni, destinazioni, voci, condizioni, alias, regole, decisioni |
-| Serving — indice lessicale | Fatto: schede, FTS5 a trigrammi, ricerca per comune |
-| Serving — embedding e ricerca ibrida | Fatto: Qdrant + EmbeddingGemma, fusione RRF con FTS5 |
+| Serving — documenti su Qdrant | Fatto: 996 documenti, ricerca semantica, aggancio esatto dei codici |
 | Agente (riconoscimento, cascata, scelta, risposta) | Fatto: usabile senza HTTP |
 | API FastAPI | Fatto: sei rotte, backend senza stato e di sola lettura |
 | Frontend a chat (Streamlit) | Fatto: allegato immagine, chiarimenti, riscontro |
@@ -63,18 +62,16 @@ uv run ecoscan-regole           # normalizza le regole di categoria e le collega
 uv run ecoscan-carica           # ricostruisce data/ecoscan.db dai file normalizzati
 uv run ecoscan-carica --verifica # solo i controlli di coerenza, senza scrivere
 uv run ecoscan-documenti        # mostra i documenti da indicizzare (per leggerli)
-uv run ecoscan-indicizza        # costruisce l'indice lessicale FTS5 sopra il database
-uv run ecoscan-indicizza --cerca "bicchiere di vetro" --comune Torino   # prova la ricerca
 
 ollama pull embeddinggemma      # una volta sola, serve per i vettori
 docker compose up -d qdrant     # database vettoriale (dashboard: localhost:6333/dashboard)
-uv run ecoscan-vettorizza       # indicizza le schede su Qdrant
+uv run ecoscan-vettorizza       # indicizza i documenti su Qdrant
 uv run ecoscan-vettorizza --verifica   # controlla che l'indicizzazione sia corretta
 uv run ecoscan-sonda            # misura dove finisce la scheda attesa per domande note
 
 uv run ecoscan-api              # backend: http://localhost:8000/docs
 uv run ecoscan-frontend         # interfaccia a chat: http://localhost:8501
-uv run ecoscan-vettorizza --cerca "contenitore del latte" --comune Napoli  # ricerca ibrida
+uv run ecoscan-vettorizza --cerca "contenitore del latte" --comune Napoli  # prova la ricerca
 
 ollama pull gemma3:4b           # modello multimodale (~3 GB), vedi D79 nel diario
 uv run ecoscan-analizza --foto foto/bottiglia.jpg --comune Napoli
@@ -154,8 +151,7 @@ Qdrant sta in modalità `server` o `in-process`.
 | `configurazione.py` | Impostazioni lette dal `.env`, con i valori predefiniti |
 | `db/schema.sql` | Schema del livello relazionale |
 | `db/carica.py` | Load: ricostruisce il database dai file normalizzati |
-| `db/indicizza.py` | Schede ricercabili, indice FTS5 a trigrammi e ricerca lessicale |
-| `db/vettorizza.py` | Indicizzazione su Qdrant, ricerca semantica e fusione RRF |
+| `db/vettorizza.py` | Indicizzazione dei documenti su Qdrant e ricerca semantica |
 | `db/documenti.py` | Costruzione dei documenti da indicizzare: oggetto, regola, destinazione |
 | `db/sonda.py` | Misura della qualità del recupero su domande note |
 

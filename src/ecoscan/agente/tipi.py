@@ -68,29 +68,69 @@ class Riconoscimento:
 
 
 @dataclass
-class Candidato:
-    """Una scheda proposta dalla ricerca, arricchita con i dati del relazionale."""
+class Variante:
+    """Un modo di essere dell'oggetto e dove va di conseguenza."""
 
-    scheda_id: int
-    livello: int                       # 1 voce di dizionario, 2 regola di categoria
-    testo: str                         # ciò che è stato indicizzato
-    nome: str | None = None            # nome della voce, se livello 1
     condizioni: list[str] = field(default_factory=list)
     destinazioni: list[str] = field(default_factory=list)
-    polarita: str | None = None        # solo per le regole: ammesso | escluso
     avvertenza: str | None = None
+
+    @property
+    def condizione(self) -> str | None:
+        return " e ".join(self.condizioni) if self.condizioni else None
+
+
+@dataclass
+class Candidato:
+    """Un documento proposto dalla ricerca: un oggetto con le sue varianti, o una regola.
+
+    Tutto ciò che serve a rispondere è qui, perché viene dal payload del documento: non si
+    legge più nulla dal relazionale a tempo di risposta.
+    """
+
+    id: str
+    livello: int                       # 1 oggetto di dizionario, 2 regola di categoria
+    testo: str
+    tipo: str = "oggetto"
+    nome: str | None = None
+    varianti: list[Variante] = field(default_factory=list)
+    alias: list[str] = field(default_factory=list)
+    codice_materiale: str | None = None
+    polarita: str | None = None        # solo per le regole
+    destinazione: str | None = None
     fonte: str | None = None
     riferimento: str | None = None
-    posizioni: dict[str, int] = field(default_factory=dict)   # da quale metodo è stato trovato
+    contraddizione: bool = False
+    punteggio: float = 0.0
+    per_codice: str | None = None      # trovato agganciando un codice materiale
+
+    @classmethod
+    def da_payload(cls, payload: dict) -> "Candidato":
+        varianti = [Variante(condizioni=v.get("condizioni") or [],
+                             destinazioni=v.get("destinazioni") or [],
+                             avvertenza=v.get("avvertenza"))
+                    for v in payload.get("varianti") or []]
+        return cls(
+            id=payload["id"], livello=payload.get("livello") or 1, testo=payload["testo"],
+            tipo=payload.get("tipo", "oggetto"), nome=payload.get("nome"), varianti=varianti,
+            alias=payload.get("alias") or [], codice_materiale=payload.get("codice_materiale"),
+            polarita=payload.get("polarita"), destinazione=payload.get("destinazione"),
+            fonte=payload.get("fonte"), riferimento=payload.get("riferimento"),
+            contraddizione=bool(payload.get("contraddizione")),
+            punteggio=payload.get("punteggio", 0.0), per_codice=payload.get("per_codice"))
+
+    @property
+    def destinazioni(self) -> list[str]:
+        """Tutte le destinazioni possibili, senza scegliere fra le varianti."""
+        viste: list[str] = []
+        for v in self.varianti:
+            viste.extend(d for d in v.destinazioni if d not in viste)
+        return viste
 
     def descrizione(self) -> str:
-        """Come il candidato viene presentato al modello nella scelta vincolata."""
-        pezzi = [self.testo]
-        if self.condizioni:
-            pezzi.append(f"(condizione: {', '.join(self.condizioni)})")
-        if self.livello == 2:
-            pezzi.append(f"[regola di categoria: {self.polarita}]")
-        return " ".join(pezzi)
+        """Come il candidato viene presentato al modello: il testo del documento, che è già
+        scritto per essere letto."""
+        return self.testo
 
 
 # Tipi di corrispondenza che NON valgono come risposta. La regola è applicata dall'agente,
@@ -102,7 +142,7 @@ TIPI_NON_VALIDI = frozenset({"solo_materiale", "nessuna"})
 class Scelta:
     """L'esito della scelta vincolata: un candidato reale, oppure nessuno."""
 
-    scheda_id: int | None
+    scheda_id: str | None          # id del documento scelto
     tipo_corrispondenza: str = ""   # stesso_oggetto | sinonimo | categoria | solo_materiale | nessuna
     motivo: str = ""
     chiarimento: str | None = None
@@ -128,6 +168,7 @@ class Risposta:
     chiarimento: str | None = None     # domanda da fare prima di considerarla definitiva
     tipo_corrispondenza: str = ""
     motivo: str = ""
+    contraddizione: bool = False
     candidati: list[Candidato] = field(default_factory=list)
     riconoscimento: Riconoscimento | None = None
     contesto: dict = field(default_factory=dict)   # il backend resta senza stato: lo rimanda il client

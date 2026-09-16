@@ -15,15 +15,7 @@ from ecoscan.db.documenti import (
 )
 from ecoscan.db.documenti import testo_oggetto as componi_oggetto
 from ecoscan.db.documenti import testo_regola as componi_regola
-from tests.test_agente import DESTINAZIONI, REGOLE, VOCI
-
-
-@pytest.fixture
-def db():
-    connessione = sqlite3.connect(":memory:")
-    carica(connessione, DESTINAZIONI, VOCI, REGOLE, {})
-    yield connessione
-    connessione.close()
+from tests.conftest import DESTINAZIONI, REGOLE, VOCI
 
 
 # ------------------------------------------------------------------ frasi
@@ -97,14 +89,14 @@ def test_la_polarita_sta_dentro_la_frase_della_regola():
 
 def test_un_documento_per_oggetto_non_per_variante(db):
     documenti = documenti_oggetto(db)
-    capsule = [d for d in documenti if d.nome == "Capsule del caffè in plastica"]
+    capsule = [d for d in documenti if d.nome == "Capsule del caffè"]
     assert len(capsule) == 1
     assert len(capsule[0].varianti) == 2
     assert "con residuo" in capsule[0].testo and "senza residuo" in capsule[0].testo
 
 
 def test_il_payload_porta_le_varianti_strutturate(db):
-    capsula = next(d for d in documenti_oggetto(db) if d.nome == "Capsule del caffè in plastica")
+    capsula = next(d for d in documenti_oggetto(db) if d.nome == "Capsule del caffè")
     payload = capsula.payload()
     condizioni = {v["condizione"] for v in payload["varianti"]}
     assert condizioni == {"con residuo", "senza residuo"}

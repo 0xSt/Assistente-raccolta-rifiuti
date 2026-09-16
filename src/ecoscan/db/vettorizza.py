@@ -1,30 +1,27 @@
-"""Load, passaggio 3: vettori su Qdrant.
+"""Indicizzazione dei documenti su Qdrant e ricerca semantica.
 
-**Divisione dei ruoli.** Qdrant trova i candidati, SQLite dà la risposta. Nel payload di
-ogni punto finisce solo ciò che serve a cercare e a filtrare (comune, livello, testo);
-regola finale, condizioni, avvertenze e provenienza restano nel relazionale (D9).
+**Una sola strategia.** La ricerca è semantica e basta: le sonde avevano mostrato che
+affiancarle la ricerca lessicale non cambiava il risultato (14 su 16 in entrambi i casi,
+con un caso migliorato e uno peggiorato). Restano quindi un solo indice, una sola query e
+nessuna fusione da tarare.
 
-**Filtro per comune dentro la query.** Non si cerca mai fra comuni diversi (D7). Con Qdrant
-il vincolo è strutturale: è una condizione sul payload applicata durante la ricerca, non un
-filtro a posteriori che si può dimenticare.
+L'unico punto in cui il lessicale era imbattibile sono i **codici materiale** ("PAP 21"):
+ma un codice non è un testo da cercare, è un identificatore, e si aggancia in modo esatto.
 
-**Client configurabile.** Le impostazioni stanno nel file `.env` (modello: `.env.example`).
-`ECOSCAN_QDRANT` decide dove si punta:
-  - un URL (``http://localhost:6333``) usa il server, cioè il motore vero in Rust;
-  - un percorso usa la modalità in-process, che non richiede né rete né container.
-La modalità locale è una reimplementazione Python pensata per prototipi e test: regge
-filtri, vettori sparsi e fusione RRF, ma apre la cartella in esclusiva (un processo alla
-volta) e non ha dashboard. Per l'esecuzione vera si usa il container.
+**Divisione dei ruoli.** Qdrant contiene i documenti con il loro payload e risponde alla
+domanda "quali oggetti somigliano a questo?". SQLite resta il punto di arrivo dell'ETL, da
+cui i documenti si costruiscono, con i suoi vincoli di integrità.
 
 Uso:
-  ollama pull embeddinggemma
-  uv run ecoscan-vettorizza                    # indicizza le schede su Qdrant
-  uv run ecoscan-vettorizza --cerca "contenitore del latte" --comune Napoli
+  uv run ecoscan-vettorizza                    # indicizza i documenti
+  uv run ecoscan-vettorizza --verifica
+  uv run ecoscan-vettorizza --cerca "cartone della pizza unto" --comune Napoli
 """
 from __future__ import annotations
 
 import argparse
 import json
+import re
 import sqlite3
 import time
 import urllib.error
@@ -35,36 +32,32 @@ from typing import Iterable, Protocol, Sequence
 from qdrant_client import QdrantClient, models
 
 from ecoscan import configurazione as conf
-from ecoscan.db.indicizza import cerca as cerca_lessicale
+from ecoscan.db.documenti import Documento, costruisci
 from ecoscan.percorsi import DATI
 
 DB = DATI / "ecoscan.db"
-COLLEZIONE = "schede"
+QDRANT_LOCALE = DATI / "qdrant"
+COLLEZIONE = "documenti"
 NOME_VETTORE = "denso"
+# Un codice materiale è una sigla più due cifre: PAP 21, ALU 41, C/PAP 81.
+CODICE_MATERIALE = re.compile(r"\b([A-Z]{1,5}(?:/[A-Z]{1,5})?)\s*[-/ ]?\s*(\d{1,2})\b", re.IGNORECASE)
 
 
 # --------------------------------------------------------------------------- vettorizzatore
 
 class Vettorizzatore(Protocol):
-    """Interfaccia minima: sostituibile con un finto nei test o con un altro modello."""
-
     nome: str
     dimensione: int
 
-    def vettorizza(self, testi: Sequence[str], come: str) -> list[list[float]]:
-        ...
+    def vettorizza(self, testi: Sequence[str], come: str) -> list[list[float]]: ...
 
 
 class VettorizzatoreOllama:
-    """EmbeddingGemma via Ollama.
-
-    Il modello distingue i prompt di documento e di interrogazione: usarli entrambi
-    correttamente migliora il recupero e non costa nulla.
-    """
+    """EmbeddingGemma via Ollama."""
 
     def __init__(self, modello: str | None = None, url: str | None = None):
-        modello, url = modello or conf.MODELLO_EMBEDDING, url or conf.OLLAMA
-        self.nome, self.url = modello, url
+        self.nome = modello or conf.MODELLO_EMBEDDING
+        self.url = url or conf.OLLAMA
         self._dimensione: int | None = None
 
     @property
@@ -74,8 +67,8 @@ class VettorizzatoreOllama:
         return self._dimensione
 
     def _prompt(self, testo: str, come: str) -> str:
-        """I prefissi previsti da EmbeddingGemma, se non li applica già Ollama (vedi
-        ECOSCAN_PREFISSI_EMBEDDING: applicarli due volte peggiora il recupero)."""
+        """I prefissi previsti da EmbeddingGemma: misurati, migliorano il recupero
+        (10 sonde su 14 con, 9 senza). Si possono spegnere con ECOSCAN_PREFISSI_EMBEDDING."""
         if not conf.PREFISSI_EMBEDDING:
             return testo
         return f"task: search result | query: {testo}" if come == "query" else f"title: none | text: {testo}"
@@ -89,9 +82,8 @@ class VettorizzatoreOllama:
             with urllib.request.urlopen(richiesta, timeout=300) as risposta:
                 return json.load(risposta)["embeddings"]
         except urllib.error.URLError as errore:
-            raise SystemExit(
-                f"Ollama non raggiungibile su {self.url} ({errore}).\n"
-                f"Avvialo e scarica il modello: ollama pull {self.nome}") from errore
+            raise SystemExit(f"Ollama non raggiungibile su {self.url} ({errore}).\n"
+                             f"Avvialo e scarica il modello: ollama pull {self.nome}") from errore
 
 
 # --------------------------------------------------------------------------- client
@@ -101,7 +93,7 @@ def e_locale(qdrant: QdrantClient) -> bool:
 
 
 def apri_qdrant(destinazione: str | None = None) -> QdrantClient:
-    """URL -> server; percorso -> modalità in-process. Default: `ECOSCAN_QDRANT`, poi data/qdrant."""
+    """URL -> server; percorso -> modalità in-process, usata dai test."""
     destinazione = destinazione or conf.QDRANT
     if destinazione.startswith(("http://", "https://")):
         return QdrantClient(url=destinazione)
@@ -116,46 +108,47 @@ def prepara_collezione(qdrant: QdrantClient, dimensione: int, ricrea: bool = Fal
         qdrant.create_collection(
             COLLEZIONE,
             vectors_config={NOME_VETTORE: models.VectorParams(size=dimensione,
-                                                              distance=models.Distance.COSINE)},
-        )
-        # Indici sul payload: rendono il filtro per comune efficiente e dichiarato.
-        # In modalità locale non hanno effetto (il filtro resta corretto, solo non indicizzato).
+                                                              distance=models.Distance.COSINE)})
         if not e_locale(qdrant):
-            qdrant.create_payload_index(COLLEZIONE, "comune",
-                                        field_schema=models.PayloadSchemaType.KEYWORD)
-            qdrant.create_payload_index(COLLEZIONE, "livello",
-                                        field_schema=models.PayloadSchemaType.INTEGER)
+            for campo, tipo in (("comune", models.PayloadSchemaType.KEYWORD),
+                                ("livello", models.PayloadSchemaType.INTEGER),
+                                ("tipo", models.PayloadSchemaType.KEYWORD),
+                                ("codice_materiale", models.PayloadSchemaType.KEYWORD)):
+                qdrant.create_payload_index(COLLEZIONE, campo, field_schema=tipo)
 
 
-def schede_da_indicizzare(db: sqlite3.Connection) -> list[dict]:
-    righe = db.execute("""
-        SELECT s.id, c.nome, s.livello, s.tipo, s.testo, s.voce_id, s.regola_id
-        FROM scheda s JOIN comune c ON c.id = s.comune_id ORDER BY s.id""").fetchall()
-    return [{"id": r[0], "comune": r[1], "livello": r[2], "tipo": r[3], "testo": r[4],
-             "voce_id": r[5], "regola_id": r[6]} for r in righe]
+# --------------------------------------------------------------------------- indicizzazione
 
-
-def indicizza(qdrant: QdrantClient, schede: Iterable[dict], vettorizzatore: Vettorizzatore,
+def indicizza(qdrant: QdrantClient, documenti: Iterable[Documento], vettorizzatore: Vettorizzatore,
               lotto: int | None = None, avanzamento=print) -> int:
+    """Indicizza i documenti indicizzabili. Ricostruzione totale: la collezione si rifà."""
     lotto = lotto or conf.LOTTO_EMBEDDING
-    schede = list(schede)
-    if not schede:
+    da_fare = [d for d in documenti if d.indicizzabile]
+    if not da_fare:
         return 0
     prepara_collezione(qdrant, vettorizzatore.dimensione, ricrea=True)
-    avanzamento(f"Da indicizzare: {len(schede)} schede con {vettorizzatore.nome} (lotti di {lotto})")
+    avanzamento(f"Da indicizzare: {len(da_fare)} documenti con {vettorizzatore.nome} "
+                f"(lotti di {lotto})")
     inizio = time.monotonic()
-    for n in range(0, len(schede), lotto):
-        gruppo = schede[n:n + lotto]
-        vettori = vettorizzatore.vettorizza([s["testo"] for s in gruppo], "documento")
+    for n in range(0, len(da_fare), lotto):
+        gruppo = da_fare[n:n + lotto]
+        vettori = vettorizzatore.vettorizza([d.testo for d in gruppo], "documento")
         qdrant.upsert(COLLEZIONE, points=[
-            models.PointStruct(id=s["id"], vector={NOME_VETTORE: v},
-                               payload={k: valore for k, valore in s.items() if k != "id"})
-            for s, v in zip(gruppo, vettori)])
-        fatte = min(n + lotto, len(schede))
+            models.PointStruct(id=numero, vector={NOME_VETTORE: vettore}, payload=documento.payload())
+            for numero, (documento, vettore) in enumerate(zip(gruppo, vettori), start=n + 1)])
+        fatti = min(n + lotto, len(da_fare))
         trascorso = time.monotonic() - inizio
-        avanzamento(f"  {fatte}/{len(schede)} — stimati "
-                    f"{(len(schede) - fatte) * trascorso / fatte / 60:.1f} min alla fine")
-    return len(schede)
+        avanzamento(f"  {fatti}/{len(da_fare)} — stimati "
+                    f"{(len(da_fare) - fatti) * trascorso / fatti / 60:.1f} min alla fine")
+    return len(da_fare)
+
+
+def documenti_dal_database(percorso: Path | None = None) -> list[Documento]:
+    percorso = percorso or DB
+    if not percorso.is_file():
+        raise SystemExit(f"Database non trovato: {percorso}\nLancia prima: uv run ecoscan-carica")
+    with sqlite3.connect(percorso) as db:
+        return costruisci(db)
 
 
 # --------------------------------------------------------------------------- ricerca
@@ -167,197 +160,121 @@ def filtro(comune: str, livello: int | None = None) -> models.Filter:
     return models.Filter(must=condizioni)
 
 
-def cerca_semantica(qdrant: QdrantClient, query: str, comune: str, vettorizzatore: Vettorizzatore,
-                    livello: int | None = None, k: int = 5) -> list[dict]:
+def cerca(qdrant: QdrantClient, query: str, comune: str, vettorizzatore: Vettorizzatore,
+          livello: int | None = None, k: int = 8) -> list[dict]:
+    """Ricerca semantica dentro un solo comune (D7). Nessuna fusione: una sola classifica."""
+    if not query.strip():
+        return []
     vettore = vettorizzatore.vettorizza([query], "query")[0]
     punti = qdrant.query_points(COLLEZIONE, query=vettore, using=NOME_VETTORE,
                                 query_filter=filtro(comune, livello), limit=k).points
-    return [{**p.payload, "scheda_id": p.id, "punteggio": p.score} for p in punti]
+    return [{**p.payload, "punteggio": p.score} for p in punti]
 
 
-def fondi_rrf(classifiche: dict[str, list[dict]], k: int = 5, costante: int = 60) -> list[dict]:
-    """Fusione per posizione, non per punteggio: BM25 e coseno non sono confrontabili.
+def codici_nella_domanda(domanda: str) -> list[str]:
+    """I codici stampati sugli imballaggi: "PAP 21", "ALU 41", "C/PAP 81".
 
-    Qdrant sa fonderle da sé quando entrambe vengono da lui; qui la fusione resta a carico
-    nostro perché una delle due classifiche arriva da FTS5, che sta in SQLite.
+    Un codice è un identificatore, non un testo da cercare: si aggancia in modo esatto.
+    È l'unico caso in cui la vecchia ricerca lessicale batteva quella semantica.
     """
-    punteggi: dict[int, float] = {}
-    schede: dict[int, dict] = {}
-    posizioni: dict[int, dict[str, int]] = {}
-    for metodo, risultati in classifiche.items():
-        for posizione, r in enumerate(risultati, start=1):
-            sid = r["scheda_id"]
-            punteggi[sid] = punteggi.get(sid, 0.0) + 1.0 / (costante + posizione)
-            schede.setdefault(sid, r)
-            posizioni.setdefault(sid, {})[metodo] = posizione
-    migliori = sorted(punteggi, key=lambda s: -punteggi[s])[:k]
-    return [{**schede[s], "punteggio_rrf": punteggi[s], "posizioni": posizioni[s]} for s in migliori]
+    return [f"{sigla.upper()} {numero}" for sigla, numero in CODICE_MATERIALE.findall(domanda)]
 
 
-def cerca_ibrida(db: sqlite3.Connection, qdrant: QdrantClient, query: str, comune: str,
-                 vettorizzatore: Vettorizzatore, k: int = 5, k_per_metodo: int = 10) -> list[dict]:
-    return fondi_rrf({
-        "lessicale": cerca_lessicale(db, query, comune, k=k_per_metodo),
-        "semantica": cerca_semantica(qdrant, query, comune, vettorizzatore, k=k_per_metodo),
-    }, k=k)
-
-
-def destinazioni(db: sqlite3.Connection, scheda_id: int) -> str | None:
-    """Dove va (o dove NON va) ciò che la scheda descrive.
-
-    La polarità è parte della risposta: una regola `escluso` dice che l'oggetto **non** va in
-    quel contenitore. Mostrare solo il nome della destinazione ribalterebbe il significato.
-    Il dato si legge sempre dal relazionale, mai dal payload (D9).
-    """
-    riga = db.execute("""
-        SELECT (SELECT group_concat(d.nome, ' oppure ') FROM voce_destinazione vd
-                  JOIN destinazione d ON d.id = vd.destinazione_id WHERE vd.voce_id = s.voce_id),
-               (SELECT d.nome FROM destinazione d JOIN regola r ON r.destinazione_id = d.id
-                 WHERE r.id = s.regola_id),
-               (SELECT r.polarita FROM regola r WHERE r.id = s.regola_id)
-        FROM scheda s WHERE s.id = ?""", (scheda_id,)).fetchone()
-    if not riga:
-        return None
-    if riga[0]:
-        return riga[0]
-    prefisso = {"ammesso": "SI ", "escluso": "NO ", "nota": "nota: "}.get(riga[2], "")
-    return f"{prefisso}{riga[1]}" if riga[1] else None
+def cerca_per_codice(qdrant: QdrantClient, domanda: str, comune: str, k: int = 4) -> list[dict]:
+    trovati: list[dict] = []
+    for codice in codici_nella_domanda(domanda):
+        numero = codice.split()[-1]
+        punti = qdrant.scroll(COLLEZIONE, scroll_filter=filtro(comune), limit=500,
+                              with_payload=True)[0]
+        for p in punti:
+            codici = (p.payload.get("codice_materiale") or "")
+            if numero in [c.strip() for c in codici.split(",")] and p.payload not in trovati:
+                trovati.append({**p.payload, "punteggio": 1.0, "per_codice": codice})
+    return trovati[:k]
 
 
 # --------------------------------------------------------------------------- verifica
 
-LUNGHEZZA_MINIMA_DISCRIMINANTE = 4  # sotto, il testo non basta a distinguere una scheda
-# L'autorecupero accetta i primi K posti, non solo il primo: le fonti contengono quasi
-# sinonimi ("Televisore a tubo catodico" e "TV a tubo catodico") che si contendono
-# legittimamente la testa della classifica. Fuori dai primi K, invece, c'è un disallineamento.
-POSIZIONI_AUTORECUPERO = 3
-
-
-def verifica(db: sqlite3.Connection, qdrant: QdrantClient, vettorizzatore: Vettorizzatore,
+def verifica(documenti: list[Documento], qdrant: QdrantClient, vettorizzatore: Vettorizzatore,
              campione: int = 30) -> list[tuple[bool, str]]:
-    """Controlla che l'indicizzazione sia andata a buon fine. Restituisce (esito, descrizione).
-
-    Il controllo che conta davvero è l'ultimo: **autorecupero**. Si prende il testo di una
-    scheda e lo si cerca; se il primo risultato non è la scheda stessa, qualcosa non va fra
-    vettori e identificatori, anche se tutti i conteggi tornano.
-    """
     esiti: list[tuple[bool, str]] = []
-    schede = schede_da_indicizzare(db)
-
+    attesi = [d for d in documenti if d.indicizzabile]
     if not qdrant.collection_exists(COLLEZIONE):
         return [(False, f"la collezione '{COLLEZIONE}' non esiste: lancia ecoscan-vettorizza")]
 
-    punti_totali = qdrant.count(COLLEZIONE).count
-    esiti.append((punti_totali == len(schede),
-                  f"punti in Qdrant {punti_totali} = schede in SQLite {len(schede)}"))
+    totale = qdrant.count(COLLEZIONE).count
+    esiti.append((totale == len(attesi), f"punti in Qdrant {totale} = documenti indicizzabili {len(attesi)}"))
 
-    for comune, in db.execute("SELECT nome FROM comune ORDER BY nome"):
+    for comune in sorted({d.comune for d in attesi}):
         for livello in (1, 2):
-            attesi = sum(1 for s in schede if s["comune"] == comune and s["livello"] == livello)
+            attesi_qui = sum(1 for d in attesi if d.comune == comune and d.livello == livello)
             trovati = qdrant.count(COLLEZIONE, count_filter=filtro(comune, livello)).count
-            esiti.append((attesi == trovati, f"{comune} livello {livello}: {trovati} punti (attesi {attesi})"))
+            esiti.append((attesi_qui == trovati,
+                          f"{comune} livello {livello}: {trovati} punti (attesi {attesi_qui})"))
 
-    ids_sqlite = {s["id"] for s in schede}
-    ids_qdrant = {p.id for p in qdrant.scroll(COLLEZIONE, limit=len(schede) + 1, with_payload=False)[0]}
-    mancanti, estranei = ids_sqlite - ids_qdrant, ids_qdrant - ids_sqlite
-    esiti.append((not mancanti and not estranei,
-                  f"identificatori allineati (mancanti {len(mancanti)}, estranei {len(estranei)})"))
-
-    primo = qdrant.scroll(COLLEZIONE, limit=1, with_vectors=True)[0][0]
+    primo = qdrant.scroll(COLLEZIONE, limit=1, with_vectors=True, with_payload=True)[0][0]
     dimensione = len(primo.vector[NOME_VETTORE])
     esiti.append((dimensione == vettorizzatore.dimensione,
                   f"dimensione dei vettori {dimensione} = quella del modello {vettorizzatore.dimensione}"))
-    esiti.append((set(primo.payload) >= {"comune", "livello", "tipo", "testo"},
-                  f"payload con i campi attesi: {sorted(primo.payload)}"))
-    esiti.append(("destinazione" not in primo.payload,
-                  "la destinazione NON è nel payload: la risposta viene dal relazionale (D9)"))
+    esiti.append((set(primo.payload) >= {"comune", "tipo", "testo", "varianti"},
+                  f"payload con i campi attesi: {sorted(primo.payload)[:6]}…"))
 
-    # due schede possono avere lo stesso testo (es. due regole con lo stesso oggetto escluso
-    # da contenitori diversi): in quel caso il pari merito è corretto, non un errore
-    passo = max(1, len(schede) // campione)
-    provini = schede[::passo][:campione]
+    # Autorecupero: il testo di un documento deve ritrovare sé stesso. Si accettano le prime
+    # tre posizioni perché le fonti contengono quasi sinonimi che si contendono la testa.
+    passo = max(1, len(attesi) // campione)
+    provini = attesi[::passo][:campione]
     centrati, mancati = 0, []
-    for s in provini:
-        trovati = cerca_semantica(qdrant, s["testo"], s["comune"], vettorizzatore,
-                                  k=POSIZIONI_AUTORECUPERO)
-        if any(t["scheda_id"] == s["id"] or t["testo"] == s["testo"] for t in trovati):
+    for documento in provini:
+        trovati = cerca(qdrant, documento.testo, documento.comune, vettorizzatore, k=3)
+        if any(t["id"] == documento.id or t["testo"] == documento.testo for t in trovati):
             centrati += 1
         else:
-            ottenuti = ", ".join(repr(t["testo"]) for t in trovati) or "(nessun risultato)"
-            mancati.append(f"{s['comune']}/{s['id']} {s['testo']!r} -> ha trovato {ottenuti}")
-    dettaglio = ("; ".join(mancati[:5])) if mancati else ""
+            ottenuti = ", ".join(repr(t["testo"][:40]) for t in trovati) or "(nessun risultato)"
+            mancati.append(f"{documento.id} -> ha trovato {ottenuti}")
     esiti.append((centrati == len(provini),
-                  f"autorecupero: {centrati}/{len(provini)} schede fra i primi "
-                  f"{POSIZIONI_AUTORECUPERO} risultati del proprio testo"
-                  + (f" — mancate: {dettaglio}" if mancati else "")))
-
-    # Non è un errore dell'indice ma un limite dei dati: le celle della scheda "Pile" di Torino
-    # sono formati di batteria ("C", "AA", "D"), testi troppo brevi per essere discriminanti.
-    corte = db.execute(
-        "SELECT count(*) FROM scheda WHERE length(testo) < ?", (LUNGHEZZA_MINIMA_DISCRIMINANTE,)
-    ).fetchone()[0]
-    if corte:
-        esempi = [t for t, in db.execute(
-            "SELECT testo FROM scheda WHERE length(testo) < ? ORDER BY length(testo) LIMIT 5",
-            (LUNGHEZZA_MINIMA_DISCRIMINANTE,))]
-        esiti.append((True, f"nota: {corte} schede hanno un testo più corto di "
-                            f"{LUNGHEZZA_MINIMA_DISCRIMINANTE} caratteri ({', '.join(map(repr, esempi))}): "
-                            "sono difficili da recuperare, ma è un limite della fonte"))
+                  f"autorecupero: {centrati}/{len(provini)} documenti fra i primi 3 del proprio testo"
+                  + (f" — mancati: {'; '.join(mancati[:3])}" if mancati else "")))
     return esiti
 
 
 # --------------------------------------------------------------------------- comando
 
 def main() -> None:
-    ap = argparse.ArgumentParser(description="Indicizza le schede su Qdrant e prova la ricerca.")
+    ap = argparse.ArgumentParser(description="Indicizza i documenti su Qdrant e prova la ricerca.")
     ap.add_argument("--db", type=Path, default=DB)
     ap.add_argument("--qdrant", help="URL del server oppure percorso per la modalità locale")
-    ap.add_argument("--modello", default=None, help="sovrascrive ECOSCAN_MODELLO_EMBEDDING")
+    ap.add_argument("--modello", default=None)
     ap.add_argument("--cerca", help="esegue una ricerca invece di indicizzare")
-    ap.add_argument("--verifica", action="store_true", help="controlla l'indicizzazione senza rifarla")
     ap.add_argument("--comune", default="Napoli")
+    ap.add_argument("--verifica", action="store_true")
     ap.add_argument("-k", type=int, default=5)
     args = ap.parse_args()
 
-    if not args.db.is_file():
-        raise SystemExit(f"Database non trovato: {args.db}\nLancia prima: uv run ecoscan-carica")
-
-    impostazioni = conf.riepilogo()
-    print("Impostazioni: " + " | ".join(f"{k}={v}" for k, v in impostazioni.items()))
+    print("Impostazioni: " + " | ".join(f"{k}={v}" for k, v in conf.riepilogo().items()))
     vettorizzatore = VettorizzatoreOllama(args.modello)
     qdrant = apri_qdrant(args.qdrant)
-    with sqlite3.connect(args.db) as db:
-        if args.cerca:
-            classifiche = {
-                "lessicale": cerca_lessicale(db, args.cerca, args.comune, k=args.k),
-                "semantica": cerca_semantica(qdrant, args.cerca, args.comune, vettorizzatore, k=args.k),
-            }
-            for metodo, risultati in classifiche.items():
-                print(f"\n## {metodo}")
-                for r in risultati:
-                    print(f"  {r['testo'][:48]:48} -> {destinazioni(db, r['scheda_id'])}")
-                if not risultati:
-                    print("  (nessun risultato)")
-            print("\n## ibrida (RRF)")
-            for r in fondi_rrf(classifiche, k=args.k):
-                trovato = ", ".join(f"{m} #{p}" for m, p in r["posizioni"].items())
-                print(f"  L{r['livello']} {r['testo'][:42]:42} -> "
-                      f"{str(destinazioni(db, r['scheda_id']))[:26]:26} [{trovato}]")
-            return
 
-        if args.verifica:
-            esiti = verifica(db, qdrant, vettorizzatore)
-            for ok, descrizione in esiti:
-                print(f"  {'OK  ' if ok else 'FALLITO'} {descrizione}")
-            falliti = [d for ok, d in esiti if not ok]
-            print(f"\n{len(esiti) - len(falliti)}/{len(esiti)} controlli superati")
-            raise SystemExit(1 if falliti else 0)
+    if args.cerca:
+        for r in cerca_per_codice(qdrant, args.cerca, args.comune, k=args.k):
+            print(f"  [codice {r['per_codice']}] {r['testo'][:80]}")
+        print(f"\n'{args.cerca}' a {args.comune}:")
+        for r in cerca(qdrant, args.cerca, args.comune, vettorizzatore, k=args.k):
+            print(f"  L{r.get('livello')} {r['punteggio']:.3f}  {r['testo'][:90]}")
+        return
 
-        n = indicizza(qdrant, schede_da_indicizzare(db), vettorizzatore)
-        print(f"\nIndicizzate {n} schede nella collezione '{COLLEZIONE}'")
-        for comune, in db.execute("SELECT nome FROM comune ORDER BY nome"):
-            conteggio = qdrant.count(COLLEZIONE, count_filter=filtro(comune)).count
-            print(f"  {comune}: {conteggio} punti")
+    documenti = documenti_dal_database(args.db)
+    if args.verifica:
+        esiti = verifica(documenti, qdrant, vettorizzatore)
+        for ok, descrizione in esiti:
+            print(f"  {'OK     ' if ok else 'FALLITO'} {descrizione}")
+        falliti = [d for ok, d in esiti if not ok]
+        print(f"\n{len(esiti) - len(falliti)}/{len(esiti)} controlli superati")
+        raise SystemExit(1 if falliti else 0)
+
+    n = indicizza(qdrant, documenti, vettorizzatore)
+    print(f"\nIndicizzati {n} documenti nella collezione '{COLLEZIONE}'")
+    for comune in sorted({d.comune for d in documenti}):
+        print(f"  {comune}: {qdrant.count(COLLEZIONE, count_filter=filtro(comune)).count} punti")
 
 
 if __name__ == "__main__":

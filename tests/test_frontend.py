@@ -120,10 +120,16 @@ def test_la_nota_di_fonte_dice_livello_e_provenienza():
 
 def test_i_candidati_diventano_righe_leggibili():
     righe = presentazione.riassunto_candidati({"candidati": [
-        {"livello": 1, "testo": "Scarpe utilizzabile", "destinazioni": ["Contenitore Abiti Usati"],
-         "trovato_da": {"semantica1": 2}}]})
-    assert righe[0]["voce"] == "Scarpe utilizzabile"
-    assert righe[0]["trovata da"] == "semantica1 #2"
+        {"livello": 1, "testo": "Scarpe. Se è utilizzabile va in Contenitore Abiti Usati.",
+         "destinazioni": ["Contenitore Abiti Usati"], "punteggio": 0.8123}]})
+    assert righe[0]["documento"].startswith("Scarpe.")
+    assert righe[0]["somiglianza"] == 0.812
+
+
+def test_la_contraddizione_della_fonte_viene_detta():
+    """Quando il comune dà destinazioni diverse per lo stesso caso, l'utente deve saperlo."""
+    testo = presentazione.corpo({"livello_evidenza": 1, "contraddizione": True})
+    assert "destinazioni diverse" in testo
 
 
 def test_il_frontend_non_importa_il_backend():

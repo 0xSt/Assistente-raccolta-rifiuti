@@ -13,26 +13,14 @@ from fastapi.testclient import TestClient
 from ecoscan.agente.agente import Agente
 from ecoscan.api.app import PREFISSO, crea_app
 from ecoscan.api.risorse import Risorse
-from ecoscan.db.carica import carica
-from ecoscan.db.indicizza import costruisci
-from ecoscan.db.vettorizza import apri_qdrant, indicizza, schede_da_indicizzare
-from tests.conftest import VettorizzatoreFinto
-from tests.test_agente import DESTINAZIONI, REGOLE, VOCI, ModelloFinto
+from tests.conftest import ModelloFinto
 
 
 @pytest.fixture
-def risorse(tmp_path):
-    db = sqlite3.connect(":memory:", check_same_thread=False)
-    carica(db, DESTINAZIONI, VOCI, REGOLE, {})
-    costruisci(db)
-    qdrant = apri_qdrant(str(tmp_path / "q"))
-    vettorizzatore = VettorizzatoreFinto()
-    indicizza(qdrant, schede_da_indicizzare(db), vettorizzatore, avanzamento=lambda *_: None)
+def risorse(ambiente):
     modello = ModelloFinto()
-    yield Risorse(db, qdrant, vettorizzatore, modello,
-                  Agente(db, qdrant, vettorizzatore, modello))
-    qdrant.close()
-    db.close()
+    yield Risorse(ambiente.db, ambiente.qdrant, ambiente.vettorizzatore, modello,
+                  Agente(ambiente.qdrant, ambiente.vettorizzatore, modello))
 
 
 @pytest.fixture
@@ -96,7 +84,7 @@ def test_cerca_senza_modello_di_visione(client):
                            json={"domanda": "giornali", "comune": "Torino", "k": 5})
     assert risposta.status_code == 200
     candidati = risposta.json()
-    assert candidati and all("scheda_id" in c for c in candidati)
+    assert candidati and all("id" in c for c in candidati)
     assert {c["livello"] for c in candidati} <= {1, 2}
 
 
