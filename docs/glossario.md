@@ -31,6 +31,13 @@ nome pulito, condizioni, alias, destinazioni, avvertenza. È il livello su cui s
 scheda e si pretende che ritrovi sé stessa al primo posto. Smaschera i casi in cui vettori e
 identificatori si sono disallineati, che i conteggi non rivelano.
 
+**Documento** — Unità indicizzata: un testo in italiano leggibile più un payload
+strutturato. Ne esistono tre tipi: oggetto (con tutte le sue varianti), regola di categoria,
+e destinazione (quest'ultimo non indicizzato, serve a spiegare).
+
+**Variante** — Un modo di essere di un oggetto e la destinazione che ne consegue: il cartone
+della pizza pulito va nella carta, quello unto nell'organico.
+
 **Scheda** — Unità restituita dalla ricerca. Una voce produce più schede (una per il nome
 con le sue condizioni, una per ciascun alias); anche ogni regola ammessa o esclusa è una
 scheda. Schede diverse possono puntare alla stessa voce.

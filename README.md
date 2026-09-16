@@ -4,7 +4,7 @@ Assistente per la raccolta differenziata che gira interamente in locale. L'utent
 
 Progetto universitario. Comuni del prototipo: **Napoli** (ASIA) e **Torino** (AMIAT).
 
-## Stato attuale (v0.25.1)
+## Stato attuale (v0.26.0)
 
 Il quadro completo è in [docs/diario.md](docs/diario.md).
 
@@ -62,6 +62,7 @@ uv run ecoscan-transform        # normalizza le voci dei due comuni -> data/norm
 uv run ecoscan-regole           # normalizza le regole di categoria e le collega alle destinazioni
 uv run ecoscan-carica           # ricostruisce data/ecoscan.db dai file normalizzati
 uv run ecoscan-carica --verifica # solo i controlli di coerenza, senza scrivere
+uv run ecoscan-documenti        # mostra i documenti da indicizzare (per leggerli)
 uv run ecoscan-indicizza        # costruisce l'indice lessicale FTS5 sopra il database
 uv run ecoscan-indicizza --cerca "bicchiere di vetro" --comune Torino   # prova la ricerca
 
@@ -155,6 +156,7 @@ Qdrant sta in modalità `server` o `in-process`.
 | `db/carica.py` | Load: ricostruisce il database dai file normalizzati |
 | `db/indicizza.py` | Schede ricercabili, indice FTS5 a trigrammi e ricerca lessicale |
 | `db/vettorizza.py` | Indicizzazione su Qdrant, ricerca semantica e fusione RRF |
+| `db/documenti.py` | Costruzione dei documenti da indicizzare: oggetto, regola, destinazione |
 | `db/sonda.py` | Misura della qualità del recupero su domande note |
 
 ## Documentazione

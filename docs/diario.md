@@ -127,6 +127,10 @@ Formato: decisione, motivazione, stato.
 | D98 | Il frontend parla solo con le API, e un test verifica che non importi l'agente né il database | Se importasse il backend, la valutazione misurerebbe qualcosa di diverso da ciò che usa l'utente | Accettata |
 | D99 | La formattazione dei messaggi sta in un modulo a parte, con i suoi test | È la parte che si sbaglia più facilmente: una regola di esclusione presentata male dice l'opposto del vero | Accettata |
 | D96 | La rotta `/riscontro` registra il giudizio dell'utente su una risposta | Ogni riga è un esempio etichettato da una persona: è il modo meno costoso di costruire il set di valutazione, che oggi non esiste | Accettata |
+| D107 | L'unità indicizzata diventa il **documento**: uno per oggetto con tutte le sue varianti, uno per ciascuna voce delle regole, uno per destinazione (non indicizzato) | Le vecchie schede erano frammenti di due o tre parole in italiano storto ("Scarpe utilizzabile", "Carta unto"): un embedding calcolato lì discrimina male. Con un documento per oggetto il modello riconosce l'oggetto e la variante la sceglie il codice | Accettata |
+| D108 | Le **destinazioni entrano nel testo indicizzato**; la risposta però si legge dal payload strutturato | Decisione di Stef. Il rischio di due verità che divergono è chiuso dalla ricostruzione totale: indice e database nascono dallo stesso comando | Accettata |
+| D109 | Le regole di categoria restano **corte e separate**, una per voce, con la polarità dentro la frase | Un testo lungo che mescola ammessi ed esclusi produce un embedding medio che non somiglia a nulla. E l'embedding non conosce il campo `polarita`: senza il "non" nel testo, un divieto si cerca come un'ammissione | Accettata |
+| D110 | Un documento per destinazione esiste ma **non si indicizza**: serve a spiegare la risposta di livello 2 | Utile come contesto, inutile come unità di ricerca | Accettata |
 | D105 | La correzione per condizione guarda anche le voci **affini**, non solo gli omonimi della voce scelta | A Torino il modello ha scelto "Scatole in cartone o cartoncino" mentre "Cartone da pizza" era fra i candidati: gli omonimi della voce scelta erano vuoti e nessuna correzione scattava | Accettata |
 | D106 | Poche **equivalenze fra condizioni**, verificate sui dati dei due comuni: unto ≈ sporco, vuoto ≈ senza residuo | Napoli scrive "unto", Torino "sporco": lo stesso stato con parole diverse. Restano un elenco corto e controllato, non un dizionario di sinonimi generico | Accettata |
 | D103 | Le parole dell'utente diventano **domande per l'indice**, non solo contesto per il modello | Chi scrive "cartone della pizza unto" ha appena detto cosa cercare. Prima quel testo arrivava solo al modello, e una descrizione precisa non aiutava il recupero | Accettata |
@@ -246,6 +250,22 @@ Cose imparate che non sono decisioni, ma che conviene ricordare.
 ---
 
 ## Cronologia
+
+### v0.26.0 — 12/09/2026
+
+**Aggiunto.** `db/documenti.py` e il comando `ecoscan-documenti`: la nuova unità da indicizzare. 996 documenti sui due comuni (877 oggetti, 106 regole, 13 destinazioni), con testo scritto in italiano leggibile e payload strutturato.
+
+Esempi di ciò che viene generato:
+
+    Cartone per pizze. Se è pulito va in Carta e Cartoncino; se è unto va in Organico.
+    Cartone da pizza. Se è pulito va in carta e cartone; se è sporco va in organico, ma solo se compostabile certificato.
+    Scarpe. Se non è utilizzabile va in Non Riciclabile; se è utilizzabile va in Contenitore Abiti Usati.
+    Simbolo GL o GLS. Codici del materiale sull'imballaggio: 70, 71, 72. Va in Vetro.
+    Nel contenitore carta e cartone NON va: carta con residui di cibo.
+
+**Cura del testo.** Le frasi sono state corrette leggendo il risultato su casi reali: negazioni in italiano ("se non è utilizzabile", non "se è non utilizzabile"), clausole di ammissibilità separate dagli aggettivi ("ma solo se compostabile certificato"), quantità come clausole ("ma solo in piccole quantità"), nomi tecnici resi leggibili (`carta_e_cartone` → "carta e cartone"), varianti indistinguibili unite, varianti con la stessa destinazione non ripetute.
+
+**Contraddizioni.** Quando la fonte dà destinazioni diverse per lo stesso caso, il documento lo dichiara nel testo invece di scegliere. 16 test.
 
 ### v0.25.1 — 12/09/2026
 
