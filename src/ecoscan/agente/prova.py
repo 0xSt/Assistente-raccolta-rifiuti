@@ -38,7 +38,7 @@ def cronometro(nome: str):
         DURATE[nome] = time.monotonic() - inizio
 
 
-def stampa_riconoscimento(r: Riconoscimento) -> None:
+def stampa_riconoscimento(r: Riconoscimento, testo_utente: str | None = None) -> None:
     print("\n## Riconoscimento")
     print(f"  oggetto:     {r.oggetto or '(non riconosciuto)'}")
     print(f"  sinonimi:    {', '.join(r.sinonimi) or '-'}")
@@ -50,7 +50,9 @@ def stampa_riconoscimento(r: Riconoscimento) -> None:
     print(f"  confidenza:  {r.confidenza:.2f}")
     if r.note:
         print(f"  note:        {r.note}")
-    print(f"  domande poste all'indice: {', '.join(repr(q) for q in r.formulazioni())}")
+    from ecoscan.agente.agente import domande
+    print(f"  domande poste all'indice: "
+          f"{', '.join(repr(q) for q in domande(r, testo_utente))}")
 
 
 def stampa_risposta(risposta: Risposta) -> None:
@@ -172,7 +174,7 @@ def main() -> None:
                   flush=True)
             with cronometro("riconoscimento"):
                 riconoscimento = modello.riconosci(args.foto.read_bytes(), args.testo)
-        stampa_riconoscimento(riconoscimento)
+        stampa_riconoscimento(riconoscimento, args.testo)
 
         with cronometro("recupero e scelta"):
             risposta = agente.rispondi(riconoscimento, args.comune, args.testo)

@@ -87,3 +87,12 @@ def test_il_prompt_di_scelta_evita_gli_oggetti_vicini_ma_diversi():
     testo = prompt_.carica("scelta").testo.lower()
     assert "stessa famiglia" in testo and "stivali" in testo
     assert int(prompt_.carica("scelta").versione) >= 5
+
+
+def test_il_riconoscimento_da_priorita_alle_parole_dell_utente():
+    """Il modello aveva riconosciuto "scatola" davanti a un cartone della pizza, ignorando
+    l'utente che aveva scritto "è unto"."""
+    testo = prompt_.carica("riconoscimento").testo.lower()
+    assert "vince sulla tua impressione" in testo
+    assert "cartone della pizza" in testo and "scatola" in testo
+    assert int(prompt_.carica("riconoscimento").versione) >= 4

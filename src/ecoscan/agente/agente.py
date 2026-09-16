@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import re
 import sqlite3
-from dataclasses import asdict
+from dataclasses import asdict, replace
 
 from ecoscan import prompt as prompt_
 from ecoscan.agente.modelli import ModelloVisione
@@ -67,6 +67,23 @@ def condizione_gia_nota(condizioni: list[str], testi: list[str | None]) -> bool:
     return bool(noto) and any(_menzionata(c, noto) for c in condizioni)
 
 
+def domande(riconoscimento: Riconoscimento, testo_utente: str | None = None) -> list[str]:
+    """Le domande da porre all'indice: quelle del riconoscimento più le parole dell'utente.
+
+    Le parole dell'utente sono una prova, non un contorno: chi scrive "cartone della pizza
+    unto" ha appena detto cosa cercare. Prima venivano passate solo al modello e mai
+    all'indice, quindi una descrizione precisa non aiutava il recupero.
+    """
+    domande_ = list(riconoscimento.formulazioni())
+    testo = (testo_utente or "").strip()
+    if testo:
+        # da sola e unita all'oggetto: "è unto" da solo non basta, "scatola è unto" sì
+        for formulazione in (testo, f"{riconoscimento.oggetto} {testo}".strip()):
+            if formulazione and formulazione.lower() not in {d.lower() for d in domande_}:
+                domande_.append(formulazione)
+    return domande_
+
+
 def scegli_per_condizione(omonimi: list[Candidato],
                           testi: list[str | None]) -> Candidato | None:
     """Fra voci con lo stesso nome, quella la cui condizione l'utente ha dichiarato.
@@ -86,6 +103,15 @@ def scegli_per_condizione(omonimi: list[Candidato],
     return migliore
 
 
+def condizioni_del_comune(db: sqlite3.Connection, comune: str) -> list[str]:
+    """Tutte le condizioni usate dalle voci di quel comune: unto, pulito, vuoto, usato..."""
+    righe = db.execute("""
+        SELECT DISTINCT vc.condizione FROM voce_condizione vc
+        JOIN voce v ON v.id = vc.voce_id JOIN comune c ON c.id = v.comune_id
+        WHERE c.nome = ?""", (comune,)).fetchall()
+    return [r[0] for r in righe]
+
+
 class Agente:
     def __init__(self, db: sqlite3.Connection, qdrant, vettorizzatore, modello: ModelloVisione,
                  k: int = 10):
@@ -96,8 +122,13 @@ class Agente:
 
     def _scegli_nel_livello(self, riconoscimento: Riconoscimento, comune: str, livello: int,
                             testo_utente: str | None) -> tuple[list[Candidato], Scelta]:
+        # il testo dell'utente è una formulazione a sé: se scrive "cartone della pizza unto"
+        # quella frase trova la voce giusta, mentre il riconoscimento diceva "scatola"
+        formulazioni = riconoscimento.formulazioni()
+        if testo_utente and testo_utente.strip().lower() not in [f.lower() for f in formulazioni]:
+            formulazioni.insert(0, testo_utente.strip())
         trovati = recupera(self.db, self.qdrant, self.vettorizzatore,
-                           riconoscimento.formulazioni(), comune, livello=livello, k=self.k)
+                           formulazioni, comune, livello=livello, k=self.k)
         if not trovati:
             return [], Scelta(scheda_id=None, motivo=f"nessun candidato al livello {livello}")
         scelta = self.modello.scegli(riconoscimento, trovati, testo_utente)
@@ -152,11 +183,29 @@ class Agente:
         riconoscimento = self.modello.riconosci(immagine, testo_utente)
         return self.rispondi(riconoscimento, comune, testo_utente, contesto)
 
+    def arricchisci(self, riconoscimento: Riconoscimento, comune: str,
+                    testo_utente: str | None) -> Riconoscimento:
+        """Porta nel riconoscimento ciò che l'utente ha detto, senza passare dal modello.
+
+        Davanti alla foto di un cartone della pizza con il testo "è unto", il modello ha
+        risposto "scatola" con stato vuoto: l'informazione dell'utente era andata persa.
+        Qui lo stato viene ricavato confrontando il testo con le condizioni che quel comune
+        usa davvero, quindi è un dato del database, non un'interpretazione.
+        """
+        if not testo_utente or riconoscimento.stato:
+            return riconoscimento
+        dichiarate = [c for c in condizioni_del_comune(self.db, comune)
+                      if _menzionata(c, testo_utente)]
+        if not dichiarate:
+            return riconoscimento
+        return replace(riconoscimento, stato=", ".join(sorted(dichiarate)))
+
     def rispondi(self, riconoscimento: Riconoscimento, comune: str,
                  testo_utente: str | None = None, contesto: dict | None = None,
                  gia_chiesto: bool = False) -> Risposta:
         """Dal riconoscimento alla risposta. Separato da `analizza` per poter valutare il
         retrieval e la scelta senza rieseguire il modello di visione su ogni foto."""
+        riconoscimento = self.arricchisci(riconoscimento, comune, testo_utente)
         base = {"comune": comune, "riconoscimento": riconoscimento,
                 "contesto": self._contesto(riconoscimento, comune, testo_utente)}
 

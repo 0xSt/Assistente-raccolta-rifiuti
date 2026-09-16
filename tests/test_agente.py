@@ -480,3 +480,27 @@ def test_senza_testo_la_scelta_resta_al_modello():
                Candidato(2, 1, "b", nome="X", condizioni=["pulito"])]
     assert scegli_per_condizione(omonimi, [None, None]) is None
     assert scegli_per_condizione(omonimi, ["è unto", None]).scheda_id == 1
+
+
+def test_le_parole_dell_utente_diventano_domande_per_l_indice():
+    """Erano passate solo al modello: una descrizione precisa non aiutava il recupero.
+    È il caso del cartone della pizza, dove "è unto" non arrivava all'indice."""
+    from ecoscan.agente.agente import domande
+    r = Riconoscimento(oggetto="scatola", categoria="imballaggio in cartone")
+    poste = domande(r, "è un cartone della pizza unto")
+    assert "è un cartone della pizza unto" in poste
+    assert "scatola è un cartone della pizza unto" in poste
+
+
+def test_senza_testo_le_domande_restano_quelle_del_riconoscimento():
+    from ecoscan.agente.agente import domande
+    r = Riconoscimento(oggetto="bottiglia", categoria="imballaggio")
+    assert domande(r, None) == r.formulazioni()
+    assert domande(r, "   ") == r.formulazioni()
+
+
+def test_le_domande_non_si_ripetono():
+    from ecoscan.agente.agente import domande
+    r = Riconoscimento(oggetto="bottiglia")
+    poste = domande(r, "bottiglia")
+    assert len(poste) == len(set(p.lower() for p in poste))

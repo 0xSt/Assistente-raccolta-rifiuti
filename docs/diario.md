@@ -127,6 +127,8 @@ Formato: decisione, motivazione, stato.
 | D98 | Il frontend parla solo con le API, e un test verifica che non importi l'agente né il database | Se importasse il backend, la valutazione misurerebbe qualcosa di diverso da ciò che usa l'utente | Accettata |
 | D99 | La formattazione dei messaggi sta in un modulo a parte, con i suoi test | È la parte che si sbaglia più facilmente: una regola di esclusione presentata male dice l'opposto del vero | Accettata |
 | D96 | La rotta `/riscontro` registra il giudizio dell'utente su una risposta | Ogni riga è un esempio etichettato da una persona: è il modo meno costoso di costruire il set di valutazione, che oggi non esiste | Accettata |
+| D103 | Le parole dell'utente diventano **domande per l'indice**, non solo contesto per il modello | Chi scrive "cartone della pizza unto" ha appena detto cosa cercare. Prima quel testo arrivava solo al modello, e una descrizione precisa non aiutava il recupero | Accettata |
+| D104 | Nel riconoscimento, ciò che dice l'utente **vince** sull'impressione del modello | Davanti a un cartone della pizza il modello ha risposto "scatola", ignorando l'utente. L'utente l'oggetto ce l'ha in mano, il modello vede una fotografia | Accettata |
 | D101 | Se l'utente dichiara una condizione, la scelta fra voci omonime la fa il **codice**, non il modello | "È unto" manda il cartone nell'organico e quello pulito nella carta: la differenza fra le due risposte è l'intero scopo dell'applicazione, e il modello aveva scelto la variante sbagliata | Accettata |
 | D102 | Il confronto fra condizione e testo dell'utente usa la radice delle parole e tiene conto della negazione | L'utente scrive al plurale e la condizione è al singolare ("non utilizzabili" contro "non utilizzabile"); e "unto" non deve risultare menzionato in "non è unto" | Accettata |
 | D100 | Non si chiede una condizione già nota, né si ripete una domanda a cui l'utente ha risposto | L'utente aveva scritto "cartone della pizza unto" e l'agente chiedeva comunque "unto oppure pulito?"; rispondendo, la stessa domanda tornava identica. Un assistente che non ascolta è peggio di uno che non sa | Accettata |
@@ -217,6 +219,7 @@ Cose imparate che non sono decisioni, ma che conviene ricordare.
 - **ASIA pubblica poche esclusioni, e quasi solo come grafica.** Testo solo per il Vetro; dentro l'immagine per l'Umido; per Plastica e Carta non esistono proprio. Torino ne pubblica 27 contro le 11 di Napoli: la stessa informazione, con profondità molto diversa. Una fonte può essere incompleta *per come è pubblicata*, non per come la leggiamo: il controllo che distingue i due casi è ciò che ha permesso di capirlo in un giro solo.
 - **Le esclusioni spiegano il dizionario.** La pagina del vetro di Napoli esclude bicchieri, piatti, pirofile e lastre: esattamente le voci che nel dizionario finiscono nel non riciclabile. Ciò che sembrava incoerenza è una regola dichiarata.
 - **Divergenze fra comuni utili da citare**: bicchiere di vetro (Napoli non riciclabile, Torino vetro); tappo di sughero (Napoli organico, Torino centro di raccolta o organico); pentole e padelle (Napoli plastica e metalli, Torino centro di raccolta). Una convergenza: il vetro dei profumi non è riciclabile in entrambi.
+- **Le informazioni dell'utente vanno usate in tutti i punti in cui servono, non in uno solo.** Il testo "è unto" veniva passato al modello di visione e alla scelta, ma non alla ricerca: le domande poste all'indice erano "scatola", "cartone", "confezione". Un dato raccolto e non usato è peggio di un dato mancante, perché sembra di averlo già sfruttato.
 - **Togliere una domanda senza correggere la scelta peggiora le cose.** Smesso di chiedere "unto o pulito?", il sistema ha cominciato a rispondere "Carta e Cartoncino" a chi aveva scritto "è unto": prima l'errore era visibile, dopo no. Una decisione che cambia la risposta non va lasciata al modello se i dati bastano a prenderla.
 - **Chiedere ciò che è già stato detto vanifica la conversazione.** Il chiarimento nasceva dai dati (omonimi con destinazioni diverse) senza guardare ciò che l'utente aveva scritto né lo stato visto nella foto. E `continua` ricalcolava la domanda da zero, quindi la riproponeva identica: un giro senza uscita.
 - **I nomi degli oggetti sono ambigui, e il modello sceglie il senso sbagliato.** "Ciabatta" in italiano è una calzatura e un tipo di pane: il modello ha imboccato la seconda strada e ha scelto "busta per alimenti", dichiarando pure la corrispondenza come "sinonimo". La categoria, resa obbligatoria e mostrata anche nella scelta, chiude quella strada.
@@ -240,6 +243,14 @@ Cose imparate che non sono decisioni, ma che conviene ricordare.
 ---
 
 ## Cronologia
+
+### v0.25.0 — 12/09/2026
+
+**Diagnosi.** Con la foto di un cartone della pizza e il testo "è unto", l'agente rispondeva "Carta e Cartoncino". La causa non era nelle condizioni ma a monte: il modello aveva riconosciuto **"scatola"**, e le domande poste all'indice erano "scatola", "cartone", "confezione". Le parole dell'utente non arrivavano al recupero.
+
+**Corretto.** Il testo dell'utente diventa una domanda per l'indice, da solo e unito all'oggetto riconosciuto.
+
+**Modificato.** Prompt di riconoscimento alla versione 4: ciò che dice l'utente vince sull'impressione del modello, sia per il nome dell'oggetto sia per lo stato. Aggiunta anche la regola di preferire il nome preciso a quello generico ("cartone della pizza", non "scatola").
 
 ### v0.24.2 — 12/09/2026
 
