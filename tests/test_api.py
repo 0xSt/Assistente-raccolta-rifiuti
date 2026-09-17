@@ -13,6 +13,7 @@ from fastapi.testclient import TestClient
 from ecoscan.agente.agente import Agente
 from ecoscan.api.app import PREFISSO, crea_app
 from ecoscan.api.risorse import Risorse
+from ecoscan.agente.tipi import Riconoscimento
 from tests.conftest import ModelloFinto
 
 
@@ -168,3 +169,15 @@ def test_correggi_rifiuta_un_oggetto_vuoto(client):
     risposta = client.post(f"{PREFISSO}/correggi",
                            json={"contesto": {"comune": "Torino"}, "oggetto": ""})
     assert risposta.status_code == 422
+
+
+def test_le_parti_dell_oggetto_arrivano_nella_risposta(risorse, tmp_path):
+    """Il coperchio non segue il vasetto: l'interfaccia deve poterlo dire."""
+    risorse.agente.modello.riconoscimento = Riconoscimento(
+        oggetto="giornali e riviste", confidenza=0.9, componenti=["bottiglia di plastica"])
+    with TestClient(crea_app(risorse, riscontri=tmp_path / "riscontri.jsonl")) as client:
+        corpo = client.post(f"{PREFISSO}/analizza", data={"comune": "Torino"},
+                            files={"foto": ("f.jpg", b"contenuto", "image/jpeg")}).json()
+    [parte] = corpo["componenti"]
+    assert parte["nome"] == "bottiglia di plastica" and parte["trovato"] is True
+    assert parte["destinazioni"] and parte["livello_evidenza"] in (1, 2)

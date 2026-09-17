@@ -243,6 +243,10 @@ l'ambiente da `uv.lock`, `uv run` esegue un comando dentro quell'ambiente.
 **Profilo** — In questo progetto, l'insieme delle regole di Transform specifiche di un
 comune. Il motore è unico, i profili cambiano.
 
+**Parte separabile (componente)** — Un pezzo dell'oggetto fatto di un altro materiale e
+staccabile: il coperchio in alluminio di un vasetto, l'etichetta di carta di una bottiglia.
+Riceve la sua risposta, distinta da quella dell'oggetto principale.
+
 **Etichetta di una destinazione** — Come un contenitore si scrive all'utente ("Carta e
 cartone"), distinta dal nome interno con cui è scritto nei dati ("carta_e_cartone"), che
 resta la chiave.

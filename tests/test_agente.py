@@ -5,7 +5,7 @@ di Gemma, che si misura con le sonde e con il set di valutazione.
 """
 import pytest
 
-from ecoscan.agente.agente import Agente, domande
+from ecoscan.agente.agente import Agente, parti_da_cercare, domande
 from ecoscan.agente.recupero import candidati, menzionata, scegli_variante
 from ecoscan.agente.tipi import Candidato, Riconoscimento, Scelta, Variante
 from tests.conftest import ModelloFinto, SceglieIlDocumento
@@ -292,3 +292,68 @@ def test_la_correzione_resta_nella_stessa_conversazione(ambiente):
     prima = agente.analizza(b"foto", "Torino")
     dopo = agente.correggi(prima.contesto, "giornali")
     assert dopo.contesto["id_conversazione"] == prima.contesto["id_conversazione"]
+
+
+def test_le_parti_da_cercare_escludono_quelle_che_ripetono_l_oggetto():
+    """Cercare "bottiglia" dentro "bottiglia di plastica" darebbe due volte la stessa
+    risposta, al prezzo di una chiamata al modello in più."""
+    riconoscimento = Riconoscimento(
+        oggetto="bottiglia di plastica",
+        componenti=["bottiglia", "tappo", "tappo", "etichetta di carta", "x"])
+    assert parti_da_cercare(riconoscimento, 2) == ["tappo", "etichetta di carta"]
+    assert parti_da_cercare(riconoscimento, 0) == []
+
+
+def test_ogni_parte_riceve_la_sua_destinazione(ambiente):
+    """Il coperchio non va dove va il vasetto: rispondere solo per l'oggetto principale è
+    una risposta giusta a metà."""
+    modello = SceglieIlDocumento("bottiglia", Riconoscimento(
+        oggetto="bottiglia di plastica", confidenza=0.9, componenti=["giornali e riviste"]))
+    agente = crea_agente(ambiente, modello)
+    risposta = agente.analizza(b"foto", "Torino")
+
+    assert risposta.destinazioni == ["imballaggi_plastica"]
+    [parte] = risposta.componenti
+    assert parte.nome == "giornali e riviste" and parte.trovato
+    assert parte.destinazioni == ["carta_e_cartone"] and parte.livello_evidenza == 1
+
+
+def test_una_parte_sconosciuta_viene_dichiarata(ambiente):
+    """Meglio dire che non si sa, che tacere e lasciarla nel contenitore sbagliato."""
+    class SoloLOggettoPrincipale(SceglieIlDocumento):
+        """Riconosce la bottiglia ma non sa cosa fare dell'anello di sughero."""
+
+        def scegli(self, riconoscimento, candidati, testo_utente=None):
+            if "bottiglia" not in riconoscimento.oggetto.lower():
+                return Scelta(scheda_id=None, tipo_corrispondenza="nessuna")
+            return super().scegli(riconoscimento, candidati, testo_utente)
+
+    modello = SoloLOggettoPrincipale("bottiglia", Riconoscimento(
+        oggetto="bottiglia di plastica", confidenza=0.9, componenti=["anello di sughero"]))
+    risposta = crea_agente(ambiente, modello).analizza(b"foto", "Torino")
+    assert risposta.destinazioni == ["imballaggi_plastica"]
+    [parte] = risposta.componenti
+    assert parte.nome == "anello di sughero" and not parte.trovato and parte.destinazioni == []
+
+
+def test_con_un_chiarimento_in_sospeso_le_parti_non_si_cercano(ambiente):
+    """Prima si scioglie il dubbio sull'oggetto: le parti costano tempo e distraggono."""
+    modello = SceglieIlDocumento("cartone da pizza", Riconoscimento(
+        oggetto="cartone della pizza", confidenza=0.9, componenti=["giornali e riviste"]))
+    agente = crea_agente(ambiente, modello)
+    risposta = agente.analizza(b"foto", "Torino")
+    assert risposta.chiarimento and risposta.componenti == []
+    # sciolto il dubbio, le parti compaiono
+    dopo = agente.continua(risposta.contesto, "sporco")
+    assert [p.nome for p in dopo.componenti] == ["giornali e riviste"]
+
+
+def test_le_parti_non_pongono_altre_domande(ambiente):
+    """Una domanda per turno: chiedere anche delle parti lascerebbe l'utente senza risposta
+    su niente."""
+    modello = SceglieIlDocumento("bottiglia", Riconoscimento(
+        oggetto="bottiglia di plastica", confidenza=0.9, componenti=["cartone da pizza"]))
+    risposta = crea_agente(ambiente, modello).analizza(b"foto", "Torino")
+    assert risposta.chiarimento is None
+    [parte] = risposta.componenti
+    assert parte.trovato and parte.destinazioni

@@ -86,6 +86,8 @@ def corpo(risposta: dict, etichette: dict[str, str] | None = None) -> str:
         righe.append(alternative)
     if avvertenza := risposta.get("avvertenza"):
         righe.append(f"⚠️ {avvertenza}")
+    if parti := frase_componenti(risposta, etichette):
+        righe.append(parti)
 
     livello = risposta.get("livello_evidenza", 3)
     righe.append(SPIEGAZIONE_LIVELLO.get(livello, ""))
@@ -127,6 +129,29 @@ def altre_varianti(risposta: dict, etichette: dict[str, str] | None = None) -> s
         riga = f"se è {condizione} → {dove}" if condizione else f"negli altri casi → {dove}"
         pezzi.append(f"**{riga}** ✓" if condizione and condizione in condizioni_scelte else riga)
     return "Le varianti di questo oggetto: " + " · ".join(pezzi) + "."
+
+
+def frase_componenti(risposta: dict, etichette: dict[str, str] | None = None) -> str:
+    """Dove vanno le parti separabili dell'oggetto.
+
+    Il coperchio in alluminio non va dove va il vasetto: rispondere solo per l'oggetto
+    principale è una risposta giusta a metà, e la metà mancante finisce nel contenitore
+    sbagliato.
+    """
+    componenti = risposta.get("componenti") or []
+    if not componenti:
+        return ""
+    righe = []
+    for parte in componenti:
+        nome = (parte.get("nome") or "").strip()
+        if not parte.get("trovato"):
+            righe.append(f"- **{nome}**: il comune non dice dove va")
+            continue
+        verbo = VERBO.get(parte.get("polarita") or "", "va in")
+        dove = " oppure ".join(etichette_di(parte.get("destinazioni") or [], etichette))
+        coda = f" (se è {', '.join(parte['condizioni'])})" if parte.get("condizioni") else ""
+        righe.append(f"- **{nome}**: {verbo} {dove}{coda}")
+    return "Questo oggetto ha parti che vanno separate:\n" + "\n".join(righe)
 
 
 def frase_riconoscimento(risposta: dict) -> str:

@@ -66,6 +66,10 @@ MLFLOW_FOTO = _testo("ECOSCAN_MLFLOW_FOTO", "si").lower() not in ("no", "0", "fa
 # Dopo un guasto di MLflow si riprova solo dopo questi secondi: riprovare a ogni richiesta
 # rallenterebbe tutte le risposte mentre il server è spento
 MLFLOW_RIPROVA = _intero("ECOSCAN_MLFLOW_RIPROVA", 60)
+
+# Quante parti di un oggetto composto cercare oltre all'oggetto principale. Ognuna costa
+# una ricerca e una chiamata al modello, che su CPU si sentono: 0 spegne la funzione.
+MAX_COMPONENTI = _intero("ECOSCAN_MAX_COMPONENTI", 2)
 # Quante schede si vettorizzano per chiamata
 LOTTO_EMBEDDING = _intero("ECOSCAN_LOTTO_EMBEDDING", 32)
 

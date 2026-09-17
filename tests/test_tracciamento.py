@@ -309,3 +309,19 @@ def test_anche_la_correzione_e_un_turno_della_conversazione(ambiente, archivio):
     assert correggi.info.tags["turno"] == "correggi"
     assert correggi.info.trace_metadata["mlflow.trace.session"] == sessione
     assert span(correggi, "correggi").inputs["oggetto_corretto"] == "giornali e riviste"
+
+
+def test_ogni_parte_ha_il_suo_span(ambiente, archivio):
+    """Le parti costano ricerche e chiamate al modello: nella traccia devono vedersi."""
+    modello = bottiglia()
+    modello.riconoscimento.componenti = ["giornali e riviste"]
+    agente = Agente(ambiente.qdrant, ambiente.vettorizzatore, modello,
+                    tracciatore=tracciatore(archivio))
+    agente.analizza(JPEG, "Torino")
+
+    [traccia] = tracce()
+    parte = span(traccia, "componente: giornali e riviste")
+    assert parte.inputs["nome"] == "giornali e riviste"
+    assert parte.outputs["destinazioni"] == ["carta_e_cartone"]
+    assert any(s.name == "recupero_livello1" and s.parent_id == parte.span_id
+               for s in traccia.data.spans), "il recupero della parte sta dentro la parte"

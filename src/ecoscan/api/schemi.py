@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel, Field
 
-from ecoscan.agente.tipi import Candidato, Riconoscimento, Risposta
+from ecoscan.agente.tipi import Candidato, Componente, Riconoscimento, Risposta
 
 
 class RiconoscimentoUscita(BaseModel):
@@ -49,6 +49,28 @@ class CandidatoUscita(BaseModel):
                    destinazioni=c.destinazioni, polarita=c.polarita, punteggio=c.punteggio)
 
 
+class ComponenteUscita(BaseModel):
+    """Dove va una parte separabile dell'oggetto: il coperchio non segue il vasetto."""
+
+    nome: str
+    destinazioni: list[str] = []
+    polarita: str | None = None
+    condizioni: list[str] = []
+    avvertenza: str | None = None
+    livello_evidenza: int = 3
+    fonte: str | None = None
+    riferimento: str | None = None
+    scelto_id: str | None = None
+    trovato: bool = Field(description="falso quando il comune non dice nulla su questa parte")
+
+    @classmethod
+    def da(cls, c: Componente) -> "ComponenteUscita":
+        return cls(nome=c.nome, destinazioni=c.destinazioni, polarita=c.polarita,
+                   condizioni=c.condizioni, avvertenza=c.avvertenza,
+                   livello_evidenza=c.livello_evidenza, fonte=c.fonte,
+                   riferimento=c.riferimento, scelto_id=c.scelto_id, trovato=c.trovato)
+
+
 class RispostaUscita(BaseModel):
     livello_evidenza: int = Field(
         description="1 voce di dizionario, 2 regola di categoria, 3 il comune non copre l'oggetto")
@@ -71,6 +93,8 @@ class RispostaUscita(BaseModel):
     motivo: str = ""
     contraddizione: bool = False
     riconoscimento: RiconoscimentoUscita | None = None
+    componenti: list[ComponenteUscita] = Field(
+        default=[], description="le parti separabili dell'oggetto, ognuna con la sua destinazione")
     candidati: list[CandidatoUscita] = []
     contesto: dict = Field(
         default_factory=dict,
@@ -87,6 +111,7 @@ class RispostaUscita(BaseModel):
             tipo_corrispondenza=r.tipo_corrispondenza, motivo=r.motivo,
             contraddizione=r.contraddizione,
             riconoscimento=RiconoscimentoUscita.da(r.riconoscimento) if r.riconoscimento else None,
+            componenti=[ComponenteUscita.da(c) for c in r.componenti],
             candidati=[CandidatoUscita.da(c) for c in r.candidati], contesto=r.contesto)
 
 
