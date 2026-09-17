@@ -42,7 +42,7 @@ Va aggiornato **a ogni cambiamento sostanziale**, non a ogni riga di codice. In 
 | Serving | Documenti su Qdrant, sola ricerca semantica, aggancio esatto dei codici materiale |
 | Agente | Fatto: riconoscimento, cascata dei livelli, scelta vincolata, risposta. Indipendente da HTTP |
 | API FastAPI | Fatto: analizza, continua, correggi, cerca, comuni, destinazioni, salute, riscontro |
-| Frontend a chat | Fatto (v0.32.0): etichette leggibili, riconoscimento visibile e correggibile, chiarimenti a pulsante, citazione del documento, parti separabili |
+| Frontend a chat | Fatto (v0.31.0): etichette leggibili, riconoscimento visibile e correggibile, chiarimenti a pulsante, citazione del documento |
 | Osservabilità | Fatto (v0.30.0): tracce MLflow per turno con foto, retrieval e sessione; versione dell'app e prompt collegati |
 | Docker | Fatto: qdrant, mlflow, backend, frontend; ollama sotto profilo |
 | Regole di categoria — Napoli | Completo per quanto la fonte pubblica: 38 ammessi, 11 esclusi (5 Vetro estratti + 6 Umido trascritti a mano), 2 assenze verificate |
@@ -142,8 +142,9 @@ Formato: decisione, motivazione, stato.
 | D131 | Nuova rotta `/correggi`: l'utente dichiara l'oggetto e si rifanno solo ricerca e scelta, con confidenza 1.0 | La foto non si rilegge (è il passaggio lento) e non si fa riguardare a un modello che ha già sbagliato. È il motivo per cui `analizza` e `rispondi` erano separati (D72) | Accettata |
 | D132 | Il chiarimento porta con sé le **opzioni**, e l'interfaccia ne fa pulsanti | Le condizioni vengono dalle varianti del documento: farle scrivere a mano aggiungeva solo modi di sbagliare | Accettata |
 | D133 | "Come ci sono arrivato" mostra la **citazione** del documento scelto, il motivo e le voci scartate; la tabella dei punteggi passa in secondo piano | I punteggi di somiglianza spiegano il sistema a chi lo sviluppa, non la risposta a chi la riceve. La citazione è anche la prova che la destinazione non è inventata dal modello | Accettata |
-| D134 | Un oggetto composto riceve una risposta **per ogni parte separabile**, oltre a quella principale: stesso procedimento, dizionario prima e regole poi | Il coperchio in alluminio non va dove va il vasetto. Rispondere solo per l'oggetto principale è una risposta giusta a metà, e la metà mancante finisce nel contenitore sbagliato. Il modello elencava già i componenti e nessuno li usava | Accettata |
-| D135 | Per una parte non si chiede **mai** un chiarimento, e le parti si cercano solo quando la risposta principale non ne ha uno in sospeso | Una domanda per turno: due o tre domande insieme lascerebbero l'utente senza risposta su niente. E finché l'oggetto principale è in dubbio, cercare le parti costa tempo per un risultato che potrebbe non servire | Accettata |
+| D134 | *(ritirata)* Un oggetto composto riceve una risposta per ogni parte separabile | Provata in v0.32.0 e rimossa in v0.32.1: la prima foto vera (piatto con forchetta appoggiata sopra) ha mostrato che il caso frequente non è l'oggetto con parti separabili ma la foto con **più oggetti distinti**, che è un problema diverso. La funzione costava una ricerca e una chiamata al modello per parte senza risolverlo | Superata da D136, ritirata in v0.32.1 |
+| D135 | *(ritirata)* Nessun chiarimento per le parti, e parti cercate solo senza domande in sospeso | Cadono con D134 | Superata da D136, ritirata in v0.32.1 |
+| D136 | Più oggetti nella stessa foto restano **fuori portata** per ora: il modello descrive un solo oggetto, quello principale | Distinguere gli altri oggetti da buttare dallo sfondo (in una foto: un piatto, una forchetta, un portatile, una scrivania, un cavo) è un problema di riconoscimento, non di recupero, e va affrontato da solo | Accettata |
 | D116 | Il tracciamento su MLflow **non è mai bloccante** e fallisce in fretta (tre secondi, un solo tentativo) | Serve a capire come va il sistema, non a farlo funzionare. Senza i limiti sui tentativi il client riprova per minuti e la risposta all'utente resta appesa | Accettata |
 | D117 | Delle foto si registra solo l'**impronta**, mai l'immagine | Due richieste sulla stessa foto si riconoscono, ma l'immagine non lascia il computer di chi l'ha scattata: è coerente con un progetto che gira in locale | Superata da D124, per decisione di Stef |
 | D118 | I prompt restano file in git; il registro di MLflow li **collega alle run** che li hanno usati | La verità e il diff stanno in git; MLflow serve a sapere quale versione ha prodotto un certo risultato | Superata da D126: il registro collega i prompt alle tracce, non più alle run |
@@ -272,7 +273,6 @@ Cose imparate che non sono decisioni, ma che conviene ricordare.
 - **Un Dockerfile va costruito, non solo letto.** Mancava `COPY README.md`, che il `pyproject.toml` dichiara come `readme`: la costruzione del pacchetto falliva con un errore di hatchling che non nominava mai il Dockerfile. Ora due test leggono il pyproject e verificano che ogni file dichiarato sia copiato e non escluso dal `.dockerignore`.
 - **I comandi vanno provati eseguendoli, non solo leggendoli.** `--diagnostica` usava una variabile definita più sotto: un errore che nessun test coglieva perché nessuno eseguiva quel ramo. Ora tre test lanciano `main()` con la diagnostica sostituita da una finta.
 - **Un test che dipende dall'ambiente di chi lo esegue non è un test.** `test_il_file_env_viene_letto` passava da me e falliva sul portatile di Stef, perché ereditava le variabili della macchina. Ora l'ambiente del sottoprocesso viene ripulito di tutte le `ECOSCAN_*`.
-- **Ogni parte costa quanto un oggetto**: una ricerca per livello e una chiamata al modello. Su CPU si sente, perciò `ECOSCAN_MAX_COMPONENTI` (2 di norma) limita quante se ne cercano, e 0 spegne tutto.
 - **La provenienza si perdeva nel Transform.** Il grezzo di Napoli ha l'URL di ogni voce e quello di Torino la pagina del PDF: nessuno dei due arrivava al livello normalizzato, e le risposte di livello 1 restavano senza fonte pur avendola a disposizione.
 - **Cambiare il payload dei documenti costringe a rivettorizzare.** Aggiungere fonte e riferimento agli oggetti significa rilanciare `ecoscan-vettorizza`, non solo `ecoscan-carica`: l'indice porta una copia del payload.
 - **Il client di MLflow riprova per minuti un server spento anche sul registro dei prompt**, non solo sulle run: i limiti di attesa ora stanno in una funzione sola (`limita_attese`), usata sia dal tracciatore sia da `ecoscan-prompt`.
@@ -284,21 +284,13 @@ Cose imparate che non sono decisioni, ma che conviene ricordare.
 
 ## Cronologia
 
-### v0.32.0 — 17/09/2026
+### v0.32.1 — 17/09/2026
 
-**Aggiunto.** Le parti separabili di un oggetto composto ricevono la loro risposta (D134). Il modello di visione elencava già i componenti nel riconoscimento e nessuno li usava: ora ognuno passa dallo stesso procedimento dell'oggetto principale, dizionario prima e regole di categoria poi. La risposta porta un campo `componenti`, e il frontend lo scrive sotto la risposta: "Questo oggetto ha parti che vanno separate: **coperchio in alluminio**: va in Vetro e imballaggi in metallo".
+**Rimosso.** La ricerca per parti separabili introdotta in v0.32.0 (D134, D135). La prima foto vera su cui è stata provata — un piatto con una forchetta appoggiata sopra — ha mostrato che il caso non era quello previsto: forchetta e piatto sono due oggetti distinti, non un oggetto con parti separabili, e il prompt chiede al modello di descriverne uno solo. La funzione non copriva il caso frequente e costava una ricerca e una chiamata al modello per parte.
 
-**Aggiunto.** Una parte che il comune non copre viene dichiarata come tale, invece di essere taciuta: meglio sapere che non si sa, che lasciarla nel contenitore sbagliato.
+**Deciso.** Le foto con più oggetti restano fuori portata (D136), in attesa di affrontare il riconoscimento di più oggetti distinti senza raccogliere anche lo sfondo.
 
-**Deciso.** Nessun chiarimento per le parti, e nessuna ricerca delle parti mentre una domanda sull'oggetto principale è in sospeso (D135). Sciolto il dubbio, al turno successivo le parti compaiono.
-
-**Aggiunto.** `ECOSCAN_MAX_COMPONENTI` (2 di norma) limita quante parti si cercano; 0 spegne la funzione. Ogni parte costa una ricerca e una chiamata al modello, che su CPU si sentono.
-
-**Modificato.** La ricerca a cascata fra livello 1 e livello 2 è ora un metodo solo (`_cerca`), condiviso fra l'oggetto principale e le sue parti: una parte merita lo stesso procedimento dell'oggetto, non una scorciatoia.
-
-**Tracciamento.** Ogni parte ha il suo span dentro il turno, con i propri span di recupero e di scelta annidati: il costo in tempo di questa funzione è visibile senza doverlo misurare a parte.
-
-**Test.** 363 passati (erano 353): scelta delle parti da cercare, destinazione per parte, parte sconosciuta dichiarata, nessuna domanda sulle parti, parti assenti durante un chiarimento, campo nell'API, righe nel messaggio e span nella traccia.
+**Invariato.** Tutto il resto della v0.31.0: etichette leggibili, provenienza delle voci, riconoscimento visibile, correzione, citazione della fonte.
 
 ### v0.31.0 — 17/09/2026
 

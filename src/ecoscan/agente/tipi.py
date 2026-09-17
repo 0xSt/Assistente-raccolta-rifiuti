@@ -153,29 +153,6 @@ class Scelta:
 
 
 @dataclass
-class Componente:
-    """Dove va una parte separabile dell'oggetto principale.
-
-    È una risposta ridotta: niente chiarimenti, niente candidati. Per una parte non si
-    interrompe l'utente con una domanda, e i documenti considerati restano nella traccia.
-    """
-
-    nome: str
-    destinazioni: list[str] = field(default_factory=list)
-    polarita: str | None = None
-    condizioni: list[str] = field(default_factory=list)
-    avvertenza: str | None = None
-    livello_evidenza: int = 3
-    fonte: str | None = None
-    riferimento: str | None = None
-    scelto_id: str | None = None
-
-    @property
-    def trovato(self) -> bool:
-        return bool(self.destinazioni)
-
-
-@dataclass
 class Risposta:
     """Ciò che l'agente restituisce. `livello_evidenza` dice quanto è fondata."""
 
@@ -195,7 +172,6 @@ class Risposta:
     motivo: str = ""
     contraddizione: bool = False
     candidati: list[Candidato] = field(default_factory=list)
-    componenti: list[Componente] = field(default_factory=list)  # le parti separabili
     riconoscimento: Riconoscimento | None = None
     contesto: dict = field(default_factory=dict)   # il backend resta senza stato: lo rimanda il client
 

@@ -25,11 +25,9 @@ from ecoscan import prompt as prompt_
 from ecoscan.agente.modelli import ModelloVisione
 from ecoscan.agente.recupero import candidati as recupera
 from ecoscan.agente.recupero import nomina_l_oggetto, scegli_variante
-from ecoscan.agente.tipi import (
-    TIPI_NON_VALIDI, Candidato, Componente, Riconoscimento, Risposta, Scelta,
-)
+from ecoscan.agente.tipi import TIPI_NON_VALIDI, Candidato, Riconoscimento, Risposta, Scelta
 from ecoscan.osservabilita.tracciamento import (
-    CATENA, LLM, RETRIEVER, TracciatoreNullo, documento, impronta, nuova_conversazione,
+    LLM, RETRIEVER, TracciatoreNullo, documento, impronta, nuova_conversazione,
 )
 
 CONFIDENZA_MINIMA = 0.2   # sotto, il riconoscimento non è affidabile abbastanza per cercare
@@ -48,27 +46,6 @@ def domande(riconoscimento: Riconoscimento, testo_utente: str | None = None) -> 
             if formulazione and formulazione.lower() not in {d.lower() for d in poste}:
                 poste.append(formulazione)
     return poste
-
-
-def parti_da_cercare(riconoscimento: Riconoscimento, massimo: int) -> list[str]:
-    """Le parti dell'oggetto che vale la pena cercare a sé.
-
-    Si scartano quelle che ripetono l'oggetto principale ("bottiglia" dentro "bottiglia di
-    plastica"): cercarle darebbe la stessa risposta due volte. Il numero è limitato perché
-    ogni parte costa una ricerca e una chiamata al modello.
-    """
-    principale = riconoscimento.oggetto.strip().lower()
-    scelte, viste = [], {principale}
-    for parte in riconoscimento.componenti:
-        nome = (parte or "").strip()
-        piatto = nome.lower()
-        if len(piatto) < 3 or piatto in viste:
-            continue
-        if piatto in principale or principale in piatto:
-            continue
-        viste.add(piatto)
-        scelte.append(nome)
-    return scelte[:massimo]
 
 
 class Agente:
@@ -161,48 +138,6 @@ class Agente:
             contraddizione=scelto.contraddizione,
         )
 
-    def _cerca(self, riconoscimento: Riconoscimento, comune: str, testo_utente: str | None,
-               gia_chiesto: bool) -> tuple[Risposta | None, list[Candidato]]:
-        """Dal riconoscimento alla risposta, provando prima il dizionario e poi le regole.
-
-        È il cuore condiviso fra l'oggetto principale e le sue parti: una parte merita lo
-        stesso procedimento dell'oggetto, non una scorciatoia.
-        """
-        tutti: list[Candidato] = []
-        for livello in (1, 2):
-            trovati, scelta = self._scegli_nel_livello(riconoscimento, comune, livello,
-                                                       testo_utente)
-            tutti.extend(trovati)
-            if scelta.scheda_id is not None:
-                scelto = next(c for c in trovati if c.id == scelta.scheda_id)
-                risposta = self._componi(scelto, riconoscimento, scelta, comune, trovati,
-                                         testo_utente, gia_chiesto)
-                risposta.candidati = tutti
-                return risposta, tutti
-        return None, tutti
-
-    def _parti(self, riconoscimento: Riconoscimento, comune: str) -> list[Componente]:
-        """Dove vanno le parti separabili: il coperchio in alluminio non va dove va il
-        vasetto, e dirlo solo per il vasetto è una risposta sbagliata a metà.
-
-        Per una parte non si chiede mai un chiarimento: l'utente ha fatto una domanda sola,
-        e riempirlo di domande sulle parti lo lascerebbe senza risposta su niente.
-        """
-        parti = []
-        for nome in parti_da_cercare(riconoscimento, conf.MAX_COMPONENTI):
-            parte = Riconoscimento(oggetto=nome, confidenza=riconoscimento.confidenza)
-            with self.tracciatore.span(f"componente: {nome}", CATENA,
-                                       {"nome": nome, "comune": comune}) as span:
-                risposta, _ = self._cerca(parte, comune, None, gia_chiesto=True)
-                componente = Componente(nome=nome) if risposta is None else Componente(
-                    nome=nome, destinazioni=risposta.destinazioni, polarita=risposta.polarita,
-                    condizioni=risposta.condizioni, avvertenza=risposta.avvertenza,
-                    livello_evidenza=risposta.livello_evidenza, fonte=risposta.fonte,
-                    riferimento=risposta.riferimento, scelto_id=risposta.scelto_id)
-                span.uscita(asdict(componente))
-            parti.append(componente)
-        return parti
-
     # ------------------------------------------------------------------ ingresso
 
     def analizza(self, immagine: bytes, comune: str, testo_utente: str | None = None,
@@ -243,19 +178,22 @@ class Agente:
                             chiarimento="Puoi rifare la foto più da vicino, o dirmi di che oggetto si tratta?",
                             **base)
 
-        risposta, tutti = self._cerca(riconoscimento, comune, testo_utente, gia_chiesto)
-        if risposta is None:
-            risposta = Risposta(livello_evidenza=3, oggetto=riconoscimento.oggetto,
-                                motivo=f"nessuna regola di {comune} copre questo oggetto",
-                                candidati=tutti, **base)
-        else:
-            risposta.contesto = base["contesto"]
+        tutti: list[Candidato] = []
+        for livello in (1, 2):
+            trovati, scelta = self._scegli_nel_livello(riconoscimento, comune, livello,
+                                                       testo_utente)
+            tutti.extend(trovati)
+            if scelta.scheda_id is not None:
+                scelto = next(c for c in trovati if c.id == scelta.scheda_id)
+                risposta = self._componi(scelto, riconoscimento, scelta, comune, trovati,
+                                         testo_utente, gia_chiesto)
+                risposta.candidati = tutti
+                risposta.contesto = base["contesto"]
+                return risposta
 
-        # le parti si cercano solo quando la risposta principale è data: davanti a una
-        # domanda in sospeso aggiungerebbero rumore, e ogni parte costa tempo
-        if not risposta.chiarimento:
-            risposta.componenti = self._parti(riconoscimento, comune)
-        return risposta
+        return Risposta(livello_evidenza=3, oggetto=riconoscimento.oggetto,
+                        motivo=f"nessuna regola di {comune} copre questo oggetto",
+                        candidati=tutti, **base)
 
     def _contesto(self, riconoscimento: Riconoscimento, comune: str,
                   testo_utente: str | None, conversazione: str | None = None) -> dict:

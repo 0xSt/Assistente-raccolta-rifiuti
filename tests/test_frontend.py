@@ -240,24 +240,3 @@ def test_il_frontend_non_importa_il_backend():
         moduli = [n.module or "" for n in ast.walk(albero) if isinstance(n, ast.ImportFrom)]
         moduli += [a.name for n in ast.walk(albero) if isinstance(n, ast.Import) for a in n.names]
         assert not [m for m in moduli if m.startswith(vietati)], f"{file.name} importa il backend"
-
-
-def test_le_parti_dell_oggetto_si_leggono_sotto_la_risposta():
-    testo = presentazione.corpo({"livello_evidenza": 1, "componenti": [
-        {"nome": "coperchio in alluminio", "trovato": True,
-         "destinazioni": ["carta_e_cartone"], "condizioni": []},
-        {"nome": "anello di sughero", "trovato": False}]}, ETICHETTE)
-    assert "coperchio in alluminio**: va in Carta e cartone" in testo
-    assert "anello di sughero**: il comune non dice dove va" in testo
-
-
-def test_una_parte_esclusa_non_viene_ribaltata():
-    """Vale per le parti quanto per l'oggetto: una regola di esclusione va letta bene."""
-    testo = presentazione.frase_componenti({"componenti": [
-        {"nome": "tappo", "trovato": True, "polarita": "escluso",
-         "destinazioni": ["organico"]}]}, ETICHETTE)
-    assert "**non** va in Organico" in testo
-
-
-def test_senza_parti_non_si_dice_nulla():
-    assert presentazione.frase_componenti({"componenti": []}) == ""
