@@ -14,8 +14,10 @@ ENV UV_LINK_MODE=copy \
     UV_COMPILE_BYTECODE=1 \
     PYTHONUNBUFFERED=1
 
-# Prima le dipendenze, poi il codice: così una modifica al codice non rifà l'installazione
-COPY pyproject.toml uv.lock ./
+# Prima le dipendenze, poi il codice: così una modifica al codice non rifà l'installazione.
+# README.md serve perché pyproject.toml lo dichiara come `readme`: senza, la costruzione
+# del pacchetto fallisce con un errore che non nomina il Dockerfile.
+COPY pyproject.toml uv.lock README.md ./
 RUN uv sync --frozen --no-install-project --no-dev
 
 COPY src ./src

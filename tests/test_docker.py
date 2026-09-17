@@ -79,3 +79,30 @@ def test_il_dockerignore_esclude_i_dati_pesanti():
     righe = (RADICE / ".dockerignore").read_text(encoding="utf-8").split()
     for pesante in ("data/cache", "data/sorgenti", ".venv", ".git"):
         assert pesante in righe
+
+
+def test_il_dockerfile_copia_i_file_dichiarati_nel_pyproject():
+    """`readme = "README.md"` nel pyproject fa fallire la costruzione del pacchetto se il
+    file non è nell'immagine, con un errore che non nomina il Dockerfile."""
+    import tomllib
+
+    dati = tomllib.loads((RADICE / "pyproject.toml").read_text(encoding="utf-8"))
+    dockerfile = (RADICE / "docker" / "Dockerfile").read_text(encoding="utf-8")
+
+    if readme := dati["project"].get("readme"):
+        assert readme in dockerfile, f"{readme} è dichiarato nel pyproject ma non copiato"
+    for pacchetto in dati.get("tool", {}).get("hatch", {}).get(
+            "build", {}).get("targets", {}).get("wheel", {}).get("packages", []):
+        cartella = pacchetto.split("/")[0]
+        assert f"COPY {cartella}" in dockerfile, f"{pacchetto} non è copiato nell'immagine"
+
+
+def test_il_dockerignore_non_esclude_i_file_necessari():
+    """`.dockerignore` e il Dockerfile devono essere d'accordo: un file escluso lì non
+    arriva, per quante COPY si scrivano."""
+    import tomllib
+
+    dati = tomllib.loads((RADICE / "pyproject.toml").read_text(encoding="utf-8"))
+    escluse = {r.strip() for r in (RADICE / ".dockerignore").read_text(encoding="utf-8").splitlines()}
+    assert dati["project"].get("readme", "README.md") not in escluse
+    assert "src" not in escluse
