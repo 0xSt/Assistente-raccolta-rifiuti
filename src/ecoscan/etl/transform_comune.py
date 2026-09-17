@@ -38,6 +38,19 @@ class Profilo:
     locuzioni_extra: tuple[tuple[str, str], ...] = ()       # (pattern, nome canonico)
     invarianti_extra: frozenset[str] = frozenset()
     locuzioni_fisse: tuple[str, ...] = ()                   # espressioni da non separare mai
+    # Provenienza della singola voce: senza di essa una risposta di livello 1 non può
+    # mostrare all'utente da dove viene la regola (D129)
+    fonte: str = ""
+    modello_riferimento: str = ""                           # formattato con il record grezzo
+
+    def riferimento(self, record: dict) -> str | None:
+        if not self.modello_riferimento:
+            return None
+        try:
+            testo = self.modello_riferimento.format_map(record)
+        except KeyError:                                     # il grezzo non porta il campo
+            return None
+        return testo or None
 
     def condizioni_inline(self) -> dict[str, str]:
         return {**CONDIZIONI_INLINE, **dict(self.condizioni_extra)}
@@ -244,6 +257,8 @@ class VoceNormalizzata:
     codice_materiale: str | None = None
     destinazioni: list[str] = field(default_factory=list)
     avvertenza: str | None = None
+    fonte: str | None = None
+    riferimento: str | None = None
     slug_uniti: list[str] = field(default_factory=list)
     da_revisionare: bool = False
     motivi: list[str] = field(default_factory=list)
@@ -308,7 +323,8 @@ def trasforma_voce(record: dict, profilo: "Profilo | None" = None,
         nome_originale=record["nome_originale"], nome=nome,
         condizioni=sorted(set(condizioni)), alias=[normalizza_nome(a, profilo) for a in dict.fromkeys(alias)],
         codice_materiale=codice, destinazioni=record["destinazioni"],
-        avvertenza=record.get("avvertenza"), da_revisionare=bool(motivi), motivi=motivi,
+        avvertenza=record.get("avvertenza"), fonte=profilo.fonte or None,
+        riferimento=profilo.riferimento(record), da_revisionare=bool(motivi), motivi=motivi,
     )
 
 

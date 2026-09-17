@@ -62,6 +62,10 @@ class RispostaUscita(BaseModel):
     riferimento: str | None = None
     chiarimento: str | None = Field(
         default=None, description="domanda da porre prima di considerare la risposta definitiva")
+    opzioni: list[str] = Field(
+        default=[], description="risposte possibili al chiarimento: l'interfaccia ne fa pulsanti")
+    scelto_id: str | None = Field(
+        default=None, description="il candidato da cui viene la risposta, per poterlo citare")
     definitiva: bool
     tipo_corrispondenza: str = ""
     motivo: str = ""
@@ -78,7 +82,8 @@ class RispostaUscita(BaseModel):
             livello_evidenza=r.livello_evidenza, comune=r.comune, oggetto=r.oggetto,
             destinazioni=r.destinazioni, polarita=r.polarita, condizioni=r.condizioni,
             avvertenza=r.avvertenza, fonte=r.fonte, riferimento=r.riferimento,
-            chiarimento=r.chiarimento, definitiva=r.definitiva,
+            chiarimento=r.chiarimento, opzioni=r.opzioni, scelto_id=r.scelto_id,
+            definitiva=r.definitiva,
             tipo_corrispondenza=r.tipo_corrispondenza, motivo=r.motivo,
             contraddizione=r.contraddizione,
             riconoscimento=RiconoscimentoUscita.da(r.riconoscimento) if r.riconoscimento else None,
@@ -90,6 +95,23 @@ class Continuazione(BaseModel):
 
     contesto: dict
     risposta: str = Field(description="ciò che l'utente ha risposto alla domanda")
+
+
+class Correzione(BaseModel):
+    """L'oggetto riconosciuto è sbagliato e l'utente dice qual è: si rifà solo la ricerca."""
+
+    contesto: dict
+    oggetto: str = Field(min_length=1, description="l'oggetto secondo l'utente")
+
+
+class Destinazione(BaseModel):
+    """Un contenitore del comune, come va mostrato all'utente."""
+
+    nome: str = Field(description="nome interno, quello che compare nelle risposte")
+    etichetta: str = Field(description="come si scrive all'utente")
+    canale: str
+    colore: str | None = None
+    note: str | None = None
 
 
 class Ricerca(BaseModel):

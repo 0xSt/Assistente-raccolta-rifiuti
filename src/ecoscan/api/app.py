@@ -22,7 +22,8 @@ from fastapi import Depends, FastAPI, File, Form, HTTPException, UploadFile
 from ecoscan.agente.recupero import candidati as recupera
 from ecoscan.api.risorse import Risorse
 from ecoscan.api.schemi import (
-    CandidatoUscita, Comune, Continuazione, Ricerca, Riscontro, RispostaUscita, Salute,
+    CandidatoUscita, Comune, Continuazione, Correzione, Destinazione, Ricerca, Riscontro,
+    RispostaUscita, Salute,
 )
 from ecoscan.percorsi import DATI
 
@@ -67,6 +68,16 @@ def crea_app(risorse: Risorse | None = None, riscontri: Path = RISCONTRI) -> Fas
     def comuni(r: Risorse = Depends(risorse_correnti)) -> list[Comune]:
         return [Comune(**c) for c in r.comuni()]
 
+    @app.get(f"{PREFISSO}/destinazioni", response_model=list[Destinazione], tags=["stato"])
+    def destinazioni(comune: str, r: Risorse = Depends(risorse_correnti)) -> list[Destinazione]:
+        """I contenitori del comune con l'etichetta leggibile.
+
+        Le risposte continuano a portare il nome interno ("carta_e_cartone"), che è la
+        chiave dei dati; l'interfaccia lo traduce con questo elenco, che chiede una volta.
+        """
+        controlla_comune(r, comune)
+        return [Destinazione(**d) for d in r.destinazioni(comune)]
+
     # ------------------------------------------------------------------ agente
 
     @app.post(f"{PREFISSO}/analizza", response_model=RispostaUscita, tags=["agente"])
@@ -88,6 +99,19 @@ def crea_app(risorse: Risorse | None = None, riscontri: Path = RISCONTRI) -> Fas
             raise HTTPException(status_code=400,
                                 detail="contesto non valido: rimanda quello ricevuto da /analizza")
         return RispostaUscita.da(r.agente.continua(dati.contesto, dati.risposta))
+
+    @app.post(f"{PREFISSO}/correggi", response_model=RispostaUscita, tags=["agente"])
+    def correggi(dati: Correzione, r: Risorse = Depends(risorse_correnti)) -> RispostaUscita:
+        """L'oggetto riconosciuto era sbagliato e l'utente dice qual è.
+
+        Si rifanno solo ricerca e scelta: la foto non viene riletta, e il riconoscimento
+        dell'utente vale più di quello del modello.
+        """
+        if "comune" not in dati.contesto:
+            raise HTTPException(status_code=400,
+                                detail="contesto non valido: rimanda quello ricevuto da /analizza")
+        controlla_comune(r, dati.contesto["comune"])
+        return RispostaUscita.da(r.agente.correggi(dati.contesto, dati.oggetto))
 
     # ------------------------------------------------------------------ ricerca
 

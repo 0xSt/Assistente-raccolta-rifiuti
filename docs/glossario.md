@@ -243,6 +243,13 @@ l'ambiente da `uv.lock`, `uv run` esegue un comando dentro quell'ambiente.
 **Profilo** — In questo progetto, l'insieme delle regole di Transform specifiche di un
 comune. Il motore è unico, i profili cambiano.
 
+**Etichetta di una destinazione** — Come un contenitore si scrive all'utente ("Carta e
+cartone"), distinta dal nome interno con cui è scritto nei dati ("carta_e_cartone"), che
+resta la chiave.
+
+**Correzione** — Quando l'utente dichiara che l'oggetto riconosciuto è sbagliato: si
+rifanno ricerca e scelta a partire dalla sua parola, senza rileggere la foto.
+
 **Traccia (MLflow Tracing)** — La registrazione di un turno di conversazione: un albero di
 span con ingressi, uscite e durate. Ha sostituito le run per richiesta.
 

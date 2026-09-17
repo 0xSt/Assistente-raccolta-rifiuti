@@ -100,8 +100,10 @@ def carica(db: sqlite3.Connection, destinazioni: list[dict], voci: list[dict],
     for d in (x for x in destinazioni if not x["alias_di"]):
         chiave = (d["comune"], d["nome"])
         dest_id[chiave] = q(
-            "INSERT INTO destinazione (comune_id, nome, canale, colore, note) VALUES (?, ?, ?, ?, ?)",
-            (comuni[d["comune"]], d["nome"], d["canale"], d["colore"] or None, d["note"] or None)
+            """INSERT INTO destinazione (comune_id, nome, canale, colore, etichetta, note)
+               VALUES (?, ?, ?, ?, ?, ?)""",
+            (comuni[d["comune"]], d["nome"], d["canale"], d["colore"] or None,
+             d.get("etichetta") or d["nome"], d["note"] or None)
         ).lastrowid
         db.executemany("INSERT INTO destinazione_flusso VALUES (?, ?)",
                        [(dest_id[chiave], f) for f in d["flussi"]])
@@ -112,10 +114,10 @@ def carica(db: sqlite3.Connection, destinazioni: list[dict], voci: list[dict],
 
     for v in voci:
         voce_id = q("""INSERT INTO voce (comune_id, slug, nome, nome_originale, codice_materiale,
-                                         avvertenza, revisione_manuale)
-                       VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                                         avvertenza, fonte, riferimento, revisione_manuale)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                     (comuni[v["comune"]], v["slug"], v["nome"], v["nome_originale"],
-                     v["codice_materiale"], v["avvertenza"],
+                     v["codice_materiale"], v["avvertenza"], v.get("fonte"), v.get("riferimento"),
                      int(any(m.startswith("risolto a mano") for m in v.get("motivi", []))))).lastrowid
         db.executemany("INSERT INTO voce_condizione VALUES (?, ?)",
                        [(voce_id, c) for c in v["condizioni"]])

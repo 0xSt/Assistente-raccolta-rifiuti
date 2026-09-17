@@ -31,6 +31,9 @@ CREATE TABLE destinazione (
                   'raccolta_itinerante',   -- ecopunti mobili, ecoisole
                   'ritiro_domicilio')),    -- numero verde, prenotazione ingombranti
     colore      TEXT,
+    -- Come si scrive il contenitore all'utente: i nomi di Torino sono chiavi
+    -- ("carta_e_cartone"), quelli di Napoli già leggibili. Curata a mano nel riferimento.
+    etichetta   TEXT,
     note        TEXT,
     UNIQUE (comune_id, nome)
 );
@@ -58,6 +61,8 @@ CREATE TABLE voce (
     nome_originale    TEXT NOT NULL,           -- testo della fonte, mai modificato
     codice_materiale  TEXT,                    -- sigla sull'imballaggio: PET 01, ALU 41...
     avvertenza        TEXT,
+    fonte             TEXT,                    -- quale fonte elenca questa voce
+    riferimento       TEXT,                    -- URL della pagina o pagina del PDF
     revisione_manuale INTEGER NOT NULL DEFAULT 0,
     UNIQUE (comune_id, slug)
 );

@@ -1,28 +1,28 @@
-comune,nome,canale,colore,flussi,alias_di,note
-Napoli,Organico,raccolta_ordinaria,marrone,organico,,
-Napoli,Plastica e Metalli,raccolta_ordinaria,giallo,plastica|metalli,,
-Napoli,Carta e Cartoncino,raccolta_ordinaria,blu,carta,,
-Napoli,Vetro,raccolta_ordinaria,verde,vetro,,
-Napoli,Non Riciclabile,raccolta_ordinaria,,residuo,,
-Napoli,Cartone,,,,Carta e Cartoncino,variante usata da una sola voce del dizionario
-Napoli,Contenitore Abiti Usati,contenitore_dedicato,,tessili,,
-Napoli,Contenitore Farmaco,contenitore_dedicato,,farmaci,,
-Napoli,Contenitore Pile,contenitore_dedicato,,pile,,
-Napoli,Isola Ecologica Estesa,centro_raccolta,,,,accetta più tipologie della ridotta
-Napoli,Isola Ecologica Ridotta,centro_raccolta,,,,
-Napoli,Ecopunto Ingombranti,raccolta_itinerante,,ingombranti,,
-Napoli,Ecopunto Elettrodomestici,raccolta_itinerante,,raee,,
-Napoli,Ecoisole RAEE R4,raccolta_itinerante,,raee,,piccoli elettrodomestici (raggruppamento R4)
-Napoli,Ecopunto oli vegetali esausti,raccolta_itinerante,,oli,,
-Napoli,Numero Verde Gratuito,ritiro_domicilio,,ingombranti,,prenotazione telefonica del ritiro
-Torino,organico,raccolta_ordinaria,marrone,organico,,
-Torino,imballaggi_plastica,raccolta_ordinaria,grigio chiaro,plastica,,solo imballaggi
-Torino,carta_e_cartone,raccolta_ordinaria,giallo,carta,,
-Torino,vetro_e_imballaggi_metallo,raccolta_ordinaria,blu,vetro|metalli,,vetro e metalli insieme
-Torino,rifiuto_non_recuperabile,raccolta_ordinaria,grigio,residuo,,
-Torino,abiti,contenitore_dedicato,,tessili,,
-Torino,farmaci,contenitore_dedicato,,farmaci,,
-Torino,pile,contenitore_dedicato,,pile,,
-Torino,olio_esausto,contenitore_dedicato,,oli,,
-Torino,centro_di_raccolta,centro_raccolta,,,,otto centri in città
-Torino,rifiuti_ingombranti,ritiro_domicilio,,ingombranti,,ritiro gratuito su prenotazione
+comune,nome,etichetta,canale,colore,flussi,alias_di,note
+Napoli,Organico,Organico,raccolta_ordinaria,marrone,organico,,
+Napoli,Plastica e Metalli,Plastica e Metalli,raccolta_ordinaria,giallo,plastica|metalli,,
+Napoli,Carta e Cartoncino,Carta e Cartoncino,raccolta_ordinaria,blu,carta,,
+Napoli,Vetro,Vetro,raccolta_ordinaria,verde,vetro,,
+Napoli,Non Riciclabile,Non Riciclabile,raccolta_ordinaria,,residuo,,
+Napoli,Cartone,Cartone,,,,Carta e Cartoncino,variante usata da una sola voce del dizionario
+Napoli,Contenitore Abiti Usati,Contenitore Abiti Usati,contenitore_dedicato,,tessili,,
+Napoli,Contenitore Farmaco,Contenitore Farmaco,contenitore_dedicato,,farmaci,,
+Napoli,Contenitore Pile,Contenitore Pile,contenitore_dedicato,,pile,,
+Napoli,Isola Ecologica Estesa,Isola Ecologica Estesa,centro_raccolta,,,,accetta più tipologie della ridotta
+Napoli,Isola Ecologica Ridotta,Isola Ecologica Ridotta,centro_raccolta,,,,
+Napoli,Ecopunto Ingombranti,Ecopunto Ingombranti,raccolta_itinerante,,ingombranti,,
+Napoli,Ecopunto Elettrodomestici,Ecopunto Elettrodomestici,raccolta_itinerante,,raee,,
+Napoli,Ecoisole RAEE R4,Ecoisole RAEE R4,raccolta_itinerante,,raee,,piccoli elettrodomestici (raggruppamento R4)
+Napoli,Ecopunto oli vegetali esausti,Ecopunto oli vegetali esausti,raccolta_itinerante,,oli,,
+Napoli,Numero Verde Gratuito,Numero Verde Gratuito,ritiro_domicilio,,ingombranti,,prenotazione telefonica del ritiro
+Torino,organico,Organico,raccolta_ordinaria,marrone,organico,,
+Torino,imballaggi_plastica,Imballaggi in plastica,raccolta_ordinaria,grigio chiaro,plastica,,solo imballaggi
+Torino,carta_e_cartone,Carta e cartone,raccolta_ordinaria,giallo,carta,,
+Torino,vetro_e_imballaggi_metallo,Vetro e imballaggi in metallo,raccolta_ordinaria,blu,vetro|metalli,,vetro e metalli insieme
+Torino,rifiuto_non_recuperabile,Rifiuto non recuperabile,raccolta_ordinaria,grigio,residuo,,
+Torino,abiti,Contenitore abiti,contenitore_dedicato,,tessili,,
+Torino,farmaci,Contenitore farmaci,contenitore_dedicato,,farmaci,,
+Torino,pile,Contenitore pile,contenitore_dedicato,,pile,,
+Torino,olio_esausto,Contenitore olio esausto,contenitore_dedicato,,oli,,
+Torino,centro_di_raccolta,Centro di raccolta,centro_raccolta,,,,otto centri in città
+Torino,rifiuti_ingombranti,Ritiro ingombranti a domicilio,ritiro_domicilio,,ingombranti,,ritiro gratuito su prenotazione

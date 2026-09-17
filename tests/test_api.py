@@ -122,3 +122,49 @@ def test_database_mancante_spiega_cosa_fare(tmp_path):
 
     with pytest.raises(SystemExit, match="ecoscan-carica"):
         apri_database_in_lettura(tmp_path / "assente.db")
+
+
+def test_le_destinazioni_hanno_un_etichetta_leggibile(client):
+    """A Torino i nomi nei dati sono chiavi: l'interfaccia deve poterle tradurre."""
+    corpo = client.get(f"{PREFISSO}/destinazioni", params={"comune": "Torino"}).json()
+    per_nome = {d["nome"]: d for d in corpo}
+    assert per_nome["carta_e_cartone"]["etichetta"] == "Carta e cartone"
+    assert per_nome["carta_e_cartone"]["colore"] == "giallo"
+    # senza etichetta nel riferimento si ripiega sul nome, mai su niente
+    assert all(d["etichetta"] for d in corpo)
+
+
+def test_le_destinazioni_rifiutano_un_comune_sconosciuto(client):
+    assert client.get(f"{PREFISSO}/destinazioni", params={"comune": "Atlantide"}).status_code == 404
+
+
+def test_la_risposta_dice_quale_documento_ha_scelto(client):
+    """Senza l'id del documento scelto l'interfaccia non può citare la fonte."""
+    corpo = client.post(f"{PREFISSO}/analizza", data={"comune": "Torino"},
+                        files={"foto": ("f.jpg", b"contenuto", "image/jpeg")}).json()
+    if corpo["livello_evidenza"] in (1, 2):
+        assert corpo["scelto_id"] in [c["id"] for c in corpo["candidati"]]
+
+
+def test_correggi_riparte_dall_oggetto_dell_utente(client):
+    """La foto non si rilegge: chi ha l'oggetto in mano vale più del modello di visione."""
+    prima = client.post(f"{PREFISSO}/analizza", data={"comune": "Torino"},
+                        files={"foto": ("f.jpg", b"contenuto", "image/jpeg")}).json()
+    dopo = client.post(f"{PREFISSO}/correggi",
+                       json={"contesto": prima["contesto"], "oggetto": "giornali e riviste"})
+    assert dopo.status_code == 200
+    corpo = dopo.json()
+    assert corpo["riconoscimento"]["oggetto"] == "giornali e riviste"
+    assert corpo["riconoscimento"]["confidenza"] == 1.0
+    assert corpo["contesto"]["id_conversazione"] == prima["contesto"]["id_conversazione"]
+
+
+def test_correggi_rifiuta_un_contesto_inventato(client):
+    assert client.post(f"{PREFISSO}/correggi",
+                       json={"contesto": {}, "oggetto": "x"}).status_code == 400
+
+
+def test_correggi_rifiuta_un_oggetto_vuoto(client):
+    risposta = client.post(f"{PREFISSO}/correggi",
+                           json={"contesto": {"comune": "Torino"}, "oggetto": ""})
+    assert risposta.status_code == 422

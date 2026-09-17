@@ -114,8 +114,11 @@ class Agente:
                 motivo = f"{motivo} · scelto il documento che nomina l'oggetto".strip(" ·")
         variante, da_chiarire = scegli_variante(scelto, noti)
 
-        chiarimento = None
+        chiarimento, opzioni = None, []
         if da_chiarire and not gia_chiesto:
+            # le condizioni diventano i pulsanti dell'interfaccia: l'utente sceglie invece
+            # di indovinare come si scrive la risposta
+            opzioni = list(da_chiarire)
             chiarimento = ("Per rispondere con certezza devo sapere se l'oggetto è: "
                            + " oppure ".join(da_chiarire) + "?")
         elif not gia_chiesto:
@@ -129,7 +132,8 @@ class Agente:
             livello_evidenza=scelto.livello, comune=comune, oggetto=riconoscimento.oggetto,
             destinazioni=destinazioni, polarita=scelto.polarita, condizioni=condizioni,
             avvertenza=avvertenza, fonte=scelto.fonte, riferimento=scelto.riferimento,
-            chiarimento=chiarimento, tipo_corrispondenza=scelta.tipo_corrispondenza,
+            chiarimento=chiarimento, opzioni=opzioni, scelto_id=scelto.id,
+            tipo_corrispondenza=scelta.tipo_corrispondenza,
             motivo=motivo, candidati=candidati, riconoscimento=riconoscimento,
             contraddizione=scelto.contraddizione,
         )
@@ -200,6 +204,27 @@ class Agente:
                 "prompt": [prompt_.carica(n).etichetta for n in ("riconoscimento", "scelta")],
                 "modello_visione": self.modello.nome,
                 "id_conversazione": conversazione}
+
+    def correggi(self, contesto: dict, oggetto: str) -> Risposta:
+        """L'utente dice che l'oggetto riconosciuto è sbagliato: si riparte dal suo.
+
+        Non si rilegge la foto, che è il passaggio lento, e soprattutto non la si fa
+        riguardare a un modello che ha già sbagliato: la parola dell'utente vale più di
+        quella del modello di visione, quindi la confidenza è massima.
+        """
+        conversazione = contesto.get("id_conversazione") or nuova_conversazione()
+        precedente = contesto.get("riconoscimento") or {}
+        corretto = Riconoscimento(oggetto=oggetto.strip(), confidenza=1.0,
+                                  stato=precedente.get("stato"),
+                                  note="corretto dall'utente")
+        ingressi = {"comune": contesto["comune"], "oggetto_corretto": oggetto,
+                    "riconoscimento_precedente": precedente}
+
+        with self.tracciatore.turno("correggi", conversazione, ingressi) as radice:
+            risposta = self.rispondi(corretto, contesto["comune"], contesto.get("testo_utente"),
+                                     conversazione=conversazione)
+            self.tracciatore.chiudi_turno(radice, risposta)
+        return risposta
 
     def continua(self, contesto: dict, risposta_utente: str) -> Risposta:
         """Secondo giro dopo un chiarimento: si riparte dal riconoscimento già fatto.

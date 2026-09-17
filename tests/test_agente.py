@@ -250,3 +250,45 @@ def test_il_chiarimento_non_propone_condizioni_vuote():
                                     Variante(["grandi quantità"], ["isola"])])
     variante, da_chiarire = scegli_variante(candidato, [None, None])
     assert variante is None and da_chiarire == []
+
+
+def test_il_chiarimento_porta_le_opzioni(ambiente):
+    """Le condizioni sono note: l'interfaccia ne fa pulsanti invece di far scrivere."""
+    modello = SceglieIlDocumento("cartone da pizza",
+                                 Riconoscimento(oggetto="cartone della pizza", confidenza=0.9))
+    agente = crea_agente(ambiente, modello)
+    risposta = agente.analizza(b"foto", "Torino")
+    assert risposta.chiarimento and set(risposta.opzioni) == {"pulito", "sporco"}
+    # risolto il dubbio, non restano opzioni da proporre
+    dopo = agente.continua(risposta.contesto, "sporco")
+    assert dopo.opzioni == [] and dopo.destinazioni == ["organico"]
+
+
+def test_la_risposta_dice_da_quale_documento_viene(ambiente):
+    modello = SceglieIlDocumento("giornali", Riconoscimento(oggetto="giornale", confidenza=0.9))
+    agente = crea_agente(ambiente, modello)
+    risposta = agente.analizza(b"foto", "Torino")
+    scelto = next(c for c in risposta.candidati if c.id == risposta.scelto_id)
+    assert scelto.destinazioni == risposta.destinazioni
+
+
+def test_correggere_l_oggetto_non_rilegge_la_foto(ambiente):
+    """Il modello di visione ha già sbagliato: non lo si fa riguardare."""
+    modello = SceglieIlDocumento("giornali", Riconoscimento(oggetto="foglio", confidenza=0.9))
+    agente = crea_agente(ambiente, modello)
+    prima = agente.analizza(b"foto", "Torino")
+    letture = modello.chiamate_riconoscimento
+
+    dopo = agente.correggi(prima.contesto, "giornali e riviste")
+    assert modello.chiamate_riconoscimento == letture, "la foto non va riletta"
+    assert dopo.riconoscimento.oggetto == "giornali e riviste"
+    assert dopo.riconoscimento.confidenza == 1.0
+    assert dopo.destinazioni == ["carta_e_cartone"]
+
+
+def test_la_correzione_resta_nella_stessa_conversazione(ambiente):
+    modello = SceglieIlDocumento("giornali", Riconoscimento(oggetto="foglio", confidenza=0.9))
+    agente = crea_agente(ambiente, modello)
+    prima = agente.analizza(b"foto", "Torino")
+    dopo = agente.correggi(prima.contesto, "giornali")
+    assert dopo.contesto["id_conversazione"] == prima.contesto["id_conversazione"]

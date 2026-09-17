@@ -12,8 +12,10 @@ from ecoscan.db.carica import carica, leggi_destinazioni, leggi_jsonl, verifica
 from ecoscan.percorsi import DATI
 
 DESTINAZIONI = [
-    {"comune": "Torino", "nome": "carta_e_cartone", "canale": "raccolta_ordinaria",
-     "colore": "giallo", "flussi": ["carta"], "alias_di": "", "note": ""},
+    {"comune": "Torino", "nome": "carta_e_cartone", "etichetta": "Carta e cartone",
+     "canale": "raccolta_ordinaria", "colore": "giallo", "flussi": ["carta"],
+     "alias_di": "", "note": ""},
+    # senza etichetta: si deve ripiegare sul nome, mai lasciare la destinazione senza
     {"comune": "Torino", "nome": "organico", "canale": "raccolta_ordinaria",
      "colore": "marrone", "flussi": ["organico"], "alias_di": "", "note": ""},
     {"comune": "Torino", "nome": "cartone", "canale": "", "colore": "", "flussi": [],
@@ -24,6 +26,7 @@ VOCI = [
     {"comune": "Torino", "slug": "cartone-da-pizza-pulito", "nome": "Cartone da pizza",
      "nome_originale": "Cartone da pizza pulito", "condizioni": ["pulito"], "alias": ["Scatola pizza"],
      "codice_materiale": None, "destinazioni": ["carta_e_cartone"], "avvertenza": None,
+     "fonte": "amiat_rifiutologo_2025", "riferimento": "Rifiutologo AMIAT 2025, pagina 16",
      "motivi": [], "da_revisionare": False},
     {"comune": "Torino", "slug": "cartone-da-pizza-sporco", "nome": "Cartone da pizza",
      "nome_originale": "Cartone da pizza sporco", "condizioni": ["sporco"], "alias": [],
@@ -131,3 +134,20 @@ def test_dati_reali_superano_la_verifica():
     voci = leggi_jsonl(DATI / "normalizzato" / "torino_voci.jsonl")
     regole = leggi_jsonl(DATI / "normalizzato" / "regole.jsonl")
     verifica(leggi_destinazioni(), voci, regole)
+
+
+def test_l_etichetta_leggibile_arriva_nel_database(db):
+    """I nomi interni di Torino non vanno mostrati: l'etichetta è la loro traduzione."""
+    righe = dict(db.execute("SELECT nome, etichetta FROM destinazione"))
+    assert righe["carta_e_cartone"] == "Carta e cartone"
+    assert righe["organico"] == "organico", "senza etichetta resta il nome, mai niente"
+
+
+def test_la_provenienza_della_voce_viene_conservata(db):
+    """È ciò che permette di mostrare la fonte di una risposta di livello 1."""
+    fonte, riferimento = db.execute(
+        "SELECT fonte, riferimento FROM voce WHERE slug = 'cartone-da-pizza-pulito'").fetchone()
+    assert fonte == "amiat_rifiutologo_2025" and "pagina 16" in riferimento
+    senza = db.execute(
+        "SELECT fonte FROM voce WHERE slug = 'cartone-da-pizza-sporco'").fetchone()[0]
+    assert senza is None, "una voce senza provenienza si carica lo stesso"

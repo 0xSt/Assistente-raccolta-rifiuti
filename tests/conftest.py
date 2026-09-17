@@ -49,8 +49,10 @@ class ModelloFinto:
         self.chiarimento = chiarimento
         self.candidati_visti = []
         self.chiamate_scelta = 0
+        self.chiamate_riconoscimento = 0
 
     def riconosci(self, immagine, testo_utente=None):
+        self.chiamate_riconoscimento += 1
         return self.riconoscimento
 
     def scegli(self, riconoscimento, candidati, testo_utente=None):
@@ -81,8 +83,9 @@ class SceglieIlDocumento(ModelloFinto):
 
 
 DESTINAZIONI = [
-    {"comune": "Torino", "nome": "carta_e_cartone", "canale": "raccolta_ordinaria",
-     "colore": "giallo", "flussi": ["carta"], "alias_di": "", "note": ""},
+    {"comune": "Torino", "nome": "carta_e_cartone", "etichetta": "Carta e cartone",
+     "canale": "raccolta_ordinaria", "colore": "giallo", "flussi": ["carta"],
+     "alias_di": "", "note": ""},
     {"comune": "Torino", "nome": "organico", "canale": "raccolta_ordinaria",
      "colore": "marrone", "flussi": ["organico"], "alias_di": "", "note": ""},
     {"comune": "Torino", "nome": "imballaggi_plastica", "canale": "raccolta_ordinaria",
@@ -94,11 +97,18 @@ DESTINAZIONI = [
 ]
 
 
-def voce(comune, slug, nome, condizioni, destinazione, alias=(), avvertenza=None, codice=None):
+def voce(comune, slug, nome, condizioni, destinazione, alias=(), avvertenza=None, codice=None,
+         fonte=None, riferimento=None):
+    # la provenienza predefinita imita quella vera: pagina del PDF a Torino, URL a Napoli
+    predefinite = {"Torino": ("amiat_rifiutologo_2025", "Rifiutologo AMIAT 2025, pagina 16"),
+                   "Napoli": ("asia_napoli_dove_lo_butto",
+                              f"https://www.asianapoli.it/dove-lo-butto/{slug}/")}
+    fonte_p, riferimento_p = predefinite.get(comune, (None, None))
     return {"comune": comune, "slug": slug, "nome": nome, "nome_originale": nome,
             "condizioni": list(condizioni), "alias": list(alias), "codice_materiale": codice,
-            "destinazioni": [destinazione], "avvertenza": avvertenza, "motivi": [],
-            "da_revisionare": False}
+            "destinazioni": [destinazione], "avvertenza": avvertenza,
+            "fonte": fonte or fonte_p, "riferimento": riferimento or riferimento_p,
+            "motivi": [], "da_revisionare": False}
 
 
 VOCI = [

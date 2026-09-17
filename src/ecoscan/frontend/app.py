@@ -24,13 +24,25 @@ BENVENUTO = (
 
 def prepara_stato() -> None:
     st.session_state.setdefault("messaggi", [{"ruolo": "assistente", "testo": BENVENUTO}])
-    st.session_state.setdefault("contesto", None)      # presente solo dopo un chiarimento
+    st.session_state.setdefault("contesto", None)      # l'ultimo consegnato dal backend
+    st.session_state.setdefault("attende_risposta", False)   # c'è un chiarimento in sospeso
     st.session_state.setdefault("comune", None)
 
 
 @st.cache_data(ttl=60, show_spinner=False)
 def elenco_comuni(base: str) -> list[dict]:
     return ClienteAPI(base).comuni()
+
+
+@st.cache_data(ttl=600, show_spinner=False)
+def etichette_destinazioni(base: str, comune: str) -> dict[str, str]:
+    """Nome interno -> nome leggibile. Cambiano solo quando cambiano i dati, quindi si
+    chiedono una volta; se il backend non risponde si ripiega sui nomi interni resi
+    leggibili, invece di lasciare l'utente senza risposta."""
+    try:
+        return {d["nome"]: d["etichetta"] for d in ClienteAPI(base).destinazioni(comune)}
+    except ErroreBackend:
+        return {}
 
 
 def barra_laterale(cliente: ClienteAPI) -> str | None:
@@ -54,6 +66,8 @@ def barra_laterale(cliente: ClienteAPI) -> str | None:
         if st.button("Nuova conversazione", width="stretch"):
             st.session_state.messaggi = [{"ruolo": "assistente", "testo": BENVENUTO}]
             st.session_state.contesto = None
+            st.session_state.attende_risposta = False
+            st.session_state.pop("ultima", None)
             st.rerun()
 
         with st.expander("Stato dei servizi"):
@@ -72,25 +86,83 @@ def mostra_messaggio(messaggio: dict) -> None:
     with st.chat_message("user" if messaggio["ruolo"] == "utente" else "assistant"):
         if immagine := messaggio.get("immagine"):
             st.image(immagine, width=220)
+        # cosa ha visto il modello sta PRIMA della risposta: è il passaggio che l'utente
+        # deve poter smentire, e dopo la risposta non lo leggerebbe più
+        if visto := messaggio.get("riconoscimento"):
+            st.caption(visto)
         if messaggio.get("testo"):
             st.markdown(messaggio["testo"])
         if nota := messaggio.get("nota"):
             st.caption(nota)
-        if candidati := messaggio.get("candidati"):
+        if spiegazione := messaggio.get("spiegazione"):
             with st.expander("Come ci sono arrivato"):
-                st.dataframe(candidati, hide_index=True, width="stretch")
+                st.markdown(spiegazione)
+                if candidati := messaggio.get("candidati"):
+                    with st.expander("Tutti i documenti trovati"):
+                        st.dataframe(candidati, hide_index=True, width="stretch")
 
 
-def aggiungi_risposta(risposta: dict) -> None:
+def aggiungi_risposta(risposta: dict, etichette: dict[str, str]) -> None:
     st.session_state.messaggi.append({
         "ruolo": "assistente",
-        "testo": presentazione.messaggio(risposta),
+        "riconoscimento": presentazione.frase_riconoscimento(risposta),
+        "testo": presentazione.messaggio(risposta, etichette),
         "nota": presentazione.nota_fonte(risposta),
-        "candidati": presentazione.riassunto_candidati(risposta),
+        "spiegazione": presentazione.spiegazione(risposta, etichette),
+        "candidati": presentazione.riassunto_candidati(risposta, etichette),
     })
-    # il contesto si conserva solo se serve una risposta dell'utente
-    st.session_state.contesto = risposta.get("contesto") if risposta.get("chiarimento") else None
+    # il contesto si conserva SEMPRE: serve al chiarimento, ma anche a correggere
+    # l'oggetto riconosciuto dopo una risposta già data
+    st.session_state.contesto = risposta.get("contesto") or None
+    st.session_state.attende_risposta = bool(risposta.get("chiarimento"))
     st.session_state.ultima = risposta
+
+
+def chiedi(cliente: ClienteAPI, etichette: dict[str, str], azione, *argomenti) -> None:
+    """Una chiamata al backend, con l'attesa e l'errore gestiti una volta sola."""
+    try:
+        with st.spinner("Ci penso… su CPU può volerci qualche minuto"):
+            risposta = azione(*argomenti)
+        aggiungi_risposta(risposta, etichette)
+    except ErroreBackend as errore:
+        st.session_state.messaggi.append({"ruolo": "assistente", "testo": f"⚠️ {errore}"})
+
+
+def pulsanti_chiarimento(cliente: ClienteAPI, etichette: dict[str, str]) -> None:
+    """Le opzioni del chiarimento come pulsanti.
+
+    Le condizioni sono note (vengono dalle varianti del documento), quindi non c'è motivo
+    di far indovinare all'utente come si scrivono. Il pulsante manda a /continua lo stesso
+    testo che avrebbe scritto: il backend non cambia.
+    """
+    ultima = st.session_state.get("ultima") or {}
+    opzioni = ultima.get("opzioni") or []
+    if not (st.session_state.attende_risposta and opzioni):
+        return
+    colonne = st.columns(min(len(opzioni), 4))
+    for colonna, opzione in zip(colonne, opzioni):
+        if colonna.button(opzione.capitalize(), key=f"opzione-{opzione}", width="stretch"):
+            st.session_state.messaggi.append({"ruolo": "utente", "testo": opzione})
+            chiedi(cliente, etichette, cliente.continua, st.session_state.contesto, opzione)
+            st.rerun()
+
+
+def correzione(cliente: ClienteAPI, etichette: dict[str, str]) -> None:
+    """Se il modello ha visto l'oggetto sbagliato, l'utente lo dice e si rifà solo la
+    ricerca: la foto non viene riletta, e chi ha l'oggetto in mano ha ragione."""
+    ultima = st.session_state.get("ultima")
+    if not ultima or not st.session_state.contesto or st.session_state.attende_risposta:
+        return
+    visto = (ultima.get("riconoscimento") or {}).get("oggetto")
+    if not visto:
+        return
+    with st.expander(f"Non è un/una {visto}?"):
+        oggetto = st.text_input("Dimmi tu cos'è", key="correzione",
+                                placeholder="per esempio: cartone della pizza")
+        if st.button("Rifai la ricerca", disabled=not oggetto.strip()):
+            st.session_state.messaggi.append({"ruolo": "utente", "testo": f"È un {oggetto}."})
+            chiedi(cliente, etichette, cliente.correggi, st.session_state.contesto, oggetto.strip())
+            st.rerun()
 
 
 def riscontro(cliente: ClienteAPI, comune: str) -> None:
@@ -117,9 +189,13 @@ def principale() -> None:
     if not comune:
         st.stop()
 
+    etichette = etichette_destinazioni(cliente.base, comune)
+
     for messaggio in st.session_state.messaggi:
         mostra_messaggio(messaggio)
+    pulsanti_chiarimento(cliente, etichette)
     riscontro(cliente, comune)
+    correzione(cliente, etichette)
 
     inserito = st.chat_input("Scrivi o allega una foto…", accept_file=True,
                              file_type=["jpg", "jpeg", "png", "webp"])
@@ -128,7 +204,7 @@ def principale() -> None:
 
     testo = (inserito.text or "").strip()
     allegati = inserito.files or []
-    contesto = st.session_state.contesto
+    contesto = st.session_state.contesto if st.session_state.attende_risposta else None
 
     if not allegati and not contesto:
         st.session_state.messaggi.append({"ruolo": "utente", "testo": testo})
@@ -143,15 +219,11 @@ def principale() -> None:
         "ruolo": "utente", "testo": testo or None,
         "immagine": foto.getvalue() if foto else None})
 
-    try:
-        with st.spinner("Guardo la foto… su CPU può volerci qualche minuto"):
-            if foto:
-                risposta = cliente.analizza(foto.getvalue(), foto.name, comune, testo or None)
-            else:
-                risposta = cliente.continua(contesto, testo)
-        aggiungi_risposta(risposta)
-    except ErroreBackend as errore:
-        st.session_state.messaggi.append({"ruolo": "assistente", "testo": f"⚠️ {errore}"})
+    if foto:
+        chiedi(cliente, etichette, cliente.analizza, foto.getvalue(), foto.name, comune,
+               testo or None)
+    else:
+        chiedi(cliente, etichette, cliente.continua, contesto, testo)
     st.rerun()
 
 

@@ -37,6 +37,9 @@ PROFILO_TORINO = Profilo(
         (r"con residui( di caff[eè])?", "con residuo"),
     ),
     invarianti_extra=frozenset({"CD", "DVD", "Blue-ray", "USB", "RAEE", "Natale", "Tetra", "Pak"}),
+    fonte="amiat_rifiutologo_2025",
+    # il Rifiutologo è un PDF: il riferimento è la pagina, come per le regole di categoria
+    modello_riferimento="Rifiutologo AMIAT 2025, pagina {pagina}",
 )
 
 trasforma_voce = functools.partial(_trasforma, profilo=PROFILO_TORINO)

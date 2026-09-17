@@ -294,3 +294,18 @@ def test_un_prompt_non_pubblicato_non_impedisce_di_tracciare(ambiente, archivio)
     [traccia] = tracce()
     assert "mlflow.linkedPrompts" not in traccia.info.tags
     assert traccia.info.tags["param.prompt_scelta"] == prompt_.carica("scelta").etichetta
+
+
+def test_anche_la_correzione_e_un_turno_della_conversazione(ambiente, archivio):
+    """Correggere l'oggetto è parte della stessa conversazione: va letta insieme agli altri
+    turni, non come una richiesta a sé."""
+    agente = Agente(ambiente.qdrant, ambiente.vettorizzatore, bottiglia(),
+                    tracciatore=tracciatore(archivio))
+    prima = agente.analizza(JPEG, "Torino")
+    agente.correggi(prima.contesto, "giornali e riviste")
+
+    analizza, correggi = tracce()
+    sessione = prima.contesto["id_conversazione"]
+    assert correggi.info.tags["turno"] == "correggi"
+    assert correggi.info.trace_metadata["mlflow.trace.session"] == sessione
+    assert span(correggi, "correggi").inputs["oggetto_corretto"] == "giornali e riviste"

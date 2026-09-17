@@ -141,3 +141,12 @@ def test_la_contraddizione_della_fonte_viene_dichiarata():
     documento = next(d for d in documenti_oggetto(connessione) if d.nome == "Pantofole")
     assert documento.contraddizione and "non è univoca" in documento.testo
     connessione.close()
+
+
+def test_il_documento_oggetto_porta_la_provenienza(db):
+    """Senza fonte e riferimento una risposta di livello 1 non può dire da dove viene,
+    e l'interfaccia non può offrire il link alla pagina del comune."""
+    per_id = {d.id: d for d in documenti_oggetto(db)}
+    giornali = per_id["oggetto:Torino:giornali-e-riviste"]
+    assert giornali.fonte == "amiat_rifiutologo_2025"
+    assert "pagina" in giornali.riferimento

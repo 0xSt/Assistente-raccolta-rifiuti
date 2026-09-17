@@ -244,6 +244,13 @@ def _alias_per_voce(db: sqlite3.Connection) -> dict[int, list[str]]:
     return per_voce
 
 
+def _provenienza(db: sqlite3.Connection) -> dict[int, tuple[str | None, str | None]]:
+    """Fonte e riferimento di ogni voce: è ciò che permette a una risposta di livello 1 di
+    dire da dove viene, e all'interfaccia di offrire il link alla pagina del comune."""
+    return {voce_id: (fonte, riferimento) for voce_id, fonte, riferimento in db.execute(
+        "SELECT id, fonte, riferimento FROM voce")}
+
+
 def _codici(db: sqlite3.Connection) -> dict[int, str]:
     return dict(db.execute(
         "SELECT id, codice_materiale FROM voce WHERE codice_materiale IS NOT NULL").fetchall())
@@ -256,6 +263,7 @@ def _chiave(comune: str, nome: str) -> str:
 
 def documenti_oggetto(db: sqlite3.Connection) -> list[Documento]:
     alias_per_voce = _alias_per_voce(db)
+    provenienza = _provenienza(db)
     documenti = []
     for (comune, nome), tutte in _varianti_per_oggetto(db).items():
         alias = list(dict.fromkeys(a for v in tutte for a in alias_per_voce.get(v.voce_id, [])))
@@ -268,11 +276,17 @@ def documenti_oggetto(db: sqlite3.Connection) -> list[Documento]:
             per_condizione.setdefault(tuple(sorted(v.condizioni)), set()).add(tuple(v.destinazioni))
         contraddizione = any(len(d) > 1 for d in per_condizione.values())
 
+        # più voci fuse in un oggetto solo: si cita la prima che dichiara una provenienza,
+        # perché il documento è uno e il link dev'essere uno
+        fonte, riferimento = next(
+            (p for v in tutte if any(p := provenienza.get(v.voce_id, (None, None)))),
+            (None, None))
+
         documenti.append(Documento(
             id=_chiave(comune, nome), comune=comune, tipo="oggetto", livello=1, nome=nome,
             testo=testo_oggetto(nome, varianti, alias, codici, contraddizione),
             varianti=varianti, alias=alias, codice_materiale=", ".join(codici) or None,
-            contraddizione=contraddizione))
+            fonte=fonte, riferimento=riferimento, contraddizione=contraddizione))
     return documenti
 
 

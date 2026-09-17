@@ -61,6 +61,11 @@ class ClienteAPI:
     def salute(self) -> dict:
         return self._chiedi("GET", "/salute", ATTESA_BREVE)
 
+    def destinazioni(self, comune: str) -> list[dict]:
+        """I contenitori del comune con l'etichetta leggibile: si chiede una volta sola e
+        serve a non mostrare all'utente i nomi interni."""
+        return self._chiedi("GET", "/destinazioni", ATTESA_BREVE, params={"comune": comune})
+
     def analizza(self, foto: bytes, nome_file: str, comune: str, testo: str | None = None) -> dict:
         dati = {"comune": comune}
         if testo:
@@ -71,6 +76,11 @@ class ClienteAPI:
     def continua(self, contesto: dict, risposta: str) -> dict:
         return self._chiedi("POST", "/continua", ATTESA_LUNGA,
                             json={"contesto": contesto, "risposta": risposta})
+
+    def correggi(self, contesto: dict, oggetto: str) -> dict:
+        """L'oggetto riconosciuto era sbagliato: si rifà la ricerca con quello dell'utente."""
+        return self._chiedi("POST", "/correggi", ATTESA_LUNGA,
+                            json={"contesto": contesto, "oggetto": oggetto})
 
     def riscontro(self, comune: str, corretta: bool, oggetto: str | None = None,
                   destinazione_attesa: str | None = None, nota: str | None = None,

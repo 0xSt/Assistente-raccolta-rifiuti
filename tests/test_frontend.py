@@ -52,6 +52,27 @@ def test_un_errore_del_backend_diventa_un_messaggio_leggibile(cliente, monkeypat
         cliente.comuni()
 
 
+def test_le_destinazioni_si_chiedono_per_comune(cliente, monkeypatch):
+    visti = {}
+
+    def finta(metodo, url, **argomenti):
+        visti.update({"url": url, **argomenti})
+        return RispostaFinta(corpo=[{"nome": "organico", "etichetta": "Organico"}])
+
+    monkeypatch.setattr("requests.request", finta)
+    assert cliente.destinazioni("Torino")[0]["etichetta"] == "Organico"
+    assert visti["url"].endswith("/destinazioni") and visti["params"] == {"comune": "Torino"}
+
+
+def test_la_correzione_manda_contesto_e_oggetto(cliente, monkeypatch):
+    visti = {}
+    monkeypatch.setattr("requests.request",
+                        lambda m, u, **a: visti.update({"url": u, **a}) or RispostaFinta(corpo={}))
+    cliente.correggi({"comune": "Torino"}, "cartone della pizza")
+    assert visti["url"].endswith("/correggi")
+    assert visti["json"] == {"contesto": {"comune": "Torino"}, "oggetto": "cartone della pizza"}
+
+
 def test_backend_spento_dice_come_avviarlo(cliente, monkeypatch):
     import requests
 
@@ -76,11 +97,83 @@ def test_attesa_scaduta_spiega_perche(cliente, monkeypatch):
 
 # ------------------------------------------------------------------ presentazione
 
+ETICHETTE = {"imballaggi_plastica": "Imballaggi in plastica", "organico": "Organico",
+             "carta_e_cartone": "Carta e cartone"}
+
+
 def test_una_regola_di_esclusione_non_viene_ribaltata():
     """Presentata male, una regola di esclusione dice l'opposto del vero."""
     testo = presentazione.titolo({"oggetto": "tetrapak", "destinazioni": ["imballaggi_plastica"],
-                                  "polarita": "escluso"})
-    assert "**non** va in" in testo and "imballaggi_plastica" in testo
+                                  "polarita": "escluso"}, ETICHETTE)
+    assert "**non** va in" in testo and "Imballaggi in plastica" in testo
+
+
+def test_il_nome_interno_della_destinazione_non_si_mostra():
+    """A Torino le destinazioni nei dati sono chiavi: l'utente non deve mai leggerle."""
+    testo = presentazione.titolo({"oggetto": "giornale", "destinazioni": ["carta_e_cartone"]},
+                                 ETICHETTE)
+    assert "Carta e cartone" in testo and "carta_e_cartone" not in testo
+
+
+def test_senza_etichette_il_nome_interno_si_rende_leggibile():
+    """Se /destinazioni non risponde la risposta arriva lo stesso, solo meno curata."""
+    assert presentazione.etichetta("carta_e_cartone") == "Carta e cartone"
+    assert presentazione.etichetta("Plastica e Metalli") == "Plastica e Metalli"
+
+
+def test_si_dice_cosa_e_stato_riconosciuto_nella_foto():
+    """È il passaggio più fragile: l'utente se ne accorge solo se lo vede."""
+    frase = presentazione.frase_riconoscimento({"riconoscimento": {
+        "oggetto": "cartone della pizza", "materiali": ["cartone"], "confidenza": 0.9}})
+    assert "cartone della pizza" in frase and "sicurezza alta" in frase
+    assert "bassa" in presentazione.frase_riconoscimento(
+        {"riconoscimento": {"oggetto": "x", "confidenza": 0.1}})
+    assert presentazione.frase_riconoscimento({"riconoscimento": {"oggetto": ""}}) == ""
+
+
+def test_la_spiegazione_cita_il_documento_del_comune():
+    risposta = {"scelto_id": "oggetto:Torino:cartone-per-pizze", "tipo_corrispondenza": "stesso_oggetto",
+                "motivo": "nomina l'oggetto", "candidati": [
+                    {"id": "oggetto:Torino:cartone-per-pizze", "nome": "Cartone per pizze",
+                     "testo": "Cartone per pizze. Se è unto va in organico.",
+                     "destinazioni": ["organico"]},
+                    {"id": "oggetto:Torino:cartone", "nome": "Cartone da imballaggio",
+                     "destinazioni": ["carta_e_cartone"], "testo": "Cartone da imballaggio."}]}
+    testo = presentazione.spiegazione(risposta, ETICHETTE)
+    assert "> Cartone per pizze." in testo, "il documento va citato parola per parola"
+    assert "è proprio questo oggetto" in testo
+    assert "Cartone da imballaggio → Carta e cartone" in testo, "le scartate vanno mostrate"
+
+
+def test_le_varianti_restano_visibili_dopo_la_scelta():
+    """Vedere il ramo non scelto insegna la regola per la volta dopo."""
+    testo = presentazione.corpo({"livello_evidenza": 1, "condizioni": ["unto"],
+                                 "scelto_id": "c1", "candidati": [{"id": "c1", "varianti": [
+                                     {"condizione": "pulito", "destinazioni": ["carta_e_cartone"]},
+                                     {"condizione": "unto", "destinazioni": ["organico"]}]}]},
+                                ETICHETTE)
+    assert "se è pulito → Carta e cartone" in testo
+    assert "**se è unto → Organico** ✓" in testo
+
+
+def test_una_fonte_con_url_diventa_un_link():
+    nota = presentazione.nota_fonte({
+        "livello_evidenza": 1, "fonte": "asia_napoli_dove_lo_butto",
+        "riferimento": "https://www.asianapoli.it/dove-lo-butto/abito-usato/"})
+    assert "[Dizionario" in nota and "](https://www.asianapoli.it/dove-lo-butto/abito-usato/)" in nota
+
+
+def test_una_fonte_senza_url_resta_testo():
+    nota = presentazione.nota_fonte({"livello_evidenza": 1, "fonte": "amiat_rifiutologo_2025",
+                                     "riferimento": "Rifiutologo AMIAT 2025, pagina 16"})
+    assert "](" not in nota and "pagina 16" in nota
+    assert nota.count("Rifiutologo AMIAT 2025") == 1, "il riferimento nomina già il documento"
+
+
+def test_una_fonte_e_un_riferimento_distinti_si_leggono_entrambi():
+    nota = presentazione.nota_fonte({"livello_evidenza": 2, "fonte": "amiat_rifiutologo_2025",
+                                     "riferimento": "pagina 8"})
+    assert "Rifiutologo AMIAT 2025" in nota and "pagina 8" in nota
 
 
 def test_una_voce_ammessa_dice_dove_va():
@@ -119,11 +212,12 @@ def test_la_nota_di_fonte_dice_livello_e_provenienza():
 
 
 def test_i_candidati_diventano_righe_leggibili():
-    righe = presentazione.riassunto_candidati({"candidati": [
-        {"livello": 1, "testo": "Scarpe. Se è utilizzabile va in Contenitore Abiti Usati.",
+    righe = presentazione.riassunto_candidati({"scelto_id": "s1", "candidati": [
+        {"id": "s1", "livello": 1, "testo": "Scarpe. Se è utilizzabile va in Contenitore Abiti Usati.",
          "destinazioni": ["Contenitore Abiti Usati"], "punteggio": 0.8123}]})
     assert righe[0]["documento"].startswith("Scarpe.")
     assert righe[0]["somiglianza"] == 0.812
+    assert righe[0]["scelto"] == "✓"
 
 
 def test_la_contraddizione_della_fonte_viene_detta():

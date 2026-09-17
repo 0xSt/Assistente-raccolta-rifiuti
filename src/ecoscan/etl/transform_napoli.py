@@ -15,6 +15,8 @@ PROFILO_NAPOLI = Profilo(
     invarianti_extra=frozenset({"C/PAP", "TE/OF"}),
     # "Lametta usa e getta" è un oggetto solo: a Napoli non distingue destinazioni
     locuzioni_fisse=("usa e getta",),
+    fonte="asia_napoli_dove_lo_butto",
+    modello_riferimento="{url}",          # ogni voce del dizionario ha la sua pagina
 )
 
 trasforma_voce = functools.partial(_trasforma, profilo=PROFILO_NAPOLI)

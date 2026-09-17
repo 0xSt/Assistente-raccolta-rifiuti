@@ -41,8 +41,8 @@ Va aggiornato **a ogni cambiamento sostanziale**, non a ogni riga di codice. In 
 | Load relazionale | Fatto: `ecoscan-carica` ricostruisce `data/ecoscan.db` dai file normalizzati |
 | Serving | Documenti su Qdrant, sola ricerca semantica, aggancio esatto dei codici materiale |
 | Agente | Fatto: riconoscimento, cascata dei livelli, scelta vincolata, risposta. Indipendente da HTTP |
-| API FastAPI | Fatto: analizza, continua, cerca, comuni, salute, riscontro |
-| Frontend a chat | Fatto: Streamlit, allegato immagine, chiarimenti, riscontro |
+| API FastAPI | Fatto: analizza, continua, correggi, cerca, comuni, destinazioni, salute, riscontro |
+| Frontend a chat | Fatto (v0.31.0): etichette leggibili, riconoscimento visibile e correggibile, chiarimenti a pulsante, citazione del documento |
 | Osservabilità | Fatto (v0.30.0): tracce MLflow per turno con foto, retrieval e sessione; versione dell'app e prompt collegati |
 | Docker | Fatto: qdrant, mlflow, backend, frontend; ollama sotto profilo |
 | Regole di categoria — Napoli | Completo per quanto la fonte pubblica: 38 ammessi, 11 esclusi (5 Vetro estratti + 6 Umido trascritti a mano), 2 assenze verificate |
@@ -136,6 +136,12 @@ Formato: decisione, motivazione, stato.
 | D125 | I turni della stessa conversazione condividono `mlflow.trace.session`; l'identificativo viaggia nel contesto | Il backend resta senza stato: il contesto era già il canale per ciò che deve sopravvivere fra `analizza` e `continua` | Accettata |
 | D126 | I parametri significativi formano un **LoggedModel** (nome = impronta dei parametri) collegato a ogni traccia; i prompt pubblicati si collegano per **impronta**, non per numero di versione | Stessi parametri dopo un riavvio, stesso LoggedModel. I numeri di versione del registro e quelli dei file non coincidono, l'impronta sì | Accettata |
 | D127 | Il server MLflow nel compose ha la **stessa versione** del client nel `uv.lock`, e un test lo verifica | Tracce, allegati e collegamenti dipendono dal server: con versioni diverse le funzioni nuove fallirebbero, e il tracciamento non bloccante lo nasconderebbe | Accettata |
+| D128 | Le destinazioni hanno un'**etichetta** leggibile, curata a mano in `destinazioni.csv`; le risposte continuano a portare il nome interno | I nomi di Torino sono chiavi (`carta_e_cartone`) e l'utente non deve leggerle. Tradurre nell'interfaccia e non nei dati lascia il nome interno come chiave stabile di tutto il resto | Accettata |
+| D129 | Ogni **voce** porta fonte e riferimento (URL della pagina a Napoli, pagina del PDF a Torino), come già facevano le regole | Senza, una risposta di livello 1 non poteva dire da dove veniva: la provenienza c'era nel grezzo e si perdeva nel Transform | Accettata |
+| D130 | Il **riconoscimento** della foto si mostra sempre all'utente, prima della risposta | È il passaggio più fragile della catena e l'unico che l'utente può smentire con certezza, perché ha l'oggetto in mano | Accettata |
+| D131 | Nuova rotta `/correggi`: l'utente dichiara l'oggetto e si rifanno solo ricerca e scelta, con confidenza 1.0 | La foto non si rilegge (è il passaggio lento) e non si fa riguardare a un modello che ha già sbagliato. È il motivo per cui `analizza` e `rispondi` erano separati (D72) | Accettata |
+| D132 | Il chiarimento porta con sé le **opzioni**, e l'interfaccia ne fa pulsanti | Le condizioni vengono dalle varianti del documento: farle scrivere a mano aggiungeva solo modi di sbagliare | Accettata |
+| D133 | "Come ci sono arrivato" mostra la **citazione** del documento scelto, il motivo e le voci scartate; la tabella dei punteggi passa in secondo piano | I punteggi di somiglianza spiegano il sistema a chi lo sviluppa, non la risposta a chi la riceve. La citazione è anche la prova che la destinazione non è inventata dal modello | Accettata |
 | D116 | Il tracciamento su MLflow **non è mai bloccante** e fallisce in fretta (tre secondi, un solo tentativo) | Serve a capire come va il sistema, non a farlo funzionare. Senza i limiti sui tentativi il client riprova per minuti e la risposta all'utente resta appesa | Accettata |
 | D117 | Delle foto si registra solo l'**impronta**, mai l'immagine | Due richieste sulla stessa foto si riconoscono, ma l'immagine non lascia il computer di chi l'ha scattata: è coerente con un progetto che gira in locale | Superata da D124, per decisione di Stef |
 | D118 | I prompt restano file in git; il registro di MLflow li **collega alle run** che li hanno usati | La verità e il diff stanno in git; MLflow serve a sapere quale versione ha prodotto un certo risultato | Superata da D126: il registro collega i prompt alle tracce, non più alle run |
@@ -264,6 +270,8 @@ Cose imparate che non sono decisioni, ma che conviene ricordare.
 - **Un Dockerfile va costruito, non solo letto.** Mancava `COPY README.md`, che il `pyproject.toml` dichiara come `readme`: la costruzione del pacchetto falliva con un errore di hatchling che non nominava mai il Dockerfile. Ora due test leggono il pyproject e verificano che ogni file dichiarato sia copiato e non escluso dal `.dockerignore`.
 - **I comandi vanno provati eseguendoli, non solo leggendoli.** `--diagnostica` usava una variabile definita più sotto: un errore che nessun test coglieva perché nessuno eseguiva quel ramo. Ora tre test lanciano `main()` con la diagnostica sostituita da una finta.
 - **Un test che dipende dall'ambiente di chi lo esegue non è un test.** `test_il_file_env_viene_letto` passava da me e falliva sul portatile di Stef, perché ereditava le variabili della macchina. Ora l'ambiente del sottoprocesso viene ripulito di tutte le `ECOSCAN_*`.
+- **La provenienza si perdeva nel Transform.** Il grezzo di Napoli ha l'URL di ogni voce e quello di Torino la pagina del PDF: nessuno dei due arrivava al livello normalizzato, e le risposte di livello 1 restavano senza fonte pur avendola a disposizione.
+- **Cambiare il payload dei documenti costringe a rivettorizzare.** Aggiungere fonte e riferimento agli oggetti significa rilanciare `ecoscan-vettorizza`, non solo `ecoscan-carica`: l'indice porta una copia del payload.
 - **Il client di MLflow riprova per minuti un server spento anche sul registro dei prompt**, non solo sulle run: i limiti di attesa ora stanno in una funzione sola (`limita_attese`), usata sia dal tracciatore sia da `ecoscan-prompt`.
 - **Uno span aperto fuori da un turno diventa una traccia a sé.** `rispondi`, chiamato dalla valutazione, avrebbe riempito l'esperimento di tracce orfane di solo retrieval: gli span si registrano solo dentro `analizza` e `continua`.
 - **Server MLflow e client erano a dieci versioni di distanza** (3.6.0 contro 3.16.1) senza che nulla se ne accorgesse: con le run non serviva nulla di recente, con le tracce sì.
@@ -272,6 +280,26 @@ Cose imparate che non sono decisioni, ma che conviene ricordare.
 ---
 
 ## Cronologia
+
+### v0.31.0 — 17/09/2026
+
+**Aggiunto.** Le destinazioni hanno un'etichetta leggibile (D128), esposta dalla nuova rotta `/destinazioni` e usata dal frontend: l'utente non legge più `carta_e_cartone` ma "Carta e cartone". Le risposte continuano a portare il nome interno, che resta la chiave dei dati.
+
+**Aggiunto.** Fonte e riferimento su ogni voce (D129): il Transform li prende dal grezzo (URL della pagina a Napoli, pagina del Rifiutologo a Torino), il caricamento li conserva e i documenti oggetto li portano nel payload. Una risposta di livello 1 ora dice da dove viene, e se la fonte è una pagina il frontend ne fa un link.
+
+**Aggiunto.** Il riconoscimento della foto si mostra prima della risposta (D130), con i dettagli visti e quanto l'assistente è sicuro.
+
+**Aggiunto.** Rotta `/correggi` (D131): l'utente dichiara qual è l'oggetto e si rifanno solo ricerca e scelta, senza rileggere la foto. Nel frontend è il riquadro "Non è un/una …?". La correzione è un turno della stessa conversazione anche nelle tracce.
+
+**Aggiunto.** Il chiarimento porta le sue opzioni (D132) e l'interfaccia ne fa pulsanti; la risposta inviata a `/continua` resta la stessa di prima.
+
+**Modificato.** "Come ci sono arrivato" mostra la citazione del documento scelto, il motivo della scelta e le voci scartate (D133); la tabella dei punteggi resta annidata dentro, per chi sviluppa. La risposta dichiara il documento scelto (`scelto_id`), senza il quale non si poteva citare nulla.
+
+**Modificato.** Dopo una risposta con più varianti si vedono anche i rami non scelti ("se è pulito → Carta e cartone · **se è unto → Organico** ✓").
+
+**Da rilanciare dopo l'aggiornamento.** `ecoscan-transform`, `ecoscan-regole`, `ecoscan-carica` e `ecoscan-vettorizza`: cambiano sia lo schema sia il payload dei documenti.
+
+**Test.** 352 passati (erano 329): etichette e provenienza nel caricamento e nei documenti, rotte `/destinazioni` e `/correggi`, opzioni e documento scelto nell'agente, correzione come turno tracciato, e nel frontend traduzione delle etichette, riconoscimento, citazione, alternative e link della fonte.
 
 ### v0.30.0 — 17/09/2026
 

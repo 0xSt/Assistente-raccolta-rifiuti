@@ -166,6 +166,8 @@ class Risposta:
     fonte: str | None = None
     riferimento: str | None = None
     chiarimento: str | None = None     # domanda da fare prima di considerarla definitiva
+    opzioni: list[str] = field(default_factory=list)  # risposte possibili alla domanda
+    scelto_id: str | None = None       # il documento da cui viene la risposta, fra i candidati
     tipo_corrispondenza: str = ""
     motivo: str = ""
     contraddizione: bool = False

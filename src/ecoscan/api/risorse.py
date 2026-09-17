@@ -63,6 +63,15 @@ class Risorse:
             FROM comune c ORDER BY c.nome""").fetchall()
         return [{"nome": n, "gestore": g, "voci": v, "regole": r} for n, g, v, r in righe]
 
+    def destinazioni(self, comune: str) -> list[dict]:
+        """I contenitori di un comune, con l'etichetta con cui vanno scritti all'utente."""
+        righe = self.db.execute("""
+            SELECT d.nome, coalesce(d.etichetta, d.nome), d.canale, d.colore, d.note
+            FROM destinazione d JOIN comune c ON c.id = d.comune_id
+            WHERE c.nome = ? ORDER BY d.canale, d.nome""", (comune,)).fetchall()
+        return [{"nome": n, "etichetta": e, "canale": ca, "colore": co, "note": no}
+                for n, e, ca, co, no in righe]
+
     def salute(self) -> dict:
         dettagli: dict[str, str] = {}
         try:
