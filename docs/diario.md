@@ -256,6 +256,7 @@ Cose imparate che non sono decisioni, ma che conviene ricordare.
 - **Le celle della scheda "Pile" di Torino non sono oggetti.** Sono formati di batteria ("C", "AA", "AAA", "D", "Button"): testi di una o due lettere, che nessun metodo di ricerca può distinguere. Non è un difetto dell'indice ma un limite della fonte, e la verifica ora lo segnala come nota invece di confonderlo con un errore.
 - **Una regola di esclusione mostrata senza polarità dice l'opposto del vero.** Nella prima prova di ricerca, "Cartoni per bevande (tipo Tetra Pak®) → imballaggi_plastica" sembrava un'indicazione di conferimento, mentre è la riga che li **esclude** dalla plastica. Vale per ogni punto in cui una regola verrà mostrata all'utente o passata al modello.
 - **Committare senza aver visto i test verdi è un errore anche quando la correzione è banale.** È successo con v0.21.0: il modulo non conteneva la costante che il test importava, e il commit è partito lo stesso. La riga dei test va letta, non lanciata e basta.
+- **Un guasto silenzioso nel tracciamento è per definizione difficile da notare.** MLflow rispondeva 403 per la validazione dell'header Host, e il tracciamento restava spento: l'applicazione funzionava benissimo, e l'unico segno era una riga nei log del backend. È il prezzo di aver reso il tracciamento non bloccante, e va messo in conto guardando i log ogni tanto.
 - **Un Dockerfile va costruito, non solo letto.** Mancava `COPY README.md`, che il `pyproject.toml` dichiara come `readme`: la costruzione del pacchetto falliva con un errore di hatchling che non nominava mai il Dockerfile. Ora due test leggono il pyproject e verificano che ogni file dichiarato sia copiato e non escluso dal `.dockerignore`.
 - **I comandi vanno provati eseguendoli, non solo leggendoli.** `--diagnostica` usava una variabile definita più sotto: un errore che nessun test coglieva perché nessuno eseguiva quel ramo. Ora tre test lanciano `main()` con la diagnostica sostituita da una finta.
 - **Un test che dipende dall'ambiente di chi lo esegue non è un test.** `test_il_file_env_viene_letto` passava da me e falliva sul portatile di Stef, perché ereditava le variabili della macchina. Ora l'ambiente del sottoprocesso viene ripulito di tutte le `ECOSCAN_*`.
@@ -264,6 +265,12 @@ Cose imparate che non sono decisioni, ma che conviene ricordare.
 ---
 
 ## Cronologia
+
+### v0.29.2 — 12/09/2026
+
+**Corretto.** Dal container il tracciamento non funzionava: MLflow, dalla 3.5, valida l'header `Host` per difendersi dal DNS rebinding e accetta di norma solo localhost e indirizzi privati, mentre il backend lo chiama con il nome del servizio Docker. Aggiunto `--allowed-hosts` con `mlflow:5000`.
+
+**Aggiunto.** Un test che confronta l'indirizzo con cui il backend chiama MLflow e l'elenco degli host consentiti: sono due righe dello stesso file che devono essere d'accordo, e prima non lo erano.
 
 ### v0.29.1 — 12/09/2026
 

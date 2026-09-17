@@ -34,6 +34,11 @@ services:
       --host 0.0.0.0 --port 5000
       --backend-store-uri sqlite:////mlflow/mlflow.db
       --artifacts-destination /mlflow/artefatti
+      --allowed-hosts "localhost,localhost:5000,127.0.0.1,127.0.0.1:5000,mlflow,mlflow:5000"
+    # Dalla 3.5 MLflow valida l'header Host per difendersi dal DNS rebinding, e accetta di
+    # norma solo localhost e indirizzi privati. Il backend però lo chiama con il nome del
+    # servizio Docker ("mlflow:5000"), che va aggiunto all'elenco: senza, risponde 403 e il
+    # tracciamento resta spento senza che nulla si rompa in modo visibile.
     ports:
       - "5000:5000"   # interfaccia: http://localhost:5000
     volumes:

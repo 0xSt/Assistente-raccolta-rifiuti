@@ -106,3 +106,16 @@ def test_il_dockerignore_non_esclude_i_file_necessari():
     escluse = {r.strip() for r in (RADICE / ".dockerignore").read_text(encoding="utf-8").splitlines()}
     assert dati["project"].get("readme", "README.md") not in escluse
     assert "src" not in escluse
+
+
+def test_mlflow_accetta_il_nome_del_servizio_docker(compose):
+    """Dalla 3.5 MLflow valida l'header Host: il backend lo chiama "mlflow:5000", che non è
+    nell'elenco predefinito. Senza questa riga risponde 403 e il tracciamento resta spento
+    senza che nulla si rompa in modo visibile."""
+    comando = compose["services"]["mlflow"]["command"]
+    assert "--allowed-hosts" in comando
+    assert "mlflow:5000" in comando and "localhost:5000" in comando
+
+    indirizzo = compose["services"]["backend"]["environment"]["ECOSCAN_MLFLOW"]
+    nome = indirizzo.removeprefix("http://")
+    assert nome in comando, f"il backend chiama {nome}, che non è fra gli host consentiti"
