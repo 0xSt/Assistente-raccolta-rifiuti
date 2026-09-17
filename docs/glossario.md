@@ -243,6 +243,9 @@ l'ambiente da `uv.lock`, `uv run` esegue un comando dentro quell'ambiente.
 **Profilo** — In questo progetto, l'insieme delle regole di Transform specifiche di un
 comune. Il motore è unico, i profili cambiano.
 
+**Fase** — Un passaggio dell'agente annunciato mentre accade (riconoscimento, recupero,
+scelta), per far vedere a chi aspetta a che punto è la risposta.
+
 **Etichetta di una destinazione** — Come un contenitore si scrive all'utente ("Carta e
 cartone"), distinta dal nome interno con cui è scritto nei dati ("carta_e_cartone"), che
 resta la chiave.

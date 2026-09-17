@@ -168,3 +168,64 @@ def test_correggi_rifiuta_un_oggetto_vuoto(client):
     risposta = client.post(f"{PREFISSO}/correggi",
                            json={"contesto": {"comune": "Torino"}, "oggetto": ""})
     assert risposta.status_code == 422
+
+
+def eventi_di(risposta) -> list[dict]:
+    """Legge un flusso SSE: ogni riga `data: ` è un evento."""
+    return [json.loads(r[6:]) for r in risposta.text.splitlines() if r.startswith("data: ")]
+
+
+def test_analizza_a_flusso_manda_le_fasi_e_poi_la_risposta(client):
+    risposta = client.post(f"{PREFISSO}/analizza/flusso", data={"comune": "Torino"},
+                           files={"foto": ("f.jpg", b"contenuto", "image/jpeg")})
+    assert risposta.status_code == 200
+    assert risposta.headers["content-type"].startswith("text/event-stream")
+
+    eventi = eventi_di(risposta)
+    fasi = [e["fase"] for e in eventi]
+    assert fasi[0] == "riconoscimento" and fasi[-1] == "risposta", "l'ultimo evento chiude"
+    assert "recupero" in fasi
+    finale = eventi[-1]["risposta"]
+    assert finale["comune"] == "Torino" and "livello_evidenza" in finale
+
+
+def test_il_flusso_dice_subito_cosa_ha_riconosciuto(client):
+    """È il motivo della funzione: non far aspettare la fine per scoprire l'errore."""
+    eventi = eventi_di(client.post(f"{PREFISSO}/analizza/flusso", data={"comune": "Torino"},
+                                   files={"foto": ("f.jpg", b"contenuto", "image/jpeg")}))
+    visto = next(e for e in eventi if e["fase"] == "riconosciuto")
+    assert visto["riconoscimento"]["oggetto"]
+    fasi = [e["fase"] for e in eventi]
+    assert fasi.index("riconosciuto") < fasi.index("recupero")
+
+
+def test_il_flusso_rifiuta_una_foto_vuota(client):
+    risposta = client.post(f"{PREFISSO}/analizza/flusso", data={"comune": "Torino"},
+                           files={"foto": ("f.jpg", b"", "image/jpeg")})
+    assert risposta.status_code == 400
+
+
+def test_continua_e_correggi_hanno_il_loro_flusso(client):
+    prima = client.post(f"{PREFISSO}/analizza", data={"comune": "Torino"},
+                        files={"foto": ("f.jpg", b"contenuto", "image/jpeg")}).json()
+
+    continua = eventi_di(client.post(f"{PREFISSO}/continua/flusso",
+                                     json={"contesto": prima["contesto"], "risposta": "sporco"}))
+    assert continua[-1]["fase"] == "risposta"
+    assert "riconoscimento" not in [e["fase"] for e in continua], "la foto non si rilegge"
+
+    correggi = eventi_di(client.post(f"{PREFISSO}/correggi/flusso",
+                                     json={"contesto": prima["contesto"], "oggetto": "giornali"}))
+    assert correggi[-1]["risposta"]["riconoscimento"]["oggetto"] == "giornali"
+
+
+def test_un_guasto_dell_agente_diventa_un_evento_di_errore(risorse, tmp_path, monkeypatch):
+    """Il client deve sapere che è finita male, non restare in attesa di una risposta."""
+    def rotto(*argomenti, **opzioni):
+        raise RuntimeError("Ollama spento")
+
+    monkeypatch.setattr(risorse.agente, "analizza", rotto)
+    with TestClient(crea_app(risorse, riscontri=tmp_path / "riscontri.jsonl")) as client:
+        eventi = eventi_di(client.post(f"{PREFISSO}/analizza/flusso", data={"comune": "Torino"},
+                                       files={"foto": ("f.jpg", b"x", "image/jpeg")}))
+    assert eventi[-1]["fase"] == "errore" and "Ollama" in eventi[-1]["dettaglio"]
