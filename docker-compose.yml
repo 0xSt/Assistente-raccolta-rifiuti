@@ -26,8 +26,11 @@ services:
 
   mlflow:
     # Immagine ufficiale: il server usa SQLite per i metadati e una cartella per gli
-    # artefatti. Entrambi su volume, così le run sopravvivono al riavvio.
-    image: ghcr.io/mlflow/mlflow:v3.6.0
+    # artefatti (tracce e foto allegate). Entrambi su volume, così le tracce sopravvivono
+    # al riavvio; con le foto il volume cresce più in fretta.
+    # La versione deve essere quella del client nel uv.lock: tracce, allegati, LoggedModel
+    # e collegamento dei prompt dipendono dal server (un test lo controlla).
+    image: ghcr.io/mlflow/mlflow:v3.16.1
     container_name: ecoscan_mlflow
     command: >
       mlflow server

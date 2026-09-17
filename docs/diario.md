@@ -43,9 +43,8 @@ Va aggiornato **a ogni cambiamento sostanziale**, non a ogni riga di codice. In 
 | Agente | Fatto: riconoscimento, cascata dei livelli, scelta vincolata, risposta. Indipendente da HTTP |
 | API FastAPI | Fatto: analizza, continua, cerca, comuni, salute, riscontro |
 | Frontend a chat | Fatto: Streamlit, allegato immagine, chiarimenti, riscontro |
-| Osservabilità | Fatto: tracce su MLflow non bloccanti, registro dei prompt |
+| Osservabilità | Fatto (v0.30.0): tracce MLflow per turno con foto, retrieval e sessione; versione dell'app e prompt collegati |
 | Docker | Fatto: qdrant, mlflow, backend, frontend; ollama sotto profilo |
-| MLflow, Docker | Da fare |
 | Regole di categoria — Napoli | Completo per quanto la fonte pubblica: 38 ammessi, 11 esclusi (5 Vetro estratti + 6 Umido trascritti a mano), 2 assenze verificate |
 | Regole di categoria — Torino | Estratte: 10 schede, 30 ammessi, 27 esclusi |
 | Revisione manuale | **Completa**: 32 decisioni prese (16 per comune), 0 aperte, 0 voci da revisionare |
@@ -132,9 +131,14 @@ Formato: decisione, motivazione, stato.
 | D120 | Un'**immagine sola** per backend e frontend, con comandi diversi | Restano due servizi distinti e separati nel codice (un test verifica che il frontend non importi il backend), ma costruire due immagini quasi identiche costerebbe tempo e spazio senza vantaggi in un prototipo | Accettata |
 | D121 | Il database è montato nel backend come volume in **sola lettura**; l'ETL resta fuori dai container | Chi risponde alle richieste non scrive i dati che gli servono per rispondere. Il vincolo è nel compose oltre che nel codice | Accettata |
 | D122 | Il frontend conosce **solo** l'indirizzo del backend, anche nel compose | Se avesse quelli di Qdrant o Ollama, prima o poi qualcuno li userebbe, e la valutazione misurerebbe un percorso diverso da quello dell'utente | Accettata |
+| D123 | Il tracciamento passa dalle **run** alle **tracce** di MLflow Tracing: una traccia per turno, con span per riconoscimento, recupero e scelta | La run registrava un riassunto (conteggi, tempi); la traccia registra cosa è entrato e cosa è uscito da ogni passaggio, che è ciò che serve per capire una risposta sbagliata e, più avanti, per la valutazione | Accettata |
+| D124 | Le **foto** si salvano come allegati delle tracce, con l'impronta accanto; `ECOSCAN_MLFLOW_FOTO=no` torna alla sola impronta | Senza la foto una traccia di riconoscimento non si può giudicare. Supera D117, per decisione di Stef | Accettata |
+| D125 | I turni della stessa conversazione condividono `mlflow.trace.session`; l'identificativo viaggia nel contesto | Il backend resta senza stato: il contesto era già il canale per ciò che deve sopravvivere fra `analizza` e `continua` | Accettata |
+| D126 | I parametri significativi formano un **LoggedModel** (nome = impronta dei parametri) collegato a ogni traccia; i prompt pubblicati si collegano per **impronta**, non per numero di versione | Stessi parametri dopo un riavvio, stesso LoggedModel. I numeri di versione del registro e quelli dei file non coincidono, l'impronta sì | Accettata |
+| D127 | Il server MLflow nel compose ha la **stessa versione** del client nel `uv.lock`, e un test lo verifica | Tracce, allegati e collegamenti dipendono dal server: con versioni diverse le funzioni nuove fallirebbero, e il tracciamento non bloccante lo nasconderebbe | Accettata |
 | D116 | Il tracciamento su MLflow **non è mai bloccante** e fallisce in fretta (tre secondi, un solo tentativo) | Serve a capire come va il sistema, non a farlo funzionare. Senza i limiti sui tentativi il client riprova per minuti e la risposta all'utente resta appesa | Accettata |
-| D117 | Delle foto si registra solo l'**impronta**, mai l'immagine | Due richieste sulla stessa foto si riconoscono, ma l'immagine non lascia il computer di chi l'ha scattata: è coerente con un progetto che gira in locale | Accettata |
-| D118 | I prompt restano file in git; il registro di MLflow li **collega alle run** che li hanno usati | La verità e il diff stanno in git; MLflow serve a sapere quale versione ha prodotto un certo risultato | Accettata |
+| D117 | Delle foto si registra solo l'**impronta**, mai l'immagine | Due richieste sulla stessa foto si riconoscono, ma l'immagine non lascia il computer di chi l'ha scattata: è coerente con un progetto che gira in locale | Superata da D124, per decisione di Stef |
+| D118 | I prompt restano file in git; il registro di MLflow li **collega alle run** che li hanno usati | La verità e il diff stanno in git; MLflow serve a sapere quale versione ha prodotto un certo risultato | Superata da D126: il registro collega i prompt alle tracce, non più alle run |
 | D119 | Le sonde coprono tre famiglie: codici materiale, parafrasi d'uso e controlli facili | Senza le prime due il banco di prova misura solo i casi comodi; senza i terzi non ci si accorge di una rottura | Accettata |
 | D114 | I candidati arrivano al modello **ordinati per somiglianza** | Il modello legge un elenco, e l'ordine è un'informazione che prima gli veniva nascosta | Accettata |
 | D115 | Se un documento **nomina proprio l'oggetto** riconosciuto, vince su quello generico, e la preferenza la applica il codice | Davanti a un cartone della pizza il modello ha scelto "Cartone da imballaggio" mentre "Cartone per pizze" era il primo risultato con il punteggio più alto | Accettata |
@@ -260,11 +264,34 @@ Cose imparate che non sono decisioni, ma che conviene ricordare.
 - **Un Dockerfile va costruito, non solo letto.** Mancava `COPY README.md`, che il `pyproject.toml` dichiara come `readme`: la costruzione del pacchetto falliva con un errore di hatchling che non nominava mai il Dockerfile. Ora due test leggono il pyproject e verificano che ogni file dichiarato sia copiato e non escluso dal `.dockerignore`.
 - **I comandi vanno provati eseguendoli, non solo leggendoli.** `--diagnostica` usava una variabile definita più sotto: un errore che nessun test coglieva perché nessuno eseguiva quel ramo. Ora tre test lanciano `main()` con la diagnostica sostituita da una finta.
 - **Un test che dipende dall'ambiente di chi lo esegue non è un test.** `test_il_file_env_viene_letto` passava da me e falliva sul portatile di Stef, perché ereditava le variabili della macchina. Ora l'ambiente del sottoprocesso viene ripulito di tutte le `ECOSCAN_*`.
+- **Il client di MLflow riprova per minuti un server spento anche sul registro dei prompt**, non solo sulle run: i limiti di attesa ora stanno in una funzione sola (`limita_attese`), usata sia dal tracciatore sia da `ecoscan-prompt`.
+- **Uno span aperto fuori da un turno diventa una traccia a sé.** `rispondi`, chiamato dalla valutazione, avrebbe riempito l'esperimento di tracce orfane di solo retrieval: gli span si registrano solo dentro `analizza` e `continua`.
+- **Server MLflow e client erano a dieci versioni di distanza** (3.6.0 contro 3.16.1) senza che nulla se ne accorgesse: con le run non serviva nulla di recente, con le tracce sì.
 - **Trappole già incontrate, da non ripetere**: i nodi di testo frammentati di Elementor; il match di "ecc" dentro "appare**cc**hi"; gli slug che finiscono con un numero che è un codice materiale e non un contatore; un test che passava solo perché la fixture era più semplice della realtà.
 
 ---
 
 ## Cronologia
+
+### v0.30.0 — 17/09/2026
+
+**Sostituito.** Il tracciamento passa dalle run alle tracce di MLflow Tracing (D123). Ogni turno (`analizza`, `continua`) è una traccia con input e output completi; dentro, uno span LLM per il riconoscimento, uno RETRIEVER e uno LLM per la scelta a ogni livello provato. I tempi per fase non si misurano più a mano: sono le durate degli span.
+
+**Aggiunto.** Le foto come allegati delle tracce (D124), con il content type letto dai byte e l'impronta accanto. Si spengono con `ECOSCAN_MLFLOW_FOTO=no`.
+
+**Aggiunto.** La sessione: `analizza` genera `id_conversazione` e lo mette nel contesto, `continua` lo rilegge (D125). Un contesto senza identificativo, da un client vecchio, apre una conversazione nuova invece di fallire.
+
+**Aggiunto.** La versione dell'applicazione come LoggedModel con i parametri significativi (modelli, `k`, soglia di confidenza, lato massimo, prefissi, keep_alive, prompt), e il collegamento alle tracce delle versioni dei prompt pubblicate (D126). Gli stessi parametri stanno anche nei tag `param.*`, per filtrare la lista delle tracce.
+
+**Modificato.** `ecoscan-prompt --pubblica` è idempotente: non crea una versione nuova se nel registro c'è già un prompt con la stessa impronta.
+
+**Modificato.** Dopo un guasto il tracciatore riprova dopo `ECOSCAN_MLFLOW_RIPROVA` secondi (60 di norma), invece di restare spento fino al riavvio del backend.
+
+**Rimosso.** La run per richiesta, `Traccia` con parametri, metriche ed etichette, le durate misurate a mano. `/cerca` resta non tracciata: serve alla diagnosi e mescolerebbe prove e conversazioni.
+
+**Infrastruttura.** Immagine del server MLflow allineata al client, v3.16.1 (D127).
+
+**Test.** `test_tracciamento.py` riscritto su un archivio MLflow locale (SQLite in una cartella temporanea): 20 test su input e output del turno, allegato della foto, documenti del retrieval, sessione condivisa, LoggedModel riusato, prompt collegati, e sul fatto che né un MLflow spento né un errore dell'agente vengano nascosti o blocchino la risposta. Un test in `test_docker.py` confronta la versione dell'immagine del server con quella del lock.
 
 ### v0.29.2 — 12/09/2026
 

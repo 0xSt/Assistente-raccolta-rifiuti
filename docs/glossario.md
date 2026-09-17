@@ -243,5 +243,20 @@ l'ambiente da `uv.lock`, `uv run` esegue un comando dentro quell'ambiente.
 **Profilo** — In questo progetto, l'insieme delle regole di Transform specifiche di un
 comune. Il motore è unico, i profili cambiano.
 
+**Traccia (MLflow Tracing)** — La registrazione di un turno di conversazione: un albero di
+span con ingressi, uscite e durate. Ha sostituito le run per richiesta.
+
+**Span** — Un passaggio dentro una traccia: riconoscimento, recupero, scelta. Il tipo
+(CHAIN, LLM, RETRIEVER) dice all'interfaccia di MLflow come mostrarlo.
+
+**Sessione** — Il gruppo di tracce di una stessa conversazione, legate dal metadato
+`mlflow.trace.session`.
+
+**Allegato di una traccia** — Un file binario (qui la foto) salvato fra gli artefatti della
+traccia e richiamato negli ingressi con un riferimento `mlflow-attachment://`.
+
+**LoggedModel** — In MLflow, il record di una versione dell'applicazione: non contiene
+codice, ma i parametri che la definiscono. Ogni traccia punta a quello in uso.
+
 **Test di regressione** — Test che fissa un comportamento già verificato, per accorgersi
 se una modifica futura lo rompe.

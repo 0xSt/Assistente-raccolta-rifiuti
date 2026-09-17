@@ -60,6 +60,12 @@ MLFLOW_ESPERIMENTO = _testo("ECOSCAN_MLFLOW_ESPERIMENTO", "ecoscan-chat")
 MLFLOW_ATTIVO = _testo("ECOSCAN_MLFLOW_ATTIVO", "si").lower() not in ("no", "0", "false")
 # Secondi di attesa prima di rinunciare: un tracciamento non bloccante fallisce in fretta
 MLFLOW_ATTESA = _intero("ECOSCAN_MLFLOW_ATTESA", 3)
+# Le foto delle richieste si salvano come allegati delle tracce; con "no" resta solo
+# l'impronta (D124)
+MLFLOW_FOTO = _testo("ECOSCAN_MLFLOW_FOTO", "si").lower() not in ("no", "0", "false")
+# Dopo un guasto di MLflow si riprova solo dopo questi secondi: riprovare a ogni richiesta
+# rallenterebbe tutte le risposte mentre il server è spento
+MLFLOW_RIPROVA = _intero("ECOSCAN_MLFLOW_RIPROVA", 60)
 # Quante schede si vettorizzano per chiamata
 LOTTO_EMBEDDING = _intero("ECOSCAN_LOTTO_EMBEDDING", 32)
 
@@ -70,6 +76,8 @@ def riepilogo() -> dict[str, str]:
     return {"qdrant": QDRANT, "ollama": OLLAMA, "modello": MODELLO_EMBEDDING,
             "modello_visione": MODELLO_VISIONE, "keep_alive": OLLAMA_KEEP_ALIVE,
             "lato_max_immagine": str(LATO_MAX_IMMAGINE),
-            "prefissi_embedding": "si" if PREFISSI_EMBEDDING else "no", "api": API, "mlflow": MLFLOW if MLFLOW_ATTIVO else "spento",
+            "prefissi_embedding": "si" if PREFISSI_EMBEDDING else "no", "api": API,
+            "mlflow": (MLFLOW + (" (con foto)" if MLFLOW_FOTO else " (solo impronte)"))
+            if MLFLOW_ATTIVO else "spento",
             "lotto": str(LOTTO_EMBEDDING),
             "modalita_qdrant": "server" if QDRANT.startswith(("http://", "https://")) else "in-process"}

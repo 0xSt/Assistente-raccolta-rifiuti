@@ -4,7 +4,7 @@ Assistente per la raccolta differenziata che gira interamente in locale. L'utent
 
 Progetto universitario. Comuni del prototipo: **Napoli** (ASIA) e **Torino** (AMIAT).
 
-## Stato attuale (v0.29.2)
+## Stato attuale (v0.30.0)
 
 Il quadro completo è in [docs/diario.md](docs/diario.md).
 
@@ -21,7 +21,7 @@ Il quadro completo è in [docs/diario.md](docs/diario.md).
 | Agente (riconoscimento, cascata, scelta, risposta) | Fatto: usabile senza HTTP |
 | API FastAPI | Fatto: sei rotte, backend senza stato e di sola lettura |
 | Frontend a chat (Streamlit) | Fatto: allegato immagine, chiarimenti, riscontro |
-| Tracciamento e prompt su MLflow | Fatto: una run per richiesta, tempi per fase, registro dei prompt |
+| Tracciamento e prompt su MLflow | Fatto: una traccia per turno con foto e retrieval, sessioni, versione dell'app e prompt collegati |
 | Docker completo | Fatto: cinque servizi, Ollama sull'host in sviluppo |
 | Valutazione (foto etichettate, metriche) | Da fare |
 | Backend, frontend, modello | Da fare |
@@ -73,7 +73,7 @@ uv run ecoscan-vettorizza       # indicizza i documenti su Qdrant
 uv run ecoscan-vettorizza --verifica   # controlla che l'indicizzazione sia corretta
 uv run ecoscan-sonda            # misura dove finisce il documento atteso per domande note
 uv run ecoscan-prompt           # elenca i prompt con versione e impronta
-uv run ecoscan-prompt --pubblica   # li registra su MLflow
+uv run ecoscan-prompt --pubblica   # registra su MLflow quelli nuovi o modificati
 
 uv run ecoscan-api              # backend: http://localhost:8000/docs
 uv run ecoscan-frontend         # interfaccia a chat: http://localhost:8501
@@ -152,8 +152,8 @@ Qdrant sta in modalità `server` o `in-process`.
 | `api/app.py` | Rotte FastAPI: analizza, continua, cerca, comuni, salute, riscontro |
 | `api/risorse.py` | Connessioni e agente condivisi, database in sola lettura |
 | `api/schemi.py` | Forma pubblica di ingressi e uscite (Pydantic) |
-| `osservabilita/tracciamento.py` | Tracce delle richieste su MLflow, mai bloccanti |
-| `osservabilita/prompt_registrati.py` | Pubblicazione dei prompt nel registro di MLflow |
+| `osservabilita/tracciamento.py` | Tracce delle conversazioni su MLflow: turni, retrieval, foto, versione dell'app; mai bloccanti |
+| `osservabilita/prompt_registrati.py` | Pubblicazione idempotente dei prompt nel registro di MLflow |
 | `frontend/app.py` | Interfaccia a chat in Streamlit, con allegato immagine |
 | `frontend/cliente.py` | Unico punto di contatto col backend |
 | `frontend/presentazione.py` | Da risposta dell'API a messaggio leggibile |

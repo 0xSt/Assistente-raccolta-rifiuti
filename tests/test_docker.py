@@ -119,3 +119,15 @@ def test_mlflow_accetta_il_nome_del_servizio_docker(compose):
     indirizzo = compose["services"]["backend"]["environment"]["ECOSCAN_MLFLOW"]
     nome = indirizzo.removeprefix("http://")
     assert nome in comando, f"il backend chiama {nome}, che non è fra gli host consentiti"
+
+
+def test_il_server_mlflow_ha_la_versione_del_client(compose):
+    """Tracce, allegati, LoggedModel e collegamento dei prompt dipendono dal server: con il
+    server alla 3.6.0 e il client alla 3.16.1 le funzioni nuove fallirebbero, e il
+    tracciamento non bloccante lo nasconderebbe."""
+    import tomllib
+
+    lock = tomllib.loads((RADICE / "uv.lock").read_text(encoding="utf-8"))
+    client = next(p["version"] for p in lock["package"] if p["name"] == "mlflow")
+    immagine = compose["services"]["mlflow"]["image"]
+    assert immagine.endswith(f":v{client}"), f"server {immagine}, client {client}"
