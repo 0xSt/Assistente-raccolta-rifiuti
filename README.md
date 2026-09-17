@@ -4,7 +4,7 @@ Assistente per la raccolta differenziata che gira interamente in locale. L'utent
 
 Progetto universitario. Comuni del prototipo: **Napoli** (ASIA) e **Torino** (AMIAT).
 
-## Stato attuale (v0.28.0)
+## Stato attuale (v0.29.0)
 
 Il quadro completo è in [docs/diario.md](docs/diario.md).
 
@@ -22,7 +22,7 @@ Il quadro completo è in [docs/diario.md](docs/diario.md).
 | API FastAPI | Fatto: sei rotte, backend senza stato e di sola lettura |
 | Frontend a chat (Streamlit) | Fatto: allegato immagine, chiarimenti, riscontro |
 | Tracciamento e prompt su MLflow | Fatto: una run per richiesta, tempi per fase, registro dei prompt |
-| Docker completo (backend, frontend, Ollama) | Da fare |
+| Docker completo | Fatto: cinque servizi, Ollama sull'host in sviluppo |
 | Valutazione (foto etichettate, metriche) | Da fare |
 | Backend, frontend, modello | Da fare |
 
@@ -30,7 +30,8 @@ Il quadro completo è in [docs/diario.md](docs/diario.md).
 
 ```
 pyproject.toml       dipendenze, comandi e configurazione di pytest
-docker-compose.yml   servizi di supporto (Qdrant)
+docker-compose.yml   i cinque servizi: qdrant, mlflow, backend, frontend, ollama
+docker/Dockerfile    immagine di backend e frontend
 .env.example         modello delle impostazioni; copialo in .env
 uv.lock              versioni bloccate (da versionare)
 src/ecoscan/
@@ -65,7 +66,7 @@ uv run ecoscan-carica --verifica # solo i controlli di coerenza, senza scrivere
 uv run ecoscan-documenti        # mostra i documenti da indicizzare (per leggerli)
 
 ollama pull embeddinggemma      # una volta sola, serve per i vettori
-docker compose up -d qdrant mlflow   # database vettoriale e tracciamento
+docker compose up -d qdrant mlflow   # solo i servizi di supporto, per sviluppare
                                 # Qdrant:  http://localhost:6333/dashboard
                                 # MLflow:  http://localhost:5000
 uv run ecoscan-vettorizza       # indicizza i documenti su Qdrant
@@ -76,6 +77,10 @@ uv run ecoscan-prompt --pubblica   # li registra su MLflow
 
 uv run ecoscan-api              # backend: http://localhost:8000/docs
 uv run ecoscan-frontend         # interfaccia a chat: http://localhost:8501
+
+# oppure tutto in container (Ollama resta sull'host):
+docker compose up -d            # http://localhost:8501
+docker compose --profile completo up -d    # con anche Ollama in un container
 uv run ecoscan-vettorizza --cerca "contenitore del latte" --comune Napoli  # prova la ricerca
 
 ollama pull gemma3:4b           # modello multimodale (~3 GB), vedi D79 nel diario

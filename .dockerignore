@@ -1,0 +1,12 @@
+.git
+.venv
+data/cache
+data/sorgenti
+data/qdrant
+data/normalizzato
+data/*.db
+tests
+docs
+*.bundle
+__pycache__
+.pytest_cache

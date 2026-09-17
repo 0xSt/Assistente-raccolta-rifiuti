@@ -156,14 +156,28 @@ def principale() -> None:
 
 
 def main() -> None:
-    """Avvia Streamlit su questo file: `uv run ecoscan-frontend`."""
+    """Avvia Streamlit su questo file: `uv run ecoscan-frontend`.
+
+    Dentro un container serve ascoltare su tutte le interfacce, non solo su localhost:
+    da qui `--indirizzo`.
+    """
+    import argparse
     import subprocess
     import sys
     from pathlib import Path
 
+    ap = argparse.ArgumentParser(description="Avvia l'interfaccia di EcoScan.")
+    ap.add_argument("--indirizzo", default="localhost",
+                    help="in un container: 0.0.0.0, altrimenti non è raggiungibile da fuori")
+    ap.add_argument("--porta", type=int, default=8501)
+    argomenti = ap.parse_args()
+
     comando = [sys.executable, "-m", "streamlit", "run", str(Path(__file__).resolve()),
+               "--server.address", argomenti.indirizzo,
+               "--server.port", str(argomenti.porta),
                "--browser.gatherUsageStats", "false"]
-    print(f"Frontend in avvio. Backend atteso su {conf.API}")
+    print(f"Frontend in avvio su {argomenti.indirizzo}:{argomenti.porta}. "
+          f"Backend atteso su {conf.API}")
     raise SystemExit(subprocess.call(comando))
 
 

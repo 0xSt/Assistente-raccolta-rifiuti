@@ -44,6 +44,7 @@ Va aggiornato **a ogni cambiamento sostanziale**, non a ogni riga di codice. In 
 | API FastAPI | Fatto: analizza, continua, cerca, comuni, salute, riscontro |
 | Frontend a chat | Fatto: Streamlit, allegato immagine, chiarimenti, riscontro |
 | Osservabilità | Fatto: tracce su MLflow non bloccanti, registro dei prompt |
+| Docker | Fatto: qdrant, mlflow, backend, frontend; ollama sotto profilo |
 | MLflow, Docker | Da fare |
 | Regole di categoria — Napoli | Completo per quanto la fonte pubblica: 38 ammessi, 11 esclusi (5 Vetro estratti + 6 Umido trascritti a mano), 2 assenze verificate |
 | Regole di categoria — Torino | Estratte: 10 schede, 30 ammessi, 27 esclusi |
@@ -128,6 +129,9 @@ Formato: decisione, motivazione, stato.
 | D99 | La formattazione dei messaggi sta in un modulo a parte, con i suoi test | È la parte che si sbaglia più facilmente: una regola di esclusione presentata male dice l'opposto del vero | Accettata |
 | D96 | La rotta `/riscontro` registra il giudizio dell'utente su una risposta | Ogni riga è un esempio etichettato da una persona: è il modo meno costoso di costruire il set di valutazione, che oggi non esiste | Accettata |
 | D111 | **Una sola strategia di ricerca: la semantica.** Rimossi FTS5, trigrammi, riduzione alla radice, parole di servizio, fusione RRF, garanzie e tetti | Le sonde mostravano che l'ibrido non cambiava il risultato: 14 su 16 in entrambi i casi, con un caso migliorato e uno peggiorato. Un secondo metodo tenuto per prudenza è complessità senza guadagno | Accettata |
+| D120 | Un'**immagine sola** per backend e frontend, con comandi diversi | Restano due servizi distinti e separati nel codice (un test verifica che il frontend non importi il backend), ma costruire due immagini quasi identiche costerebbe tempo e spazio senza vantaggi in un prototipo | Accettata |
+| D121 | Il database è montato nel backend come volume in **sola lettura**; l'ETL resta fuori dai container | Chi risponde alle richieste non scrive i dati che gli servono per rispondere. Il vincolo è nel compose oltre che nel codice | Accettata |
+| D122 | Il frontend conosce **solo** l'indirizzo del backend, anche nel compose | Se avesse quelli di Qdrant o Ollama, prima o poi qualcuno li userebbe, e la valutazione misurerebbe un percorso diverso da quello dell'utente | Accettata |
 | D116 | Il tracciamento su MLflow **non è mai bloccante** e fallisce in fretta (tre secondi, un solo tentativo) | Serve a capire come va il sistema, non a farlo funzionare. Senza i limiti sui tentativi il client riprova per minuti e la risposta all'utente resta appesa | Accettata |
 | D117 | Delle foto si registra solo l'**impronta**, mai l'immagine | Due richieste sulla stessa foto si riconoscono, ma l'immagine non lascia il computer di chi l'ha scattata: è coerente con un progetto che gira in locale | Accettata |
 | D118 | I prompt restano file in git; il registro di MLflow li **collega alle run** che li hanno usati | La verità e il diff stanno in git; MLflow serve a sapere quale versione ha prodotto un certo risultato | Accettata |
@@ -259,6 +263,16 @@ Cose imparate che non sono decisioni, ma che conviene ricordare.
 ---
 
 ## Cronologia
+
+### v0.29.0 — 12/09/2026
+
+**Aggiunto.** `docker/Dockerfile` e i servizi `backend` e `frontend` nel compose. Un'immagine sola, costruita con `uv sync --frozen` perché le versioni siano quelle provate in sviluppo, e due comandi diversi. Il database arriva da un volume in sola lettura: l'ETL resta un lavoro da riga di comando.
+
+**Aggiunto.** Il servizio `ollama` sotto il profilo `completo`: in sviluppo il modello sta sull'host, dove è già scaricato e resta caricato in memoria fra un riavvio e l'altro dei container; per la consegna basta `docker compose --profile completo up -d`.
+
+**Modificato.** `ecoscan-frontend` accetta `--indirizzo`: dentro un container serve ascoltare su tutte le interfacce, non solo su localhost.
+
+**Test.** 10 controlli sul compose, che non avviano container ma verificano che il file dica ciò che intendiamo: indirizzi dei servizi, sola lettura sul database, attesa di un backend *sano* e non solo partito, immagini fissate a una versione.
 
 ### v0.28.0 — 12/09/2026
 

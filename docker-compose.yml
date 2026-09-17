@@ -1,4 +1,13 @@
-# Servizi di supporto per lo sviluppo. Il backend, il frontend e il modello arriveranno qui.
+# EcoScan Local: tutti i servizi dell'applicazione.
+#
+# Ollama resta sull'HOST durante lo sviluppo: il modello pesa diversi gigabyte, e tenerlo
+# fuori dai container evita di copiarlo in un volume e di farlo passare per la
+# virtualizzazione. I container lo raggiungono con host.docker.internal.
+# Per la consegna esiste il profilo "completo", che lo mette dentro come gli altri.
+#
+#   docker compose up -d qdrant mlflow        solo i servizi di supporto
+#   docker compose up -d                      applicazione completa (Ollama sull'host)
+#   docker compose --profile completo up -d   con anche Ollama in un container
 services:
   qdrant:
     image: qdrant/qdrant:v1.12.4
@@ -35,6 +44,66 @@ services:
       timeout: 3s
       retries: 10
 
+  backend:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    image: ecoscan-local
+    container_name: ecoscan_backend
+    command: ["uv", "run", "ecoscan-api", "--host", "0.0.0.0"]
+    environment:
+      ECOSCAN_QDRANT: http://qdrant:6333
+      ECOSCAN_MLFLOW: http://mlflow:5000
+      # Ollama gira sull'host: i container lo raggiungono così
+      ECOSCAN_OLLAMA: http://host.docker.internal:11434/api/embed
+      ECOSCAN_OLLAMA_CHAT: http://host.docker.internal:11434/api/chat
+    volumes:
+      # Il database è un artefatto dell'ETL, che resta un lavoro da riga di comando:
+      # il backend lo legge e basta (lo apre comunque in sola lettura).
+      - ./data:/app/data:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"   # serve su Linux, innocuo altrove
+    ports:
+      - "8000:8000"   # documentazione interattiva: http://localhost:8000/docs
+    depends_on:
+      qdrant:
+        condition: service_healthy
+      mlflow:
+        condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c ':> /dev/tcp/127.0.0.1/8000' || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+
+  frontend:
+    image: ecoscan-local
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: ecoscan_frontend
+    command: ["uv", "run", "ecoscan-frontend", "--indirizzo", "0.0.0.0"]
+    environment:
+      # L'unico indirizzo che il frontend conosce: parla solo con il backend
+      ECOSCAN_API: http://backend:8000/api/v1
+    ports:
+      - "8501:8501"   # interfaccia: http://localhost:8501
+    depends_on:
+      backend:
+        condition: service_healthy
+
+  ollama:
+    # Solo per la consegna: in sviluppo Ollama sta sull'host, dove il modello è già
+    # scaricato e resta caricato in memoria fra un riavvio e l'altro dei container.
+    profiles: ["completo"]
+    image: ollama/ollama:0.5.4
+    container_name: ecoscan_ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_modelli:/root/.ollama
+
 volumes:
   qdrant_dati:
   mlflow_dati:
+  ollama_modelli:
