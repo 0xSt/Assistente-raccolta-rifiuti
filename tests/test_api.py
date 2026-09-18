@@ -215,3 +215,53 @@ def test_un_pollice_giu_senza_alternativa_resta_solo_nel_registro(client, tmp_pa
         "destinazioni_date": ["organico"], "motivo": "contenitore_sbagliato"})
     assert risposta.json() == {"registrato": True, "diventato_caso_di_valutazione": False}
     assert (tmp_path / "riscontri.jsonl").is_file()
+
+
+# ----------------------------------------------------- il come, non solo il dove
+
+def test_la_risposta_porta_le_procedure_dei_canali_non_ordinari(client, monkeypatch):
+    """Per un terzo del dizionario di Napoli "va in X" è vero e insufficiente: la
+    destinazione non dice se devi chiamare, spostarti o aspettare un mezzo."""
+    from ecoscan import procedure as proc
+    from ecoscan.api import app as modulo
+
+    finta = proc.Procedura(comune="Torino", canale="centro_raccolta", sforzo=5,
+                           titolo="Lo porti tu", passi=["Documento", "Vai"], nota="Gratuito.")
+    monkeypatch.setattr(modulo.Risorse, "procedure", lambda *_: [finta])
+
+    corpo = client.post(f"{PREFISSO}/domanda",
+                        json={"comune": "Torino", "oggetto": "giornale"}).json()
+    assert corpo["procedure"][0]["titolo"] == "Lo porti tu"
+    assert corpo["procedure"][0]["passi"] == ["Documento", "Vai"]
+    assert corpo["procedure"][0]["da_casa"] is False
+
+
+def test_una_risposta_tutta_ordinaria_non_diventa_un_elenco_puntato(client):
+    """Quando si butta e basta, la procedura è al massimo una: tutti sanno cos'è un
+    cassonetto, e tre passi per dire "mettilo nel sacco" sarebbero rumore."""
+    corpo = client.post(f"{PREFISSO}/domanda",
+                        json={"comune": "Torino", "oggetto": "giornale"}).json()
+    canali = {p["canale"] for p in corpo["procedure"]}
+    assert canali <= {"raccolta_ordinaria"}
+
+
+def test_il_livello_3_dice_almeno_dove_chiedere(client, monkeypatch):
+    """"Non lo so" è onesto ma inutile: chi ha l'oggetto in mano deve comunque buttarlo."""
+    from ecoscan import procedure as proc
+    from ecoscan.api import app as modulo
+
+    ripiego = proc.Procedura(comune="Torino", canale="centro_raccolta", sforzo=5,
+                             titolo="Lo porti tu", passi=["Vai al centro di raccolta"])
+    monkeypatch.setattr(modulo.procedure_, "di_ripiego", lambda _: ripiego)
+
+    corpo = client.post(f"{PREFISSO}/domanda",
+                        json={"comune": "Torino", "oggetto": "oggetto che non esiste"}).json()
+    if corpo["livello_evidenza"] == 3:
+        assert corpo["ripiego"]["titolo"] == "Lo porti tu"
+
+
+def test_i_canali_traducono_le_destinazioni(risorse):
+    """Il canale è già nei dati: la procedura si trova da lì, non si indovina."""
+    canali = risorse.canali("Torino")
+    assert canali["carta_e_cartone"] == "raccolta_ordinaria"
+    assert set(canali) == {d["nome"] for d in risorse.destinazioni("Torino")}

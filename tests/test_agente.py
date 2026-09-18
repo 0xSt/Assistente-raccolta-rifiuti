@@ -34,7 +34,7 @@ def test_senza_testo_le_domande_restano_quelle_del_riconoscimento():
 def test_le_formulazioni_includono_sinonimi_e_categoria():
     """Il modello dice "sandalo", la fonte scrive "Scarpe": i sinonimi fanno da ponte."""
     r = Riconoscimento(oggetto="sandalo", sinonimi=["ciabatta"], categoria="calzatura")
-    assert r.formulazioni() == ["sandalo", "sandalo calzatura", "ciabatta", "calzatura"]
+    assert set(r.formulazioni()) == {"sandalo", "sandalo calzatura", "calzatura", "ciabatta"}
 
 
 def test_il_materiale_viene_subito_dopo_l_oggetto():
@@ -43,7 +43,37 @@ def test_il_materiale_viene_subito_dopo_l_oggetto():
     r = Riconoscimento(oggetto="forchetta", materiali=["acciaio"], categoria="posata",
                        sinonimi=["posata", "utensile da cucina"])
     poste = r.formulazioni()
-    assert poste[:3] == ["forchetta", "forchetta posata", "forchetta acciaio"]
+    assert "forchetta acciaio" in poste[:4]
+
+
+def test_la_categoria_da_sola_entra_sempre():
+    """Il caso del microonde: la domanda con la sola categoria stava in coda dopo i
+    sinonimi e il tetto la tagliava. È l'unica che raggiunge le voci generiche del
+    dizionario, quelle che non nominano nessun oggetto in particolare."""
+    r = Riconoscimento(oggetto="microonde", categoria="elettrodomestico",
+                       materiali=["acciaio inossidabile", "vetro", "plastica", "metallo"],
+                       sinonimi=["forno a microonde", "microwave", "fornetto", "grill"])
+    poste = r.formulazioni()
+    assert "elettrodomestico" in poste
+    assert poste.index("elettrodomestico") <= 3, "non deve dipendere da quanti sinonimi ci sono"
+
+
+def test_i_materiali_nella_domanda_estesa_si_fermano_a_due():
+    """Con quattro materiali la domanda parla più di *di cosa è fatto* che di *cos'è*:
+    l'oggetto diventa una parola su cinque e la ricerca si sposta sui materiali."""
+    r = Riconoscimento(oggetto="microonde",
+                       materiali=["acciaio inossidabile", "vetro", "plastica", "metallo"])
+    assert r.query == "microonde acciaio inossidabile vetro"
+    assert "plastica" not in r.query and "metallo" not in r.query
+
+
+def test_le_essenziali_entrano_anche_con_molti_sinonimi():
+    """La divisione fra essenziali e aggiuntive esiste per questo: nessun numero di
+    sinonimi può spingere fuori una delle quattro domande che contano."""
+    r = Riconoscimento(oggetto="x", categoria="c", materiali=["m"],
+                       sinonimi=[f"s{i}" for i in range(20)])
+    poste = r.formulazioni()
+    assert {"x", "x c", "c", "x m"} <= set(poste)
 
 
 # ------------------------------------------------------------------ recupero
@@ -440,5 +470,5 @@ def test_il_materiale_entra_fra_le_domande_poste_all_indice():
 
     poste = recupero.domande_poste
     assert "forchetta acciaio" in poste
-    # deve stare in alto: il tetto sulle domande tagliava via proprio questa
-    assert poste.index("forchetta acciaio") <= 2
+    # deve stare fra le essenziali: il tetto sulle domande tagliava via proprio questa
+    assert poste.index("forchetta acciaio") <= 3

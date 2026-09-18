@@ -375,3 +375,63 @@ def test_lo_stesso_oggetto_resta_la_frase_piena():
 def test_senza_tipo_di_corrispondenza_si_resta_sulla_frase_di_prima():
     """Un backend più vecchio, o una risposta di prova, non deve perdere la spiegazione."""
     assert "elenca proprio questo oggetto" in presentazione.corpo({"livello_evidenza": 1})
+
+
+# ------------------------------------------------------- il come, non solo il dove
+
+PROCEDURA_RITIRO = {"canale": "ritiro_domicilio", "titolo": "Lo ritirano a casa tua",
+                    "passi": ["Chiama il numero verde", "Esponilo la sera prima"],
+                    "nota": "Senza prenotazione è abbandono di rifiuti.",
+                    "sforzo": 2, "da_casa": True}
+PROCEDURA_ISOLA = {"canale": "centro_raccolta", "titolo": "Lo porti tu all'isola ecologica",
+                   "passi": ["Porta un documento", "Vai negli orari di apertura"],
+                   "nota": "", "sforzo": 5, "da_casa": False}
+
+
+def test_la_procedura_diventa_passi_nel_corpo():
+    """Per un microonde "va in Isola Ecologica" è vero e insufficiente: manca il come."""
+    testo = presentazione.corpo({"livello_evidenza": 1, "procedure": [PROCEDURA_ISOLA]})
+    assert "Lo porti tu all'isola ecologica" in testo
+    assert "- Porta un documento" in testo
+    assert "- Vai negli orari di apertura" in testo
+
+
+def test_piu_canali_diventano_alternative_numerate_dalla_piu_comoda():
+    """L'ordine è il messaggio: prima ciò che si fa da casa, poi ciò che chiede la macchina."""
+    testo = presentazione.corpo({"livello_evidenza": 1,
+                                 "procedure": [PROCEDURA_RITIRO, PROCEDURA_ISOLA]})
+    assert "Puoi fare in due modi" in testo
+    assert testo.index("1. Lo ritirano a casa tua") < testo.index("2. Lo porti tu")
+    assert "il più comodo" in testo
+
+
+def test_una_procedura_sola_non_si_numera():
+    testo = presentazione.corpo({"livello_evidenza": 1, "procedure": [PROCEDURA_ISOLA]})
+    assert "1. " not in testo and "Puoi fare in" not in testo
+
+
+def test_la_nota_della_procedura_si_legge():
+    """"Senza prenotazione è abbandono di rifiuti" è la cosa che evita una multa: non è
+    un dettaglio da nascondere in un expander."""
+    testo = presentazione.corpo({"livello_evidenza": 1, "procedure": [PROCEDURA_RITIRO]})
+    assert "abbandono di rifiuti" in testo
+
+
+def test_senza_procedure_il_messaggio_resta_quello_di_prima():
+    """La maggior parte delle risposte è raccolta ordinaria: non devono cambiare aspetto."""
+    testo = presentazione.corpo({"livello_evidenza": 1, "tipo_corrispondenza": "stesso_oggetto"})
+    assert "Il comune elenca proprio questo oggetto." in testo
+    assert "Puoi fare in" not in testo
+
+
+def test_il_livello_3_dice_dove_chiedere_invece_di_non_so():
+    """Chi ha l'oggetto in mano deve comunque buttarlo da qualche parte: indicare il centro
+    di raccolta non è indovinare la destinazione, è dire dove si chiede."""
+    testo = presentazione.corpo({"livello_evidenza": 3, "ripiego": PROCEDURA_ISOLA})
+    assert "che il dizionario non elenca" in testo
+    assert "Porta un documento" in testo
+
+
+def test_il_livello_3_senza_ripiego_resta_la_frase_di_prima():
+    testo = presentazione.corpo({"livello_evidenza": 3})
+    assert "sito del comune" in testo

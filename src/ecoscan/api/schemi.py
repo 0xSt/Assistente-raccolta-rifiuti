@@ -49,6 +49,28 @@ class CandidatoUscita(BaseModel):
                    destinazioni=c.destinazioni, polarita=c.polarita, punteggio=c.punteggio)
 
 
+class ProceduraUscita(BaseModel):
+    """Come si conferisce, non solo dove.
+
+    Viaggia con la risposta perché il frontend non può leggerla da sé: parla solo con le
+    API. Le procedure arrivano già ordinate per sforzo, dalla più comoda alla più faticosa.
+    """
+
+    canale: str
+    titolo: str
+    passi: list[str] = []
+    nota: str = ""
+    sforzo: int = Field(description="1 si fa da casa, 5 ci devi andare tu")
+    da_casa: bool
+    da_verificare: str = Field(
+        default="", description="cosa manca ancora a questa procedura: indirizzi, orari, recapiti")
+
+    @classmethod
+    def da(cls, p) -> ProceduraUscita:
+        return cls(canale=p.canale, titolo=p.titolo, passi=list(p.passi), nota=p.nota,
+                   sforzo=p.sforzo, da_casa=p.da_casa, da_verificare=p.da_verificare)
+
+
 class RispostaUscita(BaseModel):
     livello_evidenza: int = Field(
         description="1 voce di dizionario, 2 regola di categoria, 3 il comune non copre l'oggetto")
@@ -72,6 +94,13 @@ class RispostaUscita(BaseModel):
     contraddizione: bool = False
     riconoscimento: RiconoscimentoUscita | None = None
     candidati: list[CandidatoUscita] = []
+    procedure: list[ProceduraUscita] = Field(
+        default=[],
+        description="come si conferisce, per i canali diversi dalla raccolta ordinaria; "
+                    "ordinate dalla più comoda alla più faticosa")
+    ripiego: ProceduraUscita | None = Field(
+        default=None,
+        description="al livello 3: dove si può chiedere, visto che il comune non dice nulla")
     contesto: dict = Field(
         default_factory=dict,
         description="da rimandare a /continua: il servizio non conserva stato fra le chiamate")

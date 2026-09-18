@@ -15,6 +15,7 @@ import sqlite3
 from dataclasses import dataclass
 from pathlib import Path
 
+from ecoscan import procedure as procedure_
 from ecoscan.agente.agente import Agente
 from ecoscan.agente.cache import ModelloConCache
 from ecoscan.agente.recupero import Recupero, RecuperoQdrant
@@ -75,6 +76,19 @@ class Risorse:
             WHERE c.nome = ? ORDER BY d.canale, d.nome""", (comune,)).fetchall()
         return [{"nome": n, "etichetta": e, "canale": ca, "colore": co, "note": no}
                 for n, e, ca, co, no in righe]
+
+    def canali(self, comune: str) -> dict[str, str]:
+        """Nome della destinazione -> canale con cui ci si conferisce.
+
+        È la traduzione da "dove" a "come": `Isola Ecologica Estesa` -> `centro_raccolta`,
+        e da lì si trova la procedura. Il canale è già nei dati, non va indovinato.
+        """
+        return {d["nome"]: d["canale"] for d in self.destinazioni(comune)}
+
+    def procedure(self, comune: str, destinazioni: list[str]) -> list[procedure_.Procedura]:
+        """Come si conferisce alle destinazioni di una risposta, dalla più comoda in giù."""
+        canali = self.canali(comune)
+        return procedure_.per_canali(comune, [canali[d] for d in destinazioni if d in canali])
 
     def salute(self) -> dict:
         dettagli: dict[str, str] = {}

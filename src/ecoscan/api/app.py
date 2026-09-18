@@ -25,10 +25,11 @@ from collections.abc import Callable
 
 from fastapi import Depends, FastAPI, File, Form, HTTPException, UploadFile
 
+from ecoscan import procedure as procedure_
 from ecoscan.api.risorse import Risorse
 from ecoscan.api.schemi import (
-    CandidatoUscita, Comune, Continuazione, Correzione, Destinazione, Domanda, Ricerca,
-    Riscontro, RispostaUscita, Salute,
+    CandidatoUscita, Comune, Continuazione, Correzione, Destinazione, Domanda,
+    ProceduraUscita, Ricerca, Riscontro, RispostaUscita, Salute,
 )
 from ecoscan.percorsi import DATI
 from ecoscan.valutazione.casi import CASI_DA_RISCONTRI, aggiungi, caso_da_riscontro
@@ -84,7 +85,26 @@ def rotte_stato(app: FastAPI, dip: Dipendenze) -> None:
 
 
 def rotte_agente(app: FastAPI, dip: Dipendenze) -> None:
-    """I tre modi di parlare con l'agente: dalla foto, dopo un chiarimento, correggendolo."""
+    """I quattro modi di parlare con l'agente: dalla foto, scrivendo, dopo un chiarimento,
+    correggendolo. Tutti passano da `con_procedure`, perché dire dove va senza dire come ci
+    si arriva lascia il lavoro a metà per un terzo del dizionario."""
+
+    def con_procedure(r: Risorse, risposta, comune: str) -> RispostaUscita:
+        """La risposta dell'agente più il *come*.
+
+        L'agente non conosce i canali: lavora sui documenti indicizzati, dove il canale non
+        c'è. Sta qui, nel confine HTTP, perché è qui che il relazionale è a portata di mano
+        e perché resta una decisione di presentazione, non di ragionamento.
+        """
+        uscita = RispostaUscita.da(risposta)
+        if uscita.destinazioni:
+            uscita.procedure = [ProceduraUscita.da(p)
+                                for p in r.procedure(comune, uscita.destinazioni)]
+        elif uscita.livello_evidenza == 3 and (ripiego := procedure_.di_ripiego(comune)):
+            # "non lo so" è onesto ma inutile: chi ha l'oggetto in mano deve comunque
+            # buttarlo da qualche parte, e il centro di raccolta è dove si chiede
+            uscita.ripiego = ProceduraUscita.da(ripiego)
+        return uscita
 
     @app.post(f"{PREFISSO}/analizza", response_model=RispostaUscita, tags=["agente"])
     async def analizza(comune: str = Form(...), foto: UploadFile = File(...),
@@ -95,14 +115,15 @@ def rotte_agente(app: FastAPI, dip: Dipendenze) -> None:
         immagine = await foto.read()
         if not immagine:
             raise HTTPException(status_code=400, detail="la foto è vuota")
-        return RispostaUscita.da(r.agente.analizza(immagine, comune, testo))
+        return con_procedure(r, r.agente.analizza(immagine, comune, testo), comune)
 
     @app.post(f"{PREFISSO}/continua", response_model=RispostaUscita, tags=["agente"])
     def continua(dati: Continuazione, r: Risorse = Depends(dip.correnti)) -> RispostaUscita:
         """Risposta a un chiarimento: riparte dal riconoscimento già fatto, senza rileggere
         la foto, che sarebbe il passaggio più lento."""
         dip.contesto_valido(dati.contesto, "riconoscimento", "comune")
-        return RispostaUscita.da(r.agente.continua(dati.contesto, dati.risposta))
+        return con_procedure(r, r.agente.continua(dati.contesto, dati.risposta),
+                             dati.contesto["comune"])
 
     @app.post(f"{PREFISSO}/domanda", response_model=RispostaUscita, tags=["agente"])
     def domanda(dati: Domanda, r: Risorse = Depends(dip.correnti)) -> RispostaUscita:
@@ -113,7 +134,8 @@ def rotte_agente(app: FastAPI, dip: Dipendenze) -> None:
         meglio di qualunque modello che guardi una fotografia.
         """
         dip.controlla_comune(r, dati.comune)
-        return RispostaUscita.da(r.agente.domanda(dati.comune, dati.oggetto, dati.testo))
+        return con_procedure(r, r.agente.domanda(dati.comune, dati.oggetto, dati.testo),
+                             dati.comune)
 
     @app.post(f"{PREFISSO}/correggi", response_model=RispostaUscita, tags=["agente"])
     def correggi(dati: Correzione, r: Risorse = Depends(dip.correnti)) -> RispostaUscita:
@@ -124,7 +146,8 @@ def rotte_agente(app: FastAPI, dip: Dipendenze) -> None:
         """
         dip.contesto_valido(dati.contesto, "comune")
         dip.controlla_comune(r, dati.contesto["comune"])
-        return RispostaUscita.da(r.agente.correggi(dati.contesto, dati.oggetto))
+        return con_procedure(r, r.agente.correggi(dati.contesto, dati.oggetto),
+                             dati.contesto["comune"])
 
 
 def rotte_ricerca(app: FastAPI, dip: Dipendenze) -> None:
