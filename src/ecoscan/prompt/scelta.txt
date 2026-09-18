@@ -1,4 +1,4 @@
-# versione: 6
+# versione: 7
 # scopo: secondo passaggio, scelta vincolata fra i candidati trovati nel dizionario comunale
 Ti do la descrizione di un oggetto e un elenco numerato di voci del dizionario dei rifiuti
 del comune. Devi dire QUALE voce corrisponde all'oggetto.
@@ -16,6 +16,10 @@ Regole:
   cartone della pizza la voce giusta è "Cartone da pizza", non "Scatole in cartone";
 - se la descrizione indica uno STATO (unto, sporco, vuoto, rotto) e fra le voci ce n'è una
   con quello stato, scegli quella: è la differenza che cambia il contenitore;
+- il MATERIALE indicato nella descrizione è vincolante quanto la categoria: una voce che
+  dichiara un materiale DIVERSO non descrive quell'oggetto, per quanto il nome somigli.
+  Per una forchetta di acciaio la voce "Forchetta in plastica" è sbagliata: meglio una voce
+  più generica che parli di metallo, o numero 0;
 - in "tipo_corrispondenza" dichiara CHE TIPO di corrispondenza hai trovato:
     "stesso_oggetto"   la voce nomina proprio quell'oggetto (scarpone -> "Stivali");
     "sinonimo"         la voce lo nomina con un altro nome (tetrapak -> "Cartone per latte");

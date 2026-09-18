@@ -155,6 +155,9 @@ Formato: decisione, motivazione, stato.
 | D144 | I passaggi che lavorano sullo stesso oggetto lo ricevono come dato: `Richiesta` nell'agente, `Estratti` nel Transform | Erano firme da sei e sette parametri, in cui l'ordine contava più del significato e ogni aggiunta li allungava | Accettata |
 | D145 | Il recupero è un'**interfaccia** (`Recupero`) con un'implementazione (`RecuperoQdrant`): l'agente riceve un recupero, non Qdrant e il vettorizzatore | L'agente dichiara cosa gli serve — candidati per comune e livello — e non sa da dove arrivino. Una ricerca ibrida diventa un'implementazione in più invece di una modifica all'agente, e i test possono usare un recupero in memoria senza Qdrant | Accettata |
 | D146 | Nella configurazione tracciata `modello_embedding` diventa `recupero` (per esempio `qdrant:embeddinggemma`) | Il parametro che conta non è il modello di embedding ma la strategia di ricerca nel suo insieme: quando ce ne sarà più d'una, la traccia dovrà dire quale era in uso | Accettata |
+| D147 | Un documento che dichiara un materiale **incompatibile** con quello riconosciuto viene tolto dai candidati **prima** della scelta; se lo scarto svuoterebbe l'elenco non si scarta nulla | Davanti a una forchetta d'acciaio il modello ha scelto "Forchetta in plastica" pur avendo riconosciuto l'acciaio e averlo scritto nel motivo. Togliere il documento è più sicuro che sperare nel prompt, e vale per qualunque modello. La clausola di salvataggio evita che un riconoscimento sbagliato sul materiale renda muto il sistema | Accettata |
+| D148 | Il confronto sul materiale legge il **nome** del documento, non tutto il testo | Il testo dice anche dove va ("Va in Plastica e Metalli"), e quello è il contenitore: letto come materiale faceva scartare "Scatolette per tonno", che è di metallo. Trovato provando il filtro sui candidati veri di `/cerca`, non a tavolino | Accettata |
+| D149 | La formulazione "oggetto + materiale" si pone all'indice **subito dopo** l'oggetto e la categoria | Misurato: "forchetta" non raggiunge "Stoviglie in metallo", "forchetta acciaio" sì (posizione 9). La formulazione col materiale esisteva ma stava in fondo, e il tetto di cinque domande la tagliava via proprio quando serviva | Accettata |
 | D116 | Il tracciamento su MLflow **non è mai bloccante** e fallisce in fretta (tre secondi, un solo tentativo) | Serve a capire come va il sistema, non a farlo funzionare. Senza i limiti sui tentativi il client riprova per minuti e la risposta all'utente resta appesa | Accettata |
 | D117 | Delle foto si registra solo l'**impronta**, mai l'immagine | Due richieste sulla stessa foto si riconoscono, ma l'immagine non lascia il computer di chi l'ha scattata: è coerente con un progetto che gira in locale | Superata da D124, per decisione di Stef |
 | D118 | I prompt restano file in git; il registro di MLflow li **collega alle run** che li hanno usati | La verità e il diff stanno in git; MLflow serve a sapere quale versione ha prodotto un certo risultato | Superata da D126: il registro collega i prompt alle tracce, non più alle run |
@@ -283,6 +286,8 @@ Cose imparate che non sono decisioni, ma che conviene ricordare.
 - **Un Dockerfile va costruito, non solo letto.** Mancava `COPY README.md`, che il `pyproject.toml` dichiara come `readme`: la costruzione del pacchetto falliva con un errore di hatchling che non nominava mai il Dockerfile. Ora due test leggono il pyproject e verificano che ogni file dichiarato sia copiato e non escluso dal `.dockerignore`.
 - **I comandi vanno provati eseguendoli, non solo leggendoli.** `--diagnostica` usava una variabile definita più sotto: un errore che nessun test coglieva perché nessuno eseguiva quel ramo. Ora tre test lanciano `main()` con la diagnostica sostituita da una finta.
 - **Un test che dipende dall'ambiente di chi lo esegue non è un test.** `test_il_file_env_viene_letto` passava da me e falliva sul portatile di Stef, perché ereditava le variabili della macchina. Ora l'ambiente del sottoprocesso viene ripulito di tutte le `ECOSCAN_*`.
+- **Il riconoscimento giusto non basta.** Nel caso della forchetta il modello aveva visto l'acciaio e l'aveva perfino scritto nel motivo: il guasto era a valle, fra recupero e scelta. Prima di ritoccare i prompt conviene guardare dove si rompe davvero la catena.
+- **Un filtro va provato sui dati veri, non sugli esempi che lo hanno ispirato.** Il primo filtro sul materiale scartava "Scatolette per tonno" perché leggeva il nome del contenitore ("Plastica e Metalli") come materiale dell'oggetto. Applicarlo agli undici candidati reali di `/cerca` l'ha mostrato in un secondo.
 - **La provenienza si perdeva nel Transform.** Il grezzo di Napoli ha l'URL di ogni voce e quello di Torino la pagina del PDF: nessuno dei due arrivava al livello normalizzato, e le risposte di livello 1 restavano senza fonte pur avendola a disposizione.
 - **Cambiare il payload dei documenti costringe a rivettorizzare.** Aggiungere fonte e riferimento agli oggetti significa rilanciare `ecoscan-vettorizza`, non solo `ecoscan-carica`: l'indice porta una copia del payload.
 - **Il client di MLflow riprova per minuti un server spento anche sul registro dei prompt**, non solo sulle run: i limiti di attesa ora stanno in una funzione sola (`limita_attese`), usata sia dal tracciatore sia da `ecoscan-prompt`.
@@ -293,6 +298,26 @@ Cose imparate che non sono decisioni, ma che conviene ricordare.
 ---
 
 ## Cronologia
+
+### v0.37.0 — 18/09/2026
+
+**Corretto un errore osservato su foto vera.** Una forchetta d'acciaio riceveva "Non Riciclabile" citando la voce "Forchetta in plastica". Il riconoscimento aveva funzionato — il modello aveva scritto "realizzata in acciaio inossidabile" nel motivo della scelta — e il guasto stava tutto dopo. Erano tre difetti sovrapposti, e servivano tutti e tre gli interventi.
+
+**Misurato prima di correggere.** Con `/cerca` su Napoli: "forchetta" non porta "Stoviglie in metallo" fra i primi dieci; "forchetta acciaio" sì, in nona posizione. La risposta giusta era nei dati per due strade — la voce "Stoviglie in metallo" e la regola "posate in metallo" — e nessuna delle due veniva raggiunta.
+
+**Aggiunto.** `materiali.py`: otto famiglie di materiali con le parole che compaiono davvero nei dizionari dei due comuni, e la regola che dichiara incompatibili due famiglie disgiunte. Un documento che tace sul materiale non viene mai escluso, e uno che ne nomina più d'uno è compatibile con ciascuno.
+
+**Aggiunto.** I candidati di un altro materiale vengono tolti prima della scelta (D147): il modello non vede più il documento sbagliato, invece di doverlo rifiutare. Lo scarto è registrato nello span del recupero.
+
+**Corretto durante la verifica.** Il primo filtro scartava anche "Scatolette per tonno", perché leggeva "Va in **Plastica** e Metalli" come materiale dell'oggetto: il confronto ora guarda il nome del documento (D148), e le famiglie conoscono i plurali. Emerso applicando il filtro ai candidati veri di `/cerca`, non ragionandoci sopra.
+
+**Modificato.** La formulazione "oggetto + materiale" sale in terza posizione fra le domande poste all'indice (D149), dove il tetto di cinque non la taglia più.
+
+**Modificato.** Prompt di scelta alla versione 7: il materiale della descrizione è vincolante quanto la categoria, con l'esempio della forchetta.
+
+**Non serve rigenerare nulla**: non cambiano né lo schema, né i documenti, né l'indice.
+
+**Test.** 378 (erano 364): le famiglie di materiali, la regola di incompatibilità con i suoi casi limite, il caso della forchetta da un capo all'altro dell'agente, il modello ostinato che non può più dare la risposta sbagliata, il salvataggio quando lo scarto svuoterebbe l'elenco, la posizione della formulazione col materiale, e una regressione sui candidati reali di Napoli.
 
 ### v0.36.0 — 17/09/2026
 
