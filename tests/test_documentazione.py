@@ -87,3 +87,30 @@ def test_gitignore_senza_commenti_a_fine_riga():
     righe = (RADICE / ".gitignore").read_text(encoding="utf-8").splitlines()
     sospette = [r for r in righe if not r.lstrip().startswith("#") and "#" in r]
     assert not sospette, f"commenti a fine riga in .gitignore: {sospette}"
+
+
+def test_ogni_modulo_e_citato_nell_architettura():
+    """La mappa dei moduli in docs/architettura.md deve restare completa.
+
+    Un modulo nuovo che nessun documento nomina è un pezzo di sistema che esiste solo per
+    chi l'ha scritto: fra sei mesi nessuno sa perché c'è. Il percorso relativo
+    ("agente/recupero.py") e non il solo nome, perché di `app.py` ce ne sono due.
+    """
+    architettura = (DOCS / "architettura.md").read_text(encoding="utf-8")
+    sorgenti = RADICE / "src/ecoscan"
+    mancanti = sorted(f.relative_to(sorgenti).as_posix()
+                      for f in sorgenti.rglob("*.py")
+                      if f.name != "__init__.py" and f.relative_to(sorgenti).as_posix()
+                      not in architettura)
+    assert not mancanti, (
+        f"moduli non citati in docs/architettura.md: {mancanti}. "
+        "Aggiungili alla mappa (sezione 5) prima di chiudere la modifica")
+
+
+def test_l_architettura_dichiara_a_quale_versione_e_aggiornata(versione):
+    """Un documento di architettura senza data smette di essere creduto: se è rimasto
+    indietro, è meglio che si veda."""
+    architettura = (DOCS / "architettura.md").read_text(encoding="utf-8")
+    assert f"v{versione}" in architettura, (
+        f"docs/architettura.md non cita la versione {versione}: rivedilo e aggiorna "
+        "la riga 'Aggiornato alla vX.Y.Z', oppure conferma che è ancora valido")
