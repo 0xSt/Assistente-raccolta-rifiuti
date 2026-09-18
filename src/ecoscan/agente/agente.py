@@ -23,6 +23,7 @@ from functools import partial
 
 from ecoscan import condizioni as condizioni_
 from ecoscan import configurazione as conf
+from ecoscan import materiali as materiali_
 from ecoscan import prompt as prompt_
 from ecoscan.agente.modelli import ModelloVisione
 from ecoscan.agente.recupero import Recupero, nomina_l_oggetto, scegli_variante
@@ -98,15 +99,43 @@ class Agente:
 
     # ------------------------------------------------------------------ passaggi
 
+    @staticmethod
+    def _senza_materiali_estranei(trovati: list[Candidato],
+                                  richiesta: Richiesta) -> tuple[list[Candidato], list[str]]:
+        """Toglie i documenti che dichiarano un materiale diverso da quello dell'oggetto.
+
+        Davanti a una forchetta d'acciaio il modello ha scelto "Forchetta in plastica", pur
+        avendo riconosciuto l'acciaio: il nome somigliava, e nessuno gli impediva di
+        ignorare il materiale. Togliere quei documenti prima della scelta è più sicuro che
+        sperare che il prompt basti, e vale per qualunque modello.
+
+        Se lo scarto svuoterebbe l'elenco non si scarta nulla: un riconoscimento sbagliato
+        sul materiale renderebbe muto il sistema, e una risposta imperfetta è più utile di
+        nessuna risposta.
+        """
+        materiali = richiesta.riconoscimento.materiali
+        # si guarda il NOME del documento, non tutto il testo: il testo dice anche dove va
+        # ("Va in Plastica e Metalli"), e quello è il contenitore, non il materiale
+        # dell'oggetto. Le regole di categoria non hanno un nome: lì vale il testo.
+        tenuti = [c for c in trovati
+                  if not materiali_.incompatibili(c.nome or c.testo, materiali)]
+        if not tenuti or len(tenuti) == len(trovati):
+            return trovati, []
+        scartati = [c.nome or c.id for c in trovati if c not in tenuti]
+        return tenuti, scartati
+
     def _recupera(self, richiesta: Richiesta, livello: int) -> list[Candidato]:
-        """La ricerca semantica a un livello di evidenza, tracciata come span RETRIEVER."""
+        """La ricerca a un livello di evidenza, tracciata come span RETRIEVER."""
         poste = richiesta.domande
         with self.tracciatore.span(f"recupero_livello{livello}", RETRIEVER,
                                    {"domande": poste, "comune": richiesta.comune,
                                     "livello": livello, "k": self.k}) as span:
             trovati = self.recupero.candidati(poste, richiesta.comune, livello=livello,
                                               k=self.k)
+            trovati, scartati = self._senza_materiali_estranei(trovati, richiesta)
             span.uscita([documento(c) for c in trovati])
+            if scartati:
+                span.attributi(scartati_per_materiale=scartati)
         return trovati
 
     def _scegli(self, richiesta: Richiesta, trovati: list[Candidato], livello: int) -> Scelta:

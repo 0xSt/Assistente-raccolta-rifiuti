@@ -49,6 +49,14 @@ class Riconoscimento:
             # "sandalo" da solo è una parola ambigua e recupera rumore ("Salse", "Sdraio");
             # "sandalo calzatura" dà al modello di embedding il contesto che gli manca
             domande.append(f"{self.oggetto} {self.categoria}")
+        if self.materiali:
+            # Con UN materiale, subito dopo l'oggetto: nel dizionario le voci sono scritte
+            # "Stoviglie in metallo", e "forchetta" da sola non le raggiunge. Stava in
+            # fondo all'elenco e il tetto sulle domande la tagliava via proprio nei casi in
+            # cui serviva. Non si mettono tutti i materiali insieme: la domanda lunga
+            # ("forchetta acciaio inox lucido") trascina la ricerca verso ciò che è *fatto
+            # di* quel materiale e l'oggetto sparisce.
+            domande.append(f"{self.oggetto} {self.materiali[0]}")
         domande.extend(self.sinonimi)
         if self.categoria:
             domande.append(self.categoria)

@@ -37,6 +37,15 @@ def test_le_formulazioni_includono_sinonimi_e_categoria():
     assert r.formulazioni() == ["sandalo", "sandalo calzatura", "ciabatta", "calzatura"]
 
 
+def test_il_materiale_viene_subito_dopo_l_oggetto():
+    """Nel dizionario le voci sono scritte "Stoviglie in metallo": senza il materiale la
+    ricerca su "forchetta" non le raggiunge. Stava in fondo e il tetto la tagliava via."""
+    r = Riconoscimento(oggetto="forchetta", materiali=["acciaio"], categoria="posata",
+                       sinonimi=["posata", "utensile da cucina"])
+    poste = r.formulazioni()
+    assert poste[:3] == ["forchetta", "forchetta posata", "forchetta acciaio"]
+
+
 # ------------------------------------------------------------------ recupero
 
 def test_i_candidati_arrivano_dal_payload_del_documento(ambiente):
@@ -338,3 +347,98 @@ def test_il_recupero_si_dichiara_nella_configurazione(ambiente):
     """Le tracce devono dire con quale ricerca è stata prodotta una risposta."""
     agente = crea_agente(ambiente, ModelloFinto())
     assert agente.configurazione()["recupero"] == ambiente.recupero.nome
+
+
+# ------------------------------------------------------------------ materiale
+
+class RecuperoFinto:
+    """Un elenco di documenti in memoria: nessun Qdrant, nessun embedding."""
+
+    nome = "elenco in memoria"
+
+    def __init__(self, documenti: list[Candidato]):
+        self.documenti = documenti
+
+    def candidati(self, domande, comune, livello, k=8):
+        self.domande_poste = list(domande)
+        return [c for c in self.documenti if c.livello == livello]
+
+
+def forchetta_di_plastica() -> Candidato:
+    return Candidato(id="plastica", livello=1, nome="Forchetta in plastica",
+                     testo="Forchetta in plastica. Va in Non Riciclabile.",
+                     varianti=[Variante(destinazioni=["Non Riciclabile"])])
+
+
+def stoviglie_di_metallo() -> Candidato:
+    return Candidato(id="metallo", livello=1, nome="Stoviglie in metallo",
+                     testo="Stoviglie in metallo. Va in Plastica e Metalli.",
+                     varianti=[Variante(destinazioni=["Plastica e Metalli"])])
+
+
+def test_una_voce_di_un_altro_materiale_non_arriva_alla_scelta():
+    """Il caso osservato: forchetta d'acciaio, risposta "Non Riciclabile" citando
+    "Forchetta in plastica". Il modello aveva riconosciuto l'acciaio e l'aveva ignorato.
+
+    Il documento sbagliato non gli viene più nemmeno mostrato, e quello giusto resta.
+    """
+    recupero = RecuperoFinto([forchetta_di_plastica(), stoviglie_di_metallo()])
+    modello = ModelloFinto(Riconoscimento(oggetto="forchetta",
+                                          materiali=["acciaio inossidabile"], confidenza=0.9))
+
+    risposta = Agente(recupero, modello).analizza(b"foto", "Napoli")
+
+    assert risposta.destinazioni == ["Plastica e Metalli"]
+    assert risposta.scelto_id == "metallo"
+    assert [c.id for c in risposta.candidati] == ["metallo"], "la voce in plastica è fuori"
+    assert [c.id for c in modello.candidati_visti[0]] == ["metallo"]
+
+
+def test_un_modello_ostinato_non_puo_piu_dare_la_risposta_sbagliata():
+    """Se il modello insiste a cercare la parola "forchetta", ora non la trova: risponde
+    che il comune non copre l'oggetto invece di mandarlo nel contenitore sbagliato."""
+    recupero = RecuperoFinto([forchetta_di_plastica()])
+    modello = SceglieIlDocumento("forchetta", Riconoscimento(
+        oggetto="forchetta", materiali=["acciaio"], confidenza=0.9))
+
+    # con la sola voce in plastica il filtro non scarta (svuoterebbe), quindi si aggiunge
+    # un secondo documento compatibile: è la situazione reale di Napoli
+    recupero.documenti.append(stoviglie_di_metallo())
+    risposta = Agente(recupero, modello).analizza(b"foto", "Napoli")
+
+    assert risposta.destinazioni != ["Non Riciclabile"]
+    assert risposta.livello_evidenza == 3
+
+
+def test_senza_materiale_riconosciuto_non_si_scarta_nulla():
+    """Il filtro decide solo quando entrambe le parti dichiarano un materiale."""
+    recupero = RecuperoFinto([forchetta_di_plastica(), stoviglie_di_metallo()])
+    modello = SceglieIlDocumento("forchetta", Riconoscimento(oggetto="forchetta",
+                                                             confidenza=0.9))
+    risposta = Agente(recupero, modello).analizza(b"foto", "Napoli")
+    assert risposta.destinazioni == ["Non Riciclabile"]
+    assert len(risposta.candidati) == 2
+
+
+def test_se_scartare_svuoterebbe_l_elenco_non_si_scarta():
+    """Un riconoscimento sbagliato sul materiale non deve rendere muto il sistema:
+    una risposta imperfetta è più utile di nessuna risposta."""
+    recupero = RecuperoFinto([forchetta_di_plastica()])
+    modello = SceglieIlDocumento("forchetta", Riconoscimento(
+        oggetto="forchetta", materiali=["acciaio"], confidenza=0.9))
+    risposta = Agente(recupero, modello).analizza(b"foto", "Napoli")
+    assert risposta.destinazioni == ["Non Riciclabile"]
+
+
+def test_il_materiale_entra_fra_le_domande_poste_all_indice():
+    """"forchetta" da sola non raggiunge "Stoviglie in metallo"; "forchetta acciaio" sì."""
+    recupero = RecuperoFinto([stoviglie_di_metallo()])
+    riconoscimento = Riconoscimento(oggetto="forchetta", materiali=["acciaio"],
+                                    categoria="posata", sinonimi=["posata", "utensile"],
+                                    confidenza=0.9)
+    Agente(recupero, SceglieIlDocumento("stoviglie", riconoscimento)).analizza(b"f", "Napoli")
+
+    poste = recupero.domande_poste
+    assert "forchetta acciaio" in poste
+    # deve stare in alto: il tetto sulle domande tagliava via proprio questa
+    assert poste.index("forchetta acciaio") <= 2

@@ -247,6 +247,10 @@ comune. Il motore è unico, i profili cambiano.
 comune e un livello di evidenza, restituisce documenti. Oggi l'unica implementazione cerca
 su Qdrant.
 
+**Famiglia di materiali** — Il gruppo a cui appartiene un materiale (acciaio e alluminio
+sono "metallo"). Due famiglie diverse si escludono: un documento che ne dichiara una non
+può descrivere un oggetto che ne dichiara un'altra.
+
 **Clausola di ammissibilità** — Un requisito perché una destinazione valga ("solo se
 compostabile certificato"), diverso da una condizione: non apre un ramo alternativo, avverte
 su quello scelto. Nei dati sta ancora fra le condizioni.
