@@ -4,7 +4,7 @@ Come è fatto il sistema, come sono legati i file, e perché. È il documento da
 orientarsi; il **[diario](diario.md)** racconta *quando* e *perché* le cose sono cambiate,
 questo dice *com'è adesso*.
 
-Aggiornato alla **v0.41.2**.
+Aggiornato alla **v0.42.0**.
 
 ---
 
@@ -180,18 +180,18 @@ all'interfaccia:
 
 | File | Responsabilità |
 |---|---|
-| `api/app.py` | Nove rotte, registrate per area: stato, agente, ricerca, riscontro |
+| `api/app.py` | Otto rotte, registrate per area: stato, agente, ricerca |
 | `api/schemi.py` | La forma pubblica di ingressi e uscite (Pydantic), separata dai tipi interni |
 | `api/risorse.py` | Connessioni e agente costruiti una volta all'avvio; database in sola lettura |
 
 Le rotte: `/salute`, `/comuni`, `/destinazioni`, `/analizza`, `/continua`, `/correggi`,
-`/domanda`, `/cerca`, `/riscontro`.
+`/domanda`, `/cerca`.
 
 ### Interfaccia
 
 | File | Responsabilità |
 |---|---|
-| `frontend/app.py` | La chat in Streamlit: allegato o nome scritto, chiarimenti a pulsante, correzione, riscontro, legenda dei contenitori |
+| `frontend/app.py` | La chat in Streamlit: allegato o nome scritto, chiarimenti a pulsante, correzione, legenda dei contenitori |
 | `frontend/cliente.py` | L'unico punto di contatto col backend |
 | `frontend/presentazione.py` | Da risposta dell'API a messaggio leggibile: titolo, corpo, fonte, spiegazione |
 
@@ -204,7 +204,7 @@ Le rotte: `/salute`, `/comuni`, `/destinazioni`, `/analizza`, `/continua`, `/cor
 | `agente/prova.py` | `ecoscan-analizza`: prova l'agente su una foto vera, con i tempi |
 | `agente/diagnostica.py` | Verifica il canale immagine con un'immagine dal contenuto noto |
 | `db/sonda.py` | Misura dove finisce il documento atteso per domande note |
-| `valutazione/casi.py` | Cos'è un caso, dove vive, come un riscontro diventa un caso misurabile |
+| `valutazione/casi.py` | Cos'è un caso, dove vive, come si legge e si scrive |
 | `valutazione/esegui.py` | `ecoscan-valuta`: recall@k come tetto, diagnosi 2×2, confronto fra esecuzioni. Vedi [valutazione.md](valutazione.md) |
 
 ### Trasversali
@@ -269,7 +269,7 @@ traccia "analizza"                       ← input, output, foto allegata, tag
 
 ## 9. Test
 
-498 test, tutti veloci: i modelli sono finti, Qdrant gira in memoria, nessuna rete.
+481 test, tutti veloci: i modelli sono finti, Qdrant gira in memoria, nessuna rete.
 
 | Gruppo | Cosa presidia |
 |---|---|

@@ -6,7 +6,7 @@ e non esistono sessioni da creare, far scadere o perdere (decisione presa per il
 È anche di **sola lettura** sui dati: l'ETL resta una serie di comandi separati, così il
 servizio che risponde alle richieste non può corrompere ciò che serve a rispondere.
 
-Le rotte sono raggruppate per area (stato, agente, ricerca, riscontro) in funzioni separate:
+Le rotte sono raggruppate per area (stato, agente, ricerca) in funzioni separate:
 `crea_app` costruisce le dipendenze e le monta, invece di essere un blocco unico in cui
 ogni rotta nuova allunga la stessa funzione.
 
@@ -16,11 +16,8 @@ Uso:
 from __future__ import annotations
 
 import argparse
-import json
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
-from datetime import datetime, UTC
-from pathlib import Path
 from collections.abc import Callable
 
 from fastapi import Depends, FastAPI, File, Form, HTTPException, UploadFile
@@ -29,12 +26,9 @@ from ecoscan import procedure as procedure_
 from ecoscan.api.risorse import Risorse
 from ecoscan.api.schemi import (
     CandidatoUscita, Comune, Continuazione, Correzione, Destinazione, Domanda,
-    ProceduraUscita, Ricerca, Riscontro, RispostaUscita, Salute,
+    ProceduraUscita, Ricerca, RispostaUscita, Salute,
 )
-from ecoscan.percorsi import DATI
-from ecoscan.valutazione.casi import CASI_DA_RISCONTRI, aggiungi, caso_da_riscontro
 
-RISCONTRI = DATI / "riscontri.jsonl"
 PREFISSO = "/api/v1"
 CONTESTO_NON_VALIDO = "contesto non valido: rimanda quello ricevuto da /analizza"
 
@@ -164,31 +158,7 @@ def rotte_ricerca(app: FastAPI, dip: Dipendenze) -> None:
         return [CandidatoUscita.da(c) for c in trovati]
 
 
-def rotte_riscontro(app: FastAPI, dip: Dipendenze, riscontri: Path, casi: Path) -> None:
-
-    @app.post(f"{PREFISSO}/riscontro", status_code=201, tags=["riscontro"])
-    def riscontro(dati: Riscontro, r: Risorse = Depends(dip.correnti)) -> dict:
-        """Registra il giudizio dell'utente su una risposta.
-
-        Ogni riga è un esempio etichettato da una persona: è il modo meno costoso di
-        costruire il set di valutazione, che oggi non esiste.
-        """
-        dip.controlla_comune(r, dati.comune)
-        riga = {**dati.model_dump(), "quando": datetime.now(UTC).isoformat()}
-        riscontri.parent.mkdir(parents=True, exist_ok=True)
-        with open(riscontri, "a", encoding="utf-8") as fh:
-            fh.write(json.dumps(riga, ensure_ascii=False) + "\n")
-
-        # Il giudizio diventa un caso di valutazione quando dice cosa sarebbe stato giusto:
-        # un pollice su conferma la risposta data, un pollice giù vale se l'utente indica
-        # dove andava. Un "sbagliato" senza alternativa resta nel registro e basta.
-        caso = caso_da_riscontro(dati.model_dump())
-        aggiunto = aggiungi(caso, casi) if caso else False
-        return {"registrato": True, "diventato_caso_di_valutazione": aggiunto}
-
-
-def crea_app(risorse: Risorse | None = None, riscontri: Path = RISCONTRI,
-             casi: Path = CASI_DA_RISCONTRI) -> FastAPI:
+def crea_app(risorse: Risorse | None = None) -> FastAPI:
     """Costruisce l'applicazione. `risorse` si passa nei test; in produzione si apre da sé."""
     stato: dict[str, Risorse | None] = {"risorse": risorse}
 
@@ -212,7 +182,6 @@ def crea_app(risorse: Risorse | None = None, riscontri: Path = RISCONTRI,
     rotte_stato(app, dipendenze)
     rotte_agente(app, dipendenze)
     rotte_ricerca(app, dipendenze)
-    rotte_riscontro(app, dipendenze, riscontri, casi)
     return app
 
 
