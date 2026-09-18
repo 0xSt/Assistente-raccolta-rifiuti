@@ -158,6 +158,7 @@ Formato: decisione, motivazione, stato.
 | D147 | Un documento che dichiara un materiale **incompatibile** con quello riconosciuto viene tolto dai candidati **prima** della scelta; se lo scarto svuoterebbe l'elenco non si scarta nulla | Davanti a una forchetta d'acciaio il modello ha scelto "Forchetta in plastica" pur avendo riconosciuto l'acciaio e averlo scritto nel motivo. Togliere il documento è più sicuro che sperare nel prompt, e vale per qualunque modello. La clausola di salvataggio evita che un riconoscimento sbagliato sul materiale renda muto il sistema | Accettata |
 | D148 | Il confronto sul materiale legge il **nome** del documento, non tutto il testo | Il testo dice anche dove va ("Va in Plastica e Metalli"), e quello è il contenitore: letto come materiale faceva scartare "Scatolette per tonno", che è di metallo. Trovato provando il filtro sui candidati veri di `/cerca`, non a tavolino | Accettata |
 | D149 | La formulazione "oggetto + materiale" si pone all'indice **subito dopo** l'oggetto e la categoria | Misurato: "forchetta" non raggiunge "Stoviglie in metallo", "forchetta acciaio" sì (posizione 9). La formulazione col materiale esisteva ma stava in fondo, e il tetto di cinque domande la tagliava via proprio quando serviva | Accettata |
+| D150 | `docs/architettura.md` descrive la struttura del sistema, e due test lo tengono allineato: ogni modulo dev'essere citato, e il documento deve nominare la versione corrente | Il diario racconta *quando* le cose sono cambiate, il glossario *cosa* vuol dire una parola: mancava il documento che dice *com'è fatto adesso*. Senza un test si sarebbe disallineato al terzo commit, come succede a ogni documento di architettura scritto una volta sola | Accettata |
 | D116 | Il tracciamento su MLflow **non è mai bloccante** e fallisce in fretta (tre secondi, un solo tentativo) | Serve a capire come va il sistema, non a farlo funzionare. Senza i limiti sui tentativi il client riprova per minuti e la risposta all'utente resta appesa | Accettata |
 | D117 | Delle foto si registra solo l'**impronta**, mai l'immagine | Due richieste sulla stessa foto si riconoscono, ma l'immagine non lascia il computer di chi l'ha scattata: è coerente con un progetto che gira in locale | Superata da D124, per decisione di Stef |
 | D118 | I prompt restano file in git; il registro di MLflow li **collega alle run** che li hanno usati | La verità e il diff stanno in git; MLflow serve a sapere quale versione ha prodotto un certo risultato | Superata da D126: il registro collega i prompt alle tracce, non più alle run |
@@ -298,6 +299,16 @@ Cose imparate che non sono decisioni, ma che conviene ricordare.
 ---
 
 ## Cronologia
+
+### v0.38.0 — 18/09/2026
+
+**Aggiunto.** `docs/architettura.md`: il documento da cui partire per orientarsi. In undici sezioni: la regola che tiene insieme il progetto, i quattro livelli dei dati, la catena ETL, il percorso di una risposta con i quattro passaggi, la mappa di tutti i moduli, le regole di dipendenza con i test che le verificano, i punti di sostituzione, l'osservabilità, i test, la configurazione, e come si aggiorna il documento stesso.
+
+**Aggiunto.** Due test che lo tengono allineato (D150): uno fallisce se un modulo di `src/ecoscan/` non è citato nella mappa, l'altro se il documento non nomina la versione corrente. È la stessa idea già applicata a diario e glossario: un test rosso si nota, un promemoria no.
+
+**Nessun cambiamento al codice.**
+
+**Test.** 380 (erano 378).
 
 ### v0.37.0 — 18/09/2026
 

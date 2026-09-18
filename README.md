@@ -4,7 +4,7 @@ Assistente per la raccolta differenziata che gira interamente in locale. L'utent
 
 Progetto universitario. Comuni del prototipo: **Napoli** (ASIA) e **Torino** (AMIAT).
 
-## Stato attuale (v0.37.0)
+## Stato attuale (v0.38.0)
 
 Il quadro completo è in [docs/diario.md](docs/diario.md).
 
@@ -172,6 +172,7 @@ Qdrant sta in modalità `server` o `in-process`.
 
 ## Documentazione
 
+- **[docs/architettura.md](docs/architettura.md)**: come è fatto il sistema, come sono legati i file, e perché. Il documento da cui partire per orientarsi nel codice.
 - **[docs/diario.md](docs/diario.md)**: il file da leggere per primo. Stato del progetto, decisioni prese e perché, questioni aperte, annotazioni e cronologia delle modifiche.
 - [docs/glossario.md](docs/glossario.md): significato dei termini usati nel progetto, in particolare quelli dell'ETL
 - [docs/fonti.md](docs/fonti.md): link e documenti da cui provengono i dati
