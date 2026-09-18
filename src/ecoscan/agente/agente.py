@@ -27,7 +27,9 @@ from ecoscan import materiali as materiali_
 from ecoscan import prompt as prompt_
 from ecoscan.agente.modelli import ModelloVisione
 from ecoscan.agente.recupero import Recupero, nomina_l_oggetto, scegli_variante
-from ecoscan.agente.tipi import TIPI_NON_VALIDI, Candidato, Riconoscimento, Risposta, Scelta
+from ecoscan.agente.tipi import (
+    STESSO_OGGETTO, TIPI_NON_VALIDI, Candidato, Riconoscimento, Risposta, Scelta,
+)
 from ecoscan.osservabilita.tracciamento import (
     LLM, RETRIEVER, TracciatoreNullo, documento, impronta, nuova_conversazione,
 )
@@ -184,6 +186,35 @@ class Agente:
         return (specifici[0], "scelto il documento che nomina l'oggetto") if specifici else (scelto, "")
 
     @staticmethod
+    def _corrispondenza_verificata(scelto: Candidato, dichiarato: str,
+                                   richiesta: Richiesta) -> str:
+        """Che tipo di corrispondenza è, secondo il codice e non secondo il modello.
+
+        Il modello dichiara il tipo (D83) ma lo sbaglia in entrambe le direzioni, e da
+        quando la presentazione lo mostra all'utente (D163) un'etichetta sbagliata è una
+        frase falsa:
+
+        - per un **divano** a Napoli il documento scelto era proprio "Divano", e il modello
+          ha dichiarato "categoria" motivandolo con "il divano rientra nella categoria
+          mobile". Il messaggio diceva "il comune non elenca proprio questo oggetto" mentre
+          il comune lo elencava, con tanto di pagina dedicata nella fonte citata;
+        - per un **microonde** il documento era un fratello e il tipo dichiarato era ancora
+          "categoria", stavolta troppo generoso.
+
+        Il primo caso il codice lo può decidere da solo: se il nome del documento nomina
+        l'oggetto, è quell'oggetto, comunque il modello abbia voluto chiamare la relazione.
+        Il secondo no — stabilire se una voce *contiene* l'oggetto richiede il senso delle
+        parole — e resta affidato al prompt.
+
+        È lo stesso principio di D83, applicato all'etichetta invece che alla scelta: ciò
+        che il codice può verificare, il codice lo verifica.
+        """
+        if dichiarato == STESSO_OGGETTO:
+            return dichiarato
+        nomina = nomina_l_oggetto(scelto, richiesta.riconoscimento, richiesta.testo_utente)
+        return STESSO_OGGETTO if nomina else dichiarato
+
+    @staticmethod
     def _chiarimento(da_chiarire: list[str], scelta: Scelta,
                      gia_chiesto: bool) -> tuple[str | None, list[str]]:
         """La domanda da fare e le risposte possibili.
@@ -218,7 +249,9 @@ class Agente:
             avvertenza=variante.avvertenza if variante else None,
             fonte=scelto.fonte, riferimento=scelto.riferimento,
             chiarimento=chiarimento, opzioni=opzioni, scelto_id=scelto.id,
-            tipo_corrispondenza=scelta.tipo_corrispondenza, motivo=motivo,
+            tipo_corrispondenza=self._corrispondenza_verificata(
+                scelto, scelta.tipo_corrispondenza, richiesta),
+            motivo=motivo,
             candidati=candidati, riconoscimento=richiesta.riconoscimento,
             contraddizione=scelto.contraddizione,
         )

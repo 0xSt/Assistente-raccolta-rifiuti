@@ -169,6 +169,7 @@ Formato: decisione, motivazione, stato.
 | D158 | Il riconoscimento si mette in cache in memoria, dietro l'interfaccia `ModelloVisione`, con chiave impronta della foto + testo dell'utente; la **scelta no** | Il riconoscimento è il passaggio lento (minuti su CPU) ed è il più ripetuto, perché la stessa foto si rimanda decine di volte mentre si sviluppa. La scelta dipende dai candidati, che cambiano con l'indice e con le politiche: metterla in cache renderebbe invisibile proprio ciò che stiamo misurando. In memoria e non su disco perché un riconoscimento è il giudizio di una versione di un prompt, e non deve sopravvivere alla configurazione che l'ha prodotto | Accettata |
 | D159 | I nomi mutilati dalla normalizzazione si riconoscono dalla **grammatica**, non dalla lunghezza, e diventano un motivo di revisione dentro il Transform | Accorciare un nome di metà è spesso il comportamento giusto ("Barattolo in latta (scatola di pelati, tonno…)" → "Barattolo in latta") e i nomi corti sono spesso sigle legittime. I controlli stretti su 902 voci ne segnalano 4: la precisione conta più della copertura, perché un controllo che grida al lupo viene disattivato. Collegarli ai motivi di revisione fa sì che la rottura si segnali da sé, invece di finire in un elenco che nessuno guarda | Accettata |
 | D160 | Un oggetto si può **scrivere** invece di fotografarlo (`/domanda`), partendo dal riconoscimento dichiarato dall'utente con confidenza massima | Chi sa come si chiama la cosa non deve aspettare minuti perché un modello glielo confermi, e non rischia che glielo sbagli. È anche la porta d'ingresso per chi l'oggetto non ce l'ha in mano. Stessa cascata, stessa scelta, stesse tracce: cambia solo da dove viene il riconoscimento | Accettata |
+| D170 | Il tipo di corrispondenza dichiarato dal modello viene **verificato dal codice** dove è verificabile: se il nome del documento nomina l'oggetto, è `stesso_oggetto`, comunque il modello abbia voluto chiamare la relazione | Da quando la presentazione mostra l'etichetta all'utente (D163), sbagliarla è dire una frase falsa. Per un divano a Napoli il documento scelto era proprio "Divani" e il modello ha dichiarato "categoria": il messaggio negava che il comune elencasse l'oggetto mentre la fonte citata era la sua pagina dedicata. La direzione opposta (una voce che *contiene* l'oggetto) richiede il senso delle parole e resta al prompt. È D83 applicato all'etichetta invece che alla scelta | Accettata |
 | D164 | Le **essenziali** delle formulazioni entrano sempre, le aggiuntive riempiono i posti che restano; il tetto sale da 5 a 7 | Un elenco unico ordinato per specificità si è rotto due volte allo stesso modo: la domanda col materiale (forchetta, v0.37.0) e quella con la sola categoria (microonde, v0.40.2) stavano in coda e il tetto le tagliava proprio nei casi in cui servivano. Le quattro essenziali coprono i quattro modi in cui il dizionario nomina le cose: per oggetto, per oggetto con contesto, per materiale, per categoria | Accettata |
 | D165 | La domanda estesa usa al massimo **due materiali** | Il modello ne elenca volentieri quattro; una domanda di cinque parole in cui l'oggetto è una parola sola parla di *di cosa è fatto* e non di *cos'è*, e la ricerca si sposta sui materiali. È la stessa causa di D80, misurata su un caso nuovo | Accettata |
 | D166 | La **procedura di smaltimento** si attacca al *canale*, non alla destinazione né alla voce | Nove coppie (comune, canale) invece di 902 voci: si scrivono a mano una volta e si versionano. Il canale è già nei dati (`destinazione.canale`) e distingue cinque **gesti** diversi, non cinque etichette. Per un terzo del dizionario di Napoli "va in X" è vero e insufficiente: 195 voci finiscono in un'isola ecologica, 57 chiedono una prenotazione | Accettata |
@@ -320,6 +321,22 @@ Cose imparate che non sono decisioni, ma che conviene ricordare.
 ---
 
 ## Cronologia
+
+### v0.41.1 — 18/09/2026
+
+**Caso del divano.** Due prove sulla stessa foto, due difetti diversi e speculari.
+
+**Napoli: l'etichetta mentiva.** Recupero e scelta erano perfetti — il documento scelto era proprio "Divani", con la sua pagina su ASIA — ma il modello ha dichiarato `categoria` ("il divano rientra nella categoria mobile"), e la presentazione introdotta in v0.40.2 ha ripetuto fedelmente: *"il comune non elenca proprio questo oggetto, ma la categoria a cui appartiene"*. Falso, e falso proprio mentre citava la pagina del divano. È il difetto simmetrico di quello del microonde: lì l'etichetta era troppo generosa, qui troppo modesta.
+
+La correzione (D170) non tocca il prompt: il codice **verifica** l'etichetta con `nomina_l_oggetto`, la stessa funzione che già promuove il documento specifico. Se il documento nomina l'oggetto — e "Divani" nomina "divano", plurale compreso — la corrispondenza è `stesso_oggetto`, comunque il modello l'abbia chiamata. La direzione opposta richiede il senso delle parole e resta al prompt.
+
+**Torino: un recupero fallito, non una categoria.** La voce **"Divani"** esiste anche nel Rifiutologo AMIAT, con *due* destinazioni: centro di raccolta **e rifiuti ingombranti**, cioè il ritiro a domicilio. Non è stata recuperata, e la risposta è arrivata da "Arredi in legno, ferro o plastica" — difendibile come categoria, ma senza il ritiro a casa, che per un divano è l'unica opzione praticabile senza un furgone.
+
+Da notare: la prova è stata fatta con una versione precedente alle formulazioni essenziali (v0.41.0), che è proprio la modifica che dovrebbe far uscire "Divani" per la domanda "divano". Va rimisurata prima di concludere.
+
+**Aggiunti al dataset**: divano a Torino, divano a Napoli, materasso a Torino.
+
+**Test.** 494.
 
 ### v0.41.0 — 18/09/2026
 
