@@ -16,6 +16,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from ecoscan.agente.agente import Agente
+from ecoscan.agente.cache import ModelloConCache
 from ecoscan.agente.recupero import Recupero, RecuperoQdrant
 from ecoscan.agente.modelli import ModelloOllama, ModelloVisione
 from ecoscan.db.vettorizza import COLLEZIONE, DB, VettorizzatoreOllama, apri_qdrant
@@ -43,7 +44,8 @@ class Risorse:
         db = apri_database_in_lettura(percorso_db or DB)
         qdrant = apri_qdrant()
         vettorizzatore = VettorizzatoreOllama()
-        modello = ModelloOllama()
+        # la cache sta fuori dal modello e dentro le risorse: l'agente non sa che esiste
+        modello = ModelloConCache(ModelloOllama())
         recupero = RecuperoQdrant(qdrant, vettorizzatore)
         return cls(db, qdrant, vettorizzatore, recupero, modello,
                    Agente(recupero, modello, k=k, tracciatore=Tracciatore()))

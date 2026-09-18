@@ -4,7 +4,7 @@ Assistente per la raccolta differenziata che gira interamente in locale. L'utent
 
 Progetto universitario. Comuni del prototipo: **Napoli** (ASIA) e **Torino** (AMIAT).
 
-## Stato attuale (v0.39.0)
+## Stato attuale (v0.40.0)
 
 Il quadro completo è in [docs/diario.md](docs/diario.md).
 
@@ -15,7 +15,7 @@ Il quadro completo è in [docs/diario.md](docs/diario.md).
 | Transform Napoli | 578 voci normalizzate: 0 conflitti, 0 da revisionare |
 | Transform Torino | 324 voci normalizzate: 0 conflitti, 0 da revisionare |
 | Regole di categoria | 110 normalizzate e collegate alle destinazioni |
-| Revisione manuale | 32 decisioni prese (3,5% delle voci), nessuna aperta |
+| Revisione manuale | 36 decisioni prese (4% delle voci), nessuna aperta |
 | Load relazionale | Fatto: comuni, destinazioni, voci, condizioni, alias, regole, decisioni |
 | Serving — documenti su Qdrant | Fatto: 996 documenti, ricerca semantica, aggancio esatto dei codici |
 | Agente (riconoscimento, cascata, scelta, risposta) | Fatto: usabile senza HTTP |
@@ -72,6 +72,9 @@ docker compose up -d qdrant mlflow   # solo i servizi di supporto, per sviluppar
 uv run ecoscan-vettorizza       # indicizza i documenti su Qdrant
 uv run ecoscan-vettorizza --verifica   # controlla che l'indicizzazione sia corretta
 uv run ecoscan-sonda            # misura dove finisce il documento atteso per domande note
+uv run ecoscan-nomi             # elenca i nomi rimasti sgrammaticati dopo la normalizzazione
+uv run ecoscan-valuta --senza-modello  # il tetto: recall@k sui casi, senza Ollama (secondi)
+uv run ecoscan-valuta           # recupero + scelta; --salva / --confronta per due esecuzioni
 uv run ecoscan-prompt           # elenca i prompt con versione e impronta
 uv run ecoscan-prompt --pubblica   # registra su MLflow quelli nuovi o modificati
 

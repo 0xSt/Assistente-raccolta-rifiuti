@@ -66,6 +66,10 @@ MLFLOW_FOTO = _testo("ECOSCAN_MLFLOW_FOTO", "si").lower() not in ("no", "0", "fa
 # Dopo un guasto di MLflow si riprova solo dopo questi secondi: riprovare a ogni richiesta
 # rallenterebbe tutte le risposte mentre il server è spento
 MLFLOW_RIPROVA = _intero("ECOSCAN_MLFLOW_RIPROVA", 60)
+# Quanti riconoscimenti tenere in memoria: la stessa foto non si guarda due volte.
+# Su CPU il riconoscimento è il passaggio lento, e riprovare la stessa foto è comune.
+# 0 spegne la cache. Non sopravvive al riavvio del backend, di proposito.
+CACHE_RICONOSCIMENTI = _intero("ECOSCAN_CACHE_RICONOSCIMENTI", 64)
 # Quante schede si vettorizzano per chiamata
 LOTTO_EMBEDDING = _intero("ECOSCAN_LOTTO_EMBEDDING", 32)
 

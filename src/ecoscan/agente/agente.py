@@ -320,6 +320,26 @@ class Agente:
             self.tracciatore.chiudi_turno(radice, risposta)
         return risposta
 
+    def domanda(self, comune: str, oggetto: str, testo: str | None = None) -> Risposta:
+        """L'utente scrive il nome dell'oggetto invece di fotografarlo.
+
+        Salta il modello di visione, che è il passaggio lento, e parte dall'oggetto detto
+        dall'utente come se l'avesse riconosciuto lui: stessa cascata, stessa scelta, stesse
+        tracce. Serve a chi sa già come si chiama la cosa, e a chi non ha la foto sottomano.
+
+        La confidenza è massima per lo stesso motivo di `correggi`: qui non c'è un'ipotesi
+        di un modello da soppesare, c'è quello che l'utente ha scritto.
+        """
+        conversazione = nuova_conversazione()
+        riconoscimento = Riconoscimento(oggetto=oggetto.strip(), confidenza=1.0,
+                                        note="scritto dall'utente")
+        ingressi = {"comune": comune, "oggetto": oggetto, "testo_utente": testo}
+
+        with self.tracciatore.turno("domanda", conversazione, ingressi) as radice:
+            risposta = self.rispondi(riconoscimento, comune, testo, conversazione=conversazione)
+            self.tracciatore.chiudi_turno(radice, risposta)
+        return risposta
+
     def continua(self, contesto: dict, risposta_utente: str) -> Risposta:
         """Secondo giro dopo un chiarimento: si riparte dal riconoscimento già fatto.
 

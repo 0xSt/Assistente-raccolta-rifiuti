@@ -121,14 +121,31 @@ class Ricerca(BaseModel):
     k: int = 8
 
 
+class Domanda(BaseModel):
+    """Una domanda scritta, senza foto: l'utente sa già come si chiama l'oggetto."""
+
+    comune: str
+    oggetto: str = Field(min_length=2, description="l'oggetto secondo l'utente")
+    testo: str | None = Field(default=None, description="dettaglio facoltativo: \"è unto\"")
+
+
 class Riscontro(BaseModel):
-    """Giudizio dell'utente su una risposta. Ogni riscontro è una riga del futuro set di
-    valutazione: è il modo meno costoso per costruirlo."""
+    """Giudizio dell'utente su una risposta, e materia prima per la valutazione.
+
+    Il `contesto` non è un di più: contiene il riconoscimento con cui la risposta è stata
+    prodotta, ed è ciò che permette di trasformare il giudizio in un caso rieseguibile senza
+    rileggere la foto. Senza, resterebbe un pollice verso senza modo di riprodurlo.
+    """
 
     comune: str
     corretta: bool
     oggetto: str | None = None
-    destinazione_attesa: str | None = None
+    destinazioni_date: list[str] = Field(
+        default=[], description="cosa aveva risposto il sistema")
+    destinazione_attesa: str | None = Field(
+        default=None, description="dove andava davvero, secondo l'utente")
+    motivo: str | None = Field(
+        default=None, description="oggetto_sbagliato | contenitore_sbagliato | altro")
     nota: str | None = None
     contesto: dict = {}
 

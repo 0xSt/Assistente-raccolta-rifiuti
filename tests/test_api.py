@@ -25,7 +25,8 @@ def risorse(ambiente):
 
 @pytest.fixture
 def client(risorse, tmp_path):
-    with TestClient(crea_app(risorse, riscontri=tmp_path / "riscontri.jsonl")) as c:
+    with TestClient(crea_app(risorse, riscontri=tmp_path / "riscontri.jsonl",
+                            casi=tmp_path / "da_riscontri.jsonl")) as c:
         yield c
 
 
@@ -168,3 +169,49 @@ def test_correggi_rifiuta_un_oggetto_vuoto(client):
     risposta = client.post(f"{PREFISSO}/correggi",
                            json={"contesto": {"comune": "Torino"}, "oggetto": ""})
     assert risposta.status_code == 422
+
+
+# --------------------------------------------------------- domanda scritta e riscontro
+
+def test_la_domanda_scritta_salta_il_modello_di_visione(client, risorse):
+    """Chi sa come si chiama l'oggetto non deve fotografarlo: si parte dalla sua parola,
+    e il passaggio lento non viene eseguito."""
+    prima = risorse.modello.chiamate_riconoscimento
+    corpo = client.post(f"{PREFISSO}/domanda",
+                        json={"comune": "Torino", "oggetto": "giornale"}).json()
+    assert corpo["comune"] == "Torino"
+    assert corpo["riconoscimento"]["oggetto"] == "giornale"
+    assert corpo["riconoscimento"]["confidenza"] == 1.0
+    assert risorse.modello.chiamate_riconoscimento == prima
+
+
+def test_un_oggetto_troppo_corto_viene_rifiutato(client):
+    risposta = client.post(f"{PREFISSO}/domanda", json={"comune": "Torino", "oggetto": "x"})
+    assert risposta.status_code == 422
+
+
+def test_la_domanda_controlla_il_comune(client):
+    risposta = client.post(f"{PREFISSO}/domanda",
+                           json={"comune": "Atlantide", "oggetto": "giornale"})
+    assert risposta.status_code == 404
+
+
+def test_un_pollice_su_diventa_un_caso_di_valutazione(client, tmp_path):
+    """Il riscontro non è solo un registro: è il modo in cui il dataset di valutazione
+    cresce con l'uso vero."""
+    risposta = client.post(f"{PREFISSO}/riscontro", json={
+        "comune": "Torino", "corretta": True, "oggetto": "giornale",
+        "destinazioni_date": ["carta_e_cartone"],
+        "contesto": {"riconoscimento": {"oggetto": "giornale"}}})
+    assert risposta.status_code == 201
+    assert risposta.json()["diventato_caso_di_valutazione"] is True
+
+
+def test_un_pollice_giu_senza_alternativa_resta_solo_nel_registro(client, tmp_path):
+    """Sapere che una risposta è sbagliata senza sapere quale fosse quella giusta non si
+    può rieseguire: si annota, ma non si misura."""
+    risposta = client.post(f"{PREFISSO}/riscontro", json={
+        "comune": "Torino", "corretta": False, "oggetto": "giornale",
+        "destinazioni_date": ["organico"], "motivo": "contenitore_sbagliato"})
+    assert risposta.json() == {"registrato": True, "diventato_caso_di_valutazione": False}
+    assert (tmp_path / "riscontri.jsonl").is_file()
