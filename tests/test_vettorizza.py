@@ -5,7 +5,6 @@ from ecoscan.db.vettorizza import (
     COLLEZIONE, apri_qdrant, cerca, cerca_per_codice, codici_nella_domanda, filtro,
     indicizza, verifica,
 )
-from tests.conftest import VettorizzatoreFinto
 
 
 def test_solo_i_documenti_indicizzabili_finiscono_in_qdrant(ambiente):

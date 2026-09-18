@@ -118,7 +118,7 @@ def aggiungi_risposta(risposta: dict, etichette: dict[str, str]) -> None:
     st.session_state.ultima = risposta
 
 
-def chiedi(cliente: ClienteAPI, etichette: dict[str, str], azione, *argomenti) -> None:
+def chiedi(etichette: dict[str, str], azione, *argomenti) -> None:
     """Una chiamata al backend, con l'attesa e l'errore gestiti una volta sola."""
     try:
         with st.spinner("Ci penso… su CPU può volerci qualche minuto"):
@@ -140,10 +140,10 @@ def pulsanti_chiarimento(cliente: ClienteAPI, etichette: dict[str, str]) -> None
     if not (st.session_state.attende_risposta and opzioni):
         return
     colonne = st.columns(min(len(opzioni), 4))
-    for colonna, opzione in zip(colonne, opzioni):
+    for colonna, opzione in zip(colonne, opzioni, strict=False):
         if colonna.button(opzione.capitalize(), key=f"opzione-{opzione}", width="stretch"):
             st.session_state.messaggi.append({"ruolo": "utente", "testo": opzione})
-            chiedi(cliente, etichette, cliente.continua, st.session_state.contesto, opzione)
+            chiedi(etichette, cliente.continua, st.session_state.contesto, opzione)
             st.rerun()
 
 
@@ -161,7 +161,7 @@ def correzione(cliente: ClienteAPI, etichette: dict[str, str]) -> None:
                                 placeholder="per esempio: cartone della pizza")
         if st.button("Rifai la ricerca", disabled=not oggetto.strip()):
             st.session_state.messaggi.append({"ruolo": "utente", "testo": f"È un {oggetto}."})
-            chiedi(cliente, etichette, cliente.correggi, st.session_state.contesto, oggetto.strip())
+            chiedi(etichette, cliente.correggi, st.session_state.contesto, oggetto.strip())
             st.rerun()
 
 
@@ -180,28 +180,24 @@ def riscontro(cliente: ClienteAPI, comune: str) -> None:
         st.toast("Grazie, annotato: servirà a migliorare l'assistente.")
 
 
-def principale() -> None:
-    st.set_page_config(page_title="EcoScan", page_icon="♻️", layout="centered")
-    prepara_stato()
-    cliente = ClienteAPI()
-
-    comune = barra_laterale(cliente)
-    if not comune:
-        st.stop()
-
-    etichette = etichette_destinazioni(cliente.base, comune)
-
+def mostra_conversazione(cliente: ClienteAPI, comune: str, etichette: dict[str, str]) -> None:
+    """I messaggi e i comandi che accompagnano l'ultima risposta."""
     for messaggio in st.session_state.messaggi:
         mostra_messaggio(messaggio)
     pulsanti_chiarimento(cliente, etichette)
     riscontro(cliente, comune)
     correzione(cliente, etichette)
 
-    inserito = st.chat_input("Scrivi o allega una foto…", accept_file=True,
-                             file_type=["jpg", "jpeg", "png", "webp"])
-    if not inserito:
-        return
 
+def serve_una_foto() -> bool:
+    """Senza foto e senza una domanda in sospeso non c'è niente da cui partire."""
+    return not st.session_state.attende_risposta
+
+
+def gestisci_invio(cliente: ClienteAPI, inserito, comune: str,
+                   etichette: dict[str, str]) -> None:
+    """Cosa fare di ciò che l'utente ha appena mandato: una foto, o la risposta a una
+    domanda già fatta."""
     testo = (inserito.text or "").strip()
     allegati = inserito.files or []
     contesto = st.session_state.contesto if st.session_state.attende_risposta else None
@@ -220,11 +216,28 @@ def principale() -> None:
         "immagine": foto.getvalue() if foto else None})
 
     if foto:
-        chiedi(cliente, etichette, cliente.analizza, foto.getvalue(), foto.name, comune,
-               testo or None)
+        chiedi(etichette, cliente.analizza, foto.getvalue(), foto.name, comune, testo or None)
     else:
-        chiedi(cliente, etichette, cliente.continua, contesto, testo)
+        chiedi(etichette, cliente.continua, contesto, testo)
     st.rerun()
+
+
+def principale() -> None:
+    st.set_page_config(page_title="EcoScan", page_icon="♻️", layout="centered")
+    prepara_stato()
+    cliente = ClienteAPI()
+
+    comune = barra_laterale(cliente)
+    if not comune:
+        st.stop()
+
+    etichette = etichette_destinazioni(cliente.base, comune)
+    mostra_conversazione(cliente, comune, etichette)
+
+    inserito = st.chat_input("Scrivi o allega una foto…", accept_file=True,
+                             file_type=["jpg", "jpeg", "png", "webp"])
+    if inserito:
+        gestisci_invio(cliente, inserito, comune, etichette)
 
 
 def main() -> None:

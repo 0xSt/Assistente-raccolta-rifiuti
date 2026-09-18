@@ -1,6 +1,6 @@
 [project]
 name = "ecoscan-local"
-version = "0.34.0"
+version = "0.35.0"
 description = "Assistente locale per la raccolta differenziata: ETL da fonti comunali, schema dati e retrieval ibrido"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -37,7 +37,7 @@ ecoscan-documenti = "ecoscan.db.documenti:main"
 ecoscan-carica = "ecoscan.db.carica:main"
 
 [dependency-groups]
-dev = ["pytest>=8.0", "numpy>=1.26", "pyyaml>=6.0"]
+dev = ["pytest>=8.0", "numpy>=1.26", "pyyaml>=6.0", "ruff>=0.14"]
 
 [build-system]
 requires = ["hatchling"]
@@ -45,6 +45,21 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/ecoscan"]
+
+[tool.ruff]
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+# F: errori veri (nomi e import morti). B: trappole note. ARG: parametri inutilizzati.
+# SIM, RET, C4: semplificazioni che rendono il codice più corto senza cambiarlo.
+select = ["F", "E", "W", "B", "ARG", "SIM", "RET", "C4", "UP"]
+# B008 è l'idioma di FastAPI (Depends/File/Form nei valori predefiniti), non un difetto.
+ignore = ["B008", "E501"]
+
+[tool.ruff.lint.per-file-ignores]
+# I doppi di prova implementano firme che non usano: è il loro mestiere.
+"tests/*" = ["ARG001", "ARG002", "ARG005"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

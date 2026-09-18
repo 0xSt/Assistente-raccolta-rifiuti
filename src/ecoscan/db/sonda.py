@@ -20,7 +20,6 @@ from __future__ import annotations
 
 import argparse
 import csv
-import sqlite3
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -75,8 +74,7 @@ def _posizione(risultati: list[dict], atteso: str) -> tuple[int | None, str]:
     return None, ""
 
 
-def esegui(db: sqlite3.Connection, qdrant, vettorizzatore, sonde: list[Sonda],
-           k: int = 20) -> list[Esito]:
+def esegui(qdrant, vettorizzatore, sonde: list[Sonda], k: int = 20) -> list[Esito]:
     esiti = []
     for sonda in sonde:
         per_codice = cerca_per_codice(qdrant, sonda.domanda, sonda.comune, k=2)
@@ -125,7 +123,7 @@ def main() -> None:
     sonde = carica_sonde(args.sonde)
     qdrant = apri_qdrant()
     print(f"\n{len(sonde)} sonde, cerco il documento atteso fra i primi {args.k} risultati\n")
-    riepilogo(esegui(None, qdrant, VettorizzatoreOllama(), sonde, args.k), args.k)
+    riepilogo(esegui(qdrant, VettorizzatoreOllama(), sonde, args.k), args.k)
 
 
 if __name__ == "__main__":

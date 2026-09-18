@@ -35,7 +35,8 @@ import uuid
 from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import asdict, is_dataclass
-from typing import Any, Iterator
+from typing import Any
+from collections.abc import Iterator
 
 from ecoscan import configurazione as conf
 
@@ -167,7 +168,7 @@ class SpanNullo:
 
 
 class _Span(SpanNullo):
-    def __init__(self, span, tracciatore: "Tracciatore"):
+    def __init__(self, span, tracciatore: Tracciatore):
         self._span = span
         self._tracciatore = tracciatore
         self.trace_id = getattr(span, "trace_id", None)
@@ -193,11 +194,15 @@ class TracciatoreNullo:
         return impronta(dati)
 
     @contextmanager
-    def turno(self, nome: str, conversazione: str, ingressi: dict) -> Iterator[SpanNullo]:
+    def turno(self, nome: str, conversazione: str, ingressi: dict  # noqa: ARG002
+              ) -> Iterator[SpanNullo]:
+        """Stessa firma di `Tracciatore.turno`, nessun effetto: i parametri servono a
+        restare sostituibile, non a essere usati."""
         yield SpanNullo()
 
     @contextmanager
-    def span(self, nome: str, tipo: str, ingressi: dict) -> Iterator[SpanNullo]:
+    def span(self, nome: str, tipo: str, ingressi: dict  # noqa: ARG002
+             ) -> Iterator[SpanNullo]:
         yield SpanNullo()
 
     def chiudi_turno(self, span, risposta) -> None:
@@ -252,16 +257,18 @@ class Tracciatore(TracciatoreNullo):
         requests.get(f"{self.indirizzo.rstrip('/')}/health",
                      timeout=conf.MLFLOW_ATTESA).raise_for_status()
 
-    def _prepara(self) -> bool:
-        if not self.attivo:
-            return False
-        if self._pronto:
-            return True
+    def _e_ora_di_riprovare(self) -> bool:
+        """Dopo un guasto si riprova a intervalli: tentare a ogni richiesta rallenterebbe
+        tutte le risposte finché MLflow resta spento."""
         adesso = time.monotonic()
-        if self._ultimo_tentativo is not None and adesso - self._ultimo_tentativo < self.riprova_dopo:
+        if (self._ultimo_tentativo is not None
+                and adesso - self._ultimo_tentativo < self.riprova_dopo):
             return False
         self._ultimo_tentativo = adesso
+        return True
 
+    def _connetti(self) -> bool:
+        """Contatta il server e sceglie l'esperimento. False se non risponde."""
         limita_attese()
         try:
             self._raggiungibile()
@@ -269,18 +276,32 @@ class Tracciatore(TracciatoreNullo):
 
             mlflow.set_tracking_uri(self.indirizzo)
             mlflow.set_experiment(self.esperimento)
-            self._pronto = True
         except Exception as errore:                  # server spento, permessi, versione
             self._avvisa(errore)
             return False
+        return True
 
-        # Versione dell'app e prompt: se falliscono le tracce si registrano lo stesso,
-        # solo senza collegamenti
+    def _collega_versioni(self) -> None:
+        """Versione dell'applicazione e prompt. Se falliscono, le tracce si registrano lo
+        stesso: perdono i collegamenti, non i dati."""
         self.id_modello = self._prova(self._versione_applicazione)
         self.versioni_prompt = self._prova(self._versioni_prompt) or []
         if self.id_modello:
             for versione in self.versioni_prompt:
                 self._prova(self._collega_prompt_al_modello, versione)
+
+    def _prepara(self) -> bool:
+        """Pronto a tracciare? Si connette alla prima richiesta, non all'avvio: il backend
+        deve poter partire anche senza MLflow."""
+        if not self.attivo:
+            return False
+        if self._pronto:
+            return True
+        if not self._e_ora_di_riprovare() or not self._connetti():
+            return False
+
+        self._pronto = True
+        self._collega_versioni()
         self._avvisato = False                       # un guasto futuro va segnalato di nuovo
         return True
 

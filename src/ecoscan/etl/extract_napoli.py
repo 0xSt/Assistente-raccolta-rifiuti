@@ -22,7 +22,7 @@ import time
 import xml.etree.ElementTree as ET
 from collections import Counter
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from pathlib import Path
 from urllib import robotparser
 from urllib.parse import urljoin, urlparse
@@ -102,7 +102,7 @@ class Fetcher:
         if r.status_code != 200:
             return None
         r.encoding = r.encoding or "utf-8"
-        meta = {"url": url, "recuperato_il": datetime.now(timezone.utc).isoformat(),
+        meta = {"url": url, "recuperato_il": datetime.now(UTC).isoformat(),
                 "sha256": hashlib.sha256(r.content).hexdigest(), "stato_http": r.status_code}
         html_p.write_text(r.text, encoding="utf-8")
         meta_p.write_text(json.dumps(meta))

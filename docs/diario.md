@@ -150,6 +150,9 @@ Formato: decisione, motivazione, stato.
 | D139 | *(ritirata)* Lavoro dell'agente in un thread, eventi in coda | Cade con D137 | Superata: ritirata in v0.33.1 |
 | D140 | Le condizioni si distinguono in **stato**, **quantità** e **chi conferisce**: cambia la frase ("vale per piccole quantità" invece di "vale se è: piccole quantità") e cambia la domanda ("quanto ne hai?" invece di "com'è?") | Contate sui dati veri: 147 condizioni, di cui 15 di quantità e 5 di utenza. Sono abbastanza da produrre frasi sbagliate spesso, e la distinzione si può leggere dal testo senza toccare i dati. Il modulo sta fuori da agente e frontend perché serve a entrambi: la domanda la compone l'agente, la frase la scrive la presentazione | Accettata |
 | D141 | Le **clausole di ammissibilità** ("solo se compostabile certificato") restano un caso da revisione manuale, non una distinzione nei dati | Contate: 1 su 147. Un campo nuovo nel normalizzato, la migrazione dello schema e la rivettorizzazione non si ripagano per una riga | Accettata |
+| D142 | Ruff configurato nel `pyproject.toml` ed eseguito come test (`test_lint.py`), saltato se ruff non è installato | Import morti e parametri inutilizzati si accumulano in silenzio. Un test che li trova a ogni `pytest` costa un secondo; ricordarsene ogni tanto non funziona | Accettata |
+| D143 | Le rotte dell'API si registrano per area (stato, agente, ricerca, riscontro), e i passaggi dell'agente stanno in metodi separati (`_recupera`, `_scegli`, `_prova_livello`, `_cascata`, `_componi`) | `crea_app` era una funzione di 112 righe in cui ogni rotta nuova allungava la stessa closure; `rispondi` teneva insieme soglia, cascata e composizione. Le unità piccole si leggono e si provano da sole | Accettata |
+| D144 | I passaggi che lavorano sullo stesso oggetto lo ricevono come dato: `Richiesta` nell'agente, `Estratti` nel Transform | Erano firme da sei e sette parametri, in cui l'ordine contava più del significato e ogni aggiunta li allungava | Accettata |
 | D116 | Il tracciamento su MLflow **non è mai bloccante** e fallisce in fretta (tre secondi, un solo tentativo) | Serve a capire come va il sistema, non a farlo funzionare. Senza i limiti sui tentativi il client riprova per minuti e la risposta all'utente resta appesa | Accettata |
 | D117 | Delle foto si registra solo l'**impronta**, mai l'immagine | Due richieste sulla stessa foto si riconoscono, ma l'immagine non lascia il computer di chi l'ha scattata: è coerente con un progetto che gira in locale | Superata da D124, per decisione di Stef |
 | D118 | I prompt restano file in git; il registro di MLflow li **collega alle run** che li hanno usati | La verità e il diff stanno in git; MLflow serve a sapere quale versione ha prodotto un certo risultato | Superata da D126: il registro collega i prompt alle tracce, non più alle run |
@@ -288,6 +291,26 @@ Cose imparate che non sono decisioni, ma che conviene ricordare.
 ---
 
 ## Cronologia
+
+### v0.35.0 — 17/09/2026
+
+**Refactoring, a comportamento invariato.** Nessuna funzione nuova per l'utente: gli stessi 363 test di prima passano, e il Transform rigenerato produce file **identici byte per byte** a quelli di prima (verificato con l'impronta SHA-256 dei due `*_voci.jsonl`).
+
+**API.** `crea_app` era una funzione di 112 righe: le rotte si registrano ora per area (`rotte_stato`, `rotte_agente`, `rotte_ricerca`, `rotte_riscontro`), e le dipendenze comuni — risorse correnti, controllo del comune, contesto valido — stanno in un oggetto `Dipendenze` (D143). La validazione del contesto era ripetuta in tre rotte con lo stesso messaggio: ora è un metodo solo.
+
+**Agente.** `_scegli_nel_livello` si è diviso in `_recupera` e `_scegli`; la cascata fra livello 1 e 2 è `_cascata`; da `_componi` sono usciti `_piu_specifico` e `_chiarimento`. Riconoscimento, comune, parole dell'utente e "ho già chiesto" viaggiano in un oggetto `Richiesta` (D144), che porta anche la soglia di affidabilità: `_componi` passa da otto parametri a quattro.
+
+**Transform.** `trasforma_voce` (56 righe, 15 rami) è diventata una sequenza di passaggi con un nome ciascuno — asterisco, parentesi, locuzioni, condizioni inline, voci composte — che lavorano su un oggetto `Estratti`.
+
+**Caricamento.** `carica` si è divisa per tabella (`_inserisci_comuni`, `_inserisci_destinazioni`, `_inserisci_voci`, `_inserisci_regole`, `_inserisci_decisioni`), e regole e decisioni passano da `executemany` invece che da un ciclo di `execute`.
+
+**Tracciamento e frontend.** `_prepara` si è divisa in `_e_ora_di_riprovare`, `_connetti` e `_collega_versioni`; `nota_fonte` ha estratto `provenienza`; `principale` ha estratto `mostra_conversazione` e `gestisci_invio`.
+
+**Pulizia.** Cinque import morti, un elemento duplicato in un insieme di invarianti (`TE/OF`), due `zip` senza `strict`, due parametri che nessuno usava (`db` nella sonda, `cliente` in `chiedi`).
+
+**Aggiunto.** Ruff configurato nel `pyproject.toml` ed eseguito come test (D142).
+
+**Test.** 364 (erano 363): il linter. Nessun test esistente è stato modificato, ed è la garanzia che il comportamento non sia cambiato.
 
 ### v0.34.0 — 17/09/2026
 

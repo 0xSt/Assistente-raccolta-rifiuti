@@ -19,7 +19,6 @@ Ogni trasformazione incerta NON viene applicata in silenzio: produce un record c
 from __future__ import annotations
 
 import re
-import unicodedata
 from collections import defaultdict
 from dataclasses import dataclass, field
 
@@ -65,12 +64,12 @@ INVARIANTI = {
     "PAP", "PCB", "ALU", "FE", "FOR", "GL", "GLS", "LDPE", "PE-LD", "PE-HD", "PET", "PP", "PS",
     "TEX", "COT", "OTHER", "RAEE", "R4", "CD", "CD-ROM", "DVD", "VHS", "USB", "MP3", "TV", "PC",
     "C/PAP", "TE/OF",
-    "T", "F", "TE/OF", "Natale", "Tetra", "Pak", "Moka",
+    "T", "F", "Natale", "Tetra", "Pak", "Moka",
 }
 _INVARIANTI_MIN = {p.lower(): p for p in INVARIANTI}
 
 
-def normalizza_nome(nome: str, profilo: "Profilo | None" = None) -> str:
+def normalizza_nome(nome: str, profilo: Profilo | None = None) -> str:
     """Minuscole tranne la prima parola e le sigle: 'Biro E Pena A Sfera' -> 'Biro e pena a sfera'."""
     invarianti = dict(_INVARIANTI_MIN)
     if profilo:
@@ -132,7 +131,7 @@ CONDIZIONI_LOCUZIONE = [
     (r"privat[ao] di cannula ago e dosatore", "privata di cannula, ago e dosatore"),
 ]
 
-def _estrai_condizioni_inline(nome: str, profilo: "Profilo") -> tuple[str, list[str]]:
+def _estrai_condizioni_inline(nome: str, profilo: Profilo) -> tuple[str, list[str]]:
     """Rimuove dal nome le parole-condizione, gestendo la negazione ('non utilizzabili')."""
     trovate, testo = [], nome
     for canonica, pattern in profilo.condizioni_inline().items():
@@ -154,7 +153,7 @@ MATERIALI = {"alluminio", "plastica", "metallo", "vetro", "carta", "cartone", "l
 SIGLA_O_SINONIMO = re.compile(r"^[\w\s/\-]+$")
 
 
-def classifica_parentesi(contenuto: str, profilo: "Profilo | None" = None) -> tuple[str, str]:
+def classifica_parentesi(contenuto: str, profilo: Profilo | None = None) -> tuple[str, str]:
     """Restituisce (tipo, valore): 'condizione' | 'codice' | 'alias' | 'esempi' | 'ignoto'.
 
     Dai dati reali: '(40)' è il codice materiale, '(tetrapak)' un sinonimo,
@@ -206,7 +205,7 @@ PAROLE_NON_SEPARABILI = set(CONDIZIONI_INLINE) | {
 }
 
 
-def separa_voce_composta(nome: str, profilo: "Profilo | None" = None) -> list[str]:
+def separa_voce_composta(nome: str, profilo: Profilo | None = None) -> list[str]:
     """Restituisce i componenti se la voce è composta, altrimenti lista vuota."""
     if ":" in nome or senza_accenti(nome).lower().startswith("simbolo"):
         return []  # 'Simbolo GL o GLS (70)' è un codice materiale, non due oggetti
@@ -270,61 +269,113 @@ class VoceNormalizzata:
                          *sorted(self.condizioni)])
 
 
-def trasforma_voce(record: dict, profilo: "Profilo | None" = None,
+@dataclass
+class Estratti:
+    """Ciò che si stacca dal nome di una voce mentre la si normalizza.
+
+    Nome, condizioni, alias, codice materiale e motivi di revisione crescono insieme lungo
+    tutta la trasformazione: tenerli in un oggetto solo evita di passare cinque liste da un
+    passaggio all'altro, e rende ogni passaggio leggibile da solo.
+    """
+
+    nome: str
+    condizioni: list[str] = field(default_factory=list)
+    alias: list[str] = field(default_factory=list)
+    codice_materiale: str | None = None
+    motivi: list[str] = field(default_factory=list)
+
+
+def _togli_asterisco(estratti: Estratti) -> None:
+    """L'asterisco rimanda a una nota a piè di pagina che non estraiamo: si toglie dal nome
+    e si segnala, perché quella nota può cambiare la regola."""
+    if "*" not in estratti.nome:
+        return
+    estratti.nome = normalizza_spazi(estratti.nome.replace("*", " "))
+    estratti.motivi.append("asterisco: la fonte rimanda a una nota non estratta")
+
+
+def _svuota_parentesi(estratti: Estratti, profilo: Profilo) -> None:
+    """Le parentesi del nome portano cose diverse — condizioni, codici, sinonimi, esempi —
+    e ognuna va nel suo campo. Quelle non classificate diventano un motivo di revisione:
+    meglio una voce da guardare che una parentesi inventata."""
+    for contenuto in re.findall(r"\(([^)]*)\)", estratti.nome):
+        tipo, valore = classifica_parentesi(contenuto, profilo)
+        if tipo == "condizione":
+            estratti.condizioni.append(valore)
+        elif tipo == "codice":
+            estratti.codice_materiale = valore
+        elif tipo == "alias":
+            estratti.alias.append(valore)
+        elif tipo == "esempi":
+            estratti.alias.extend(_esempi(valore))
+        else:
+            estratti.motivi.append(f"parentesi non classificata: ({valore})")
+    estratti.nome = normalizza_spazi(re.sub(r"\s*\([^)]*\)", " ", estratti.nome))
+
+
+def _esempi(valore: str) -> list[str]:
+    """Gli esempi elencati fra parentesi diventano alias, scartando i riempitivi."""
+    pezzi = (normalizza_spazi(p) for p in valore.split(","))
+    return [p for p in pezzi if p and not re.fullmatch(r"\.{2,}|ecc\.?", p)]
+
+
+def _stacca_locuzioni(estratti: Estratti, profilo: Profilo) -> None:
+    """Le locuzioni note ("usa e getta", "da cucina") sono condizioni scritte dentro il
+    nome: si spostano fra le condizioni e il nome resta l'oggetto."""
+    piatto = senza_accenti(estratti.nome).lower()
+    for pattern, canonica in profilo.locuzioni():
+        if m := re.search(pattern, piatto):
+            estratti.condizioni.append(canonica)
+            estratti.nome = normalizza_spazi(
+                estratti.nome[:m.start()] + " " + estratti.nome[m.end():])
+            piatto = senza_accenti(estratti.nome).lower()
+
+
+def _separa_composta(estratti: Estratti, profilo: Profilo) -> None:
+    """Una voce che ne elenca due ("Piatti e bicchieri") tiene il primo nome e mette gli
+    altri fra gli alias, segnalando che vanno verificati."""
+    if componenti := separa_voce_composta(estratti.nome, profilo):
+        estratti.alias.extend(componenti[1:])
+        estratti.nome = componenti[0]
+        estratti.motivi.append("voce composta separata: verificare gli alias")
+
+
+def trasforma_voce(record: dict, profilo: Profilo | None = None,
                    separa: bool = True) -> VoceNormalizzata | None:
+    """Da una voce grezza a una normalizzata: nome pulito, condizioni e alias a parte.
+
+    I passaggi sono in quest'ordine perché ognuno lavora su ciò che il precedente ha
+    lasciato nel nome: prima si tolgono le parentesi, poi le locuzioni che restano nel
+    testo, poi si separano le voci composte.
+    """
     profilo = profilo or Profilo(comune="?")
     nome = normalizza_spazi(record["nome_originale"])
     if senza_accenti(nome).lower() in profilo.nomi_da_scartare:
         return None
 
-    motivi, alias, condizioni, codice = [], [], [], None
+    estratti = Estratti(nome=nome)
+    _togli_asterisco(estratti)
+    _svuota_parentesi(estratti, profilo)
+    _stacca_locuzioni(estratti, profilo)
+    estratti.nome, inline = _estrai_condizioni_inline(estratti.nome, profilo)
+    estratti.condizioni.extend(inline)
+    if separa:
+        _separa_composta(estratti, profilo)
 
-    if "*" in nome:  # rimando a una nota a piè di pagina della fonte
-        nome = normalizza_spazi(nome.replace("*", " "))
-        motivi.append("asterisco: la fonte rimanda a una nota non estratta")
-
-    for contenuto in re.findall(r"\(([^)]*)\)", nome):
-        tipo, valore = classifica_parentesi(contenuto, profilo)
-        if tipo == "condizione":
-            condizioni.append(valore)
-        elif tipo == "codice":
-            codice = valore
-        elif tipo == "alias":
-            alias.append(valore)
-        elif tipo == "esempi":
-            alias.extend(normalizza_spazi(p) for p in valore.split(",")
-                         if normalizza_spazi(p) and not re.fullmatch(r"\.{2,}|ecc\.?", normalizza_spazi(p)))
-        else:
-            motivi.append(f"parentesi non classificata: ({valore})")
-    nome = normalizza_spazi(re.sub(r"\s*\([^)]*\)", " ", nome))
-
-    piatto = senza_accenti(nome).lower()
-    for pattern, canonica in profilo.locuzioni():
-        if (m := re.search(pattern, piatto)):
-            condizioni.append(canonica)
-            nome = normalizza_spazi(nome[:m.start()] + " " + nome[m.end():])
-            piatto = senza_accenti(nome).lower()
-
-    nome, inline = _estrai_condizioni_inline(nome, profilo)
-    condizioni.extend(inline)
-
-    if separa and (componenti := separa_voce_composta(nome, profilo)):
-        alias.extend(componenti[1:])
-        nome = componenti[0]
-        motivi.append("voce composta separata: verificare gli alias")
-
-    nome = normalizza_nome(nome, profilo)
+    nome = normalizza_nome(estratti.nome, profilo)
     if not nome:
-        motivi.append("nome vuoto dopo la normalizzazione")
+        estratti.motivi.append("nome vuoto dopo la normalizzazione")
         nome = normalizza_spazi(record["nome_originale"])
 
     return VoceNormalizzata(
         slug=record["slug"], comune=profilo.comune,
         nome_originale=record["nome_originale"], nome=nome,
-        condizioni=sorted(set(condizioni)), alias=[normalizza_nome(a, profilo) for a in dict.fromkeys(alias)],
-        codice_materiale=codice, destinazioni=record["destinazioni"],
+        condizioni=sorted(set(estratti.condizioni)),
+        alias=[normalizza_nome(a, profilo) for a in dict.fromkeys(estratti.alias)],
+        codice_materiale=estratti.codice_materiale, destinazioni=record["destinazioni"],
         avvertenza=record.get("avvertenza"), fonte=profilo.fonte or None,
-        riferimento=profilo.riferimento(record), da_revisionare=bool(motivi), motivi=motivi,
+        riferimento=profilo.riferimento(record), da_revisionare=bool(estratti.motivi),
+        motivi=estratti.motivi,
     )
 
 

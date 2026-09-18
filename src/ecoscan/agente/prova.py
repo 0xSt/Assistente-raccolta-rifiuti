@@ -84,7 +84,7 @@ def stampa_risposta(risposta: Risposta) -> None:
     print(f"  definitiva:  {'sì' if risposta.definitiva else 'no'}")
 
 
-def main() -> None:
+def _argomenti() -> argparse.Namespace:
     ap = argparse.ArgumentParser(description="Prova l'agente su una foto o su un oggetto descritto.")
     ap.add_argument("--foto", type=Path, help="immagine da analizzare")
     ap.add_argument("--oggetto", help="salta la foto e parte da questa descrizione")
@@ -101,24 +101,12 @@ def main() -> None:
                          "modello la riceve davvero")
     ap.add_argument("--db", type=Path, default=DB)
     ap.add_argument("-k", type=int, default=10, help="quanti candidati per livello")
-    args = ap.parse_args()
-    nome_modello = args.modello or conf.MODELLO_VISIONE
+    return ap.parse_args()
 
-    if args.diagnostica:
-        from ecoscan.agente import diagnostica
-        print("Impostazioni: " + " | ".join(f"{k}={v}" for k, v in conf.riepilogo().items()))
-        print(f"\nVerifico il canale immagine verso {nome_modello}...", flush=True)
-        esiti = diagnostica.esegui(nome_modello, conf.OLLAMA_CHAT)
-        for ok, descrizione in esiti:
-            print(f"  {'OK     ' if ok else 'FALLITO'} {descrizione}")
-        if all(ok for ok, _ in esiti):
-            print("\nIl modello riceve e interpreta le immagini: se i riconoscimenti sono "
-                  "scadenti, il problema è nei prompt o nel modello, non nel canale.")
-        else:
-            print("\nIl canale immagine non funziona. Finché non è risolto, ritoccare i "
-                  "prompt non serve a nulla.")
-        raise SystemExit(0 if all(ok for ok, _ in esiti) else 1)
 
+def _controlla(args: argparse.Namespace) -> None:
+    """Le condizioni che rendono la prova possibile, verificate prima di avviare il modello:
+    caricarlo per poi fallire su un percorso sbagliato costa minuti."""
     if not args.foto and not args.oggetto:
         raise SystemExit("serve --foto oppure --oggetto")
     if args.foto and not args.foto.is_file():
@@ -128,52 +116,80 @@ def main() -> None:
     if not args.descrivi and not args.db.is_file():
         raise SystemExit(f"Database non trovato: {args.db}\nLancia prima: uv run ecoscan-carica")
 
+
+def _stampa_impostazioni() -> None:
     print("Impostazioni: " + " | ".join(f"{k}={v}" for k, v in conf.riepilogo().items()))
-    modello = ModelloOllama(args.modello)
 
-    if args.scalini:
-        from ecoscan.agente import diagnostica
-        from ecoscan.agente.immagini import informazioni
-        foto = args.foto.read_bytes()
-        print(f"\nFoto originale: {informazioni(foto)}")
-        print("Descrivo la stessa foto a dimensioni decrescenti...\n", flush=True)
-        for lato, descrizione_immagine, risposta in diagnostica.scalini(modello.nome,
-                                                                        conf.OLLAMA_CHAT, foto):
-            print(f"  lato max {lato:5} ({descrizione_immagine})")
-            print(f"    -> {risposta[:160]}\n", flush=True)
-        print("Se le descrizioni diventano sensate solo sotto una certa misura, il problema "
-              "è la dimensione dell'immagine.")
-        return
 
-    if args.descrivi:
-        from ecoscan.agente.immagini import informazioni, prepara
-        foto = args.foto.read_bytes()
-        print(f"\nFoto originale:     {informazioni(foto)}")
-        print(f"Inviata al modello: {informazioni(prepara(foto, modello.lato_max))}")
-        print(f"\nChiedo a {modello.nome} di descrivere {args.foto.name}...", flush=True)
-        with cronometro("descrizione"):
-            descrizione = modello.descrivi(foto)
-        print(f"\n## Descrizione libera\n  {descrizione.strip()}")
-        print(f"\nTempo: {DURATE['descrizione']:.1f} s")
-        print("\nSe la descrizione non c'entra nulla con la foto, il modello non la sta "
-              "ricevendo: il problema è nel passaggio dell'immagine, non nei prompt.")
-        return
+def prova_canale_immagine(nome_modello: str) -> int:
+    """Il canale immagine funziona? Finché non è chiaro, ritoccare i prompt non serve."""
+    from ecoscan.agente import diagnostica
+
+    _stampa_impostazioni()
+    print(f"\nVerifico il canale immagine verso {nome_modello}...", flush=True)
+    esiti = diagnostica.esegui(nome_modello, conf.OLLAMA_CHAT)
+    for ok, descrizione in esiti:
+        print(f"  {'OK     ' if ok else 'FALLITO'} {descrizione}")
+    if all(ok for ok, _ in esiti):
+        print("\nIl modello riceve e interpreta le immagini: se i riconoscimenti sono "
+              "scadenti, il problema è nei prompt o nel modello, non nel canale.")
+        return 0
+    print("\nIl canale immagine non funziona. Finché non è risolto, ritoccare i "
+          "prompt non serve a nulla.")
+    return 1
+
+
+def prova_scalini(modello: ModelloOllama, percorso: Path) -> None:
+    """La stessa foto a dimensioni decrescenti: isola i casi in cui il problema è la misura."""
+    from ecoscan.agente import diagnostica
+    from ecoscan.agente.immagini import informazioni
+
+    foto = percorso.read_bytes()
+    print(f"\nFoto originale: {informazioni(foto)}")
+    print("Descrivo la stessa foto a dimensioni decrescenti...\n", flush=True)
+    for lato, descrizione_immagine, risposta in diagnostica.scalini(modello.nome,
+                                                                    conf.OLLAMA_CHAT, foto):
+        print(f"  lato max {lato:5} ({descrizione_immagine})")
+        print(f"    -> {risposta[:160]}\n", flush=True)
+    print("Se le descrizioni diventano sensate solo sotto una certa misura, il problema "
+          "è la dimensione dell'immagine.")
+
+
+def prova_descrizione(modello: ModelloOllama, percorso: Path) -> None:
+    """Descrizione libera: se non c'entra nulla con la foto, il modello non la sta ricevendo."""
+    from ecoscan.agente.immagini import informazioni, prepara
+
+    foto = percorso.read_bytes()
+    print(f"\nFoto originale:     {informazioni(foto)}")
+    print(f"Inviata al modello: {informazioni(prepara(foto, modello.lato_max))}")
+    print(f"\nChiedo a {modello.nome} di descrivere {percorso.name}...", flush=True)
+    with cronometro("descrizione"):
+        descrizione = modello.descrivi(foto)
+    print(f"\n## Descrizione libera\n  {descrizione.strip()}")
+    print(f"\nTempo: {DURATE['descrizione']:.1f} s")
+    print("\nSe la descrizione non c'entra nulla con la foto, il modello non la sta "
+          "ricevendo: il problema è nel passaggio dell'immagine, non nei prompt.")
+
+
+def _riconosci(modello: ModelloOllama, args: argparse.Namespace) -> Riconoscimento:
+    if args.oggetto:
+        print("\n(riconoscimento saltato: oggetto fornito a mano)")
+        return Riconoscimento(oggetto=args.oggetto, confidenza=1.0)
+    print(f"\nLeggo {args.foto.name} con {modello.nome}... (su CPU può richiedere minuti)",
+          flush=True)
+    with cronometro("riconoscimento"):
+        return modello.riconosci(args.foto.read_bytes(), args.testo)
+
+
+def prova_risposta(modello: ModelloOllama, args: argparse.Namespace) -> None:
+    """Il percorso completo: riconoscimento, recupero, scelta, risposta e tempi."""
     with sqlite3.connect(args.db) as db:
         comuni = [c for c, in db.execute("SELECT nome FROM comune")]
         if args.comune not in comuni:
             raise SystemExit(f"comune sconosciuto: {args.comune}. Caricati: {', '.join(comuni)}")
 
-        qdrant = apri_qdrant()
-        agente = Agente(qdrant, VettorizzatoreOllama(), modello, k=args.k)
-
-        if args.oggetto:
-            riconoscimento = Riconoscimento(oggetto=args.oggetto, confidenza=1.0)
-            print("\n(riconoscimento saltato: oggetto fornito a mano)")
-        else:
-            print(f"\nLeggo {args.foto.name} con {modello.nome}... (su CPU può richiedere minuti)",
-                  flush=True)
-            with cronometro("riconoscimento"):
-                riconoscimento = modello.riconosci(args.foto.read_bytes(), args.testo)
+        agente = Agente(apri_qdrant(), VettorizzatoreOllama(), modello, k=args.k)
+        riconoscimento = _riconosci(modello, args)
         stampa_riconoscimento(riconoscimento, args.testo)
 
         with cronometro("recupero e scelta"):
@@ -185,6 +201,23 @@ def main() -> None:
         print(f"  {fase}: {durata:.1f} s")
     print(f"  totale: {sum(DURATE.values()):.1f} s")
     print(f"\nPrompt usati: {', '.join(risposta.contesto.get('prompt', []))}")
+
+
+def main() -> None:
+    args = _argomenti()
+    if args.diagnostica:
+        raise SystemExit(prova_canale_immagine(args.modello or conf.MODELLO_VISIONE))
+
+    _controlla(args)
+    _stampa_impostazioni()
+    modello = ModelloOllama(args.modello)
+
+    if args.scalini:
+        prova_scalini(modello, args.foto)
+    elif args.descrivi:
+        prova_descrizione(modello, args.foto)
+    else:
+        prova_risposta(modello, args)
 
 
 if __name__ == "__main__":

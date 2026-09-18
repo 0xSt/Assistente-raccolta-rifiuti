@@ -151,22 +151,29 @@ def frase_riconoscimento(risposta: dict) -> str:
     return f"👁️ Ho riconosciuto: **{oggetto}**{coda} · {sicurezza}"
 
 
+def provenienza(fonte: str | None, riferimento: str | None) -> str:
+    """Da dove viene la regola: un link se la fonte è una pagina, altrimenti il documento.
+
+    Tre casi, e vanno tenuti distinti: l'URL di una voce di Napoli diventa un link; il
+    riferimento di Torino nomina già il documento ("Rifiutologo AMIAT 2025, pagina 17") e
+    ripetere il nome lo direbbe due volte; negli altri casi nome e riferimento si affiancano.
+    """
+    nome = NOME_FONTE.get(fonte or "", (fonte or "").replace("_", " "))
+    riferimento = riferimento or ""
+    if riferimento.startswith(("http://", "https://")):
+        return f"[{nome or 'apri la fonte'}]({riferimento})"
+    if nome and riferimento.lower().startswith(nome.lower()):
+        return riferimento
+    return " · ".join(p for p in (nome, riferimento) if p)
+
+
 def nota_fonte(risposta: dict) -> str:
-    """Livello di evidenza e provenienza, con il link quando la fonte è una pagina."""
+    """Livello di evidenza e provenienza, sotto la risposta."""
     fonte, riferimento = risposta.get("fonte"), risposta.get("riferimento")
     if not fonte and not riferimento:
         return ""
     livello = ETICHETTA_LIVELLO.get(risposta.get("livello_evidenza", 3), "")
-    nome = NOME_FONTE.get(fonte or "", (fonte or "").replace("_", " "))
-    if (riferimento or "").startswith(("http://", "https://")):
-        provenienza = f"[{nome or 'apri la fonte'}]({riferimento})"
-    elif nome and (riferimento or "").lower().startswith(nome.lower()):
-        # il riferimento di Torino nomina già il documento: ripeterlo darebbe
-        # "Rifiutologo AMIAT 2025 · Rifiutologo AMIAT 2025, pagina 17"
-        provenienza = riferimento
-    else:
-        provenienza = " · ".join(p for p in (nome, riferimento) if p)
-    return " · ".join(p for p in (livello, provenienza) if p)
+    return " · ".join(p for p in (livello, provenienza(fonte, riferimento)) if p)
 
 
 def citazione(risposta: dict) -> str:

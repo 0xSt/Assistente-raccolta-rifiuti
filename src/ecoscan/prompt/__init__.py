@@ -17,7 +17,7 @@ from __future__ import annotations
 import hashlib
 import re
 from dataclasses import dataclass
-from functools import lru_cache
+from functools import cache
 from pathlib import Path
 
 CARTELLA = Path(__file__).resolve().parent
@@ -38,7 +38,7 @@ class Prompt:
         return f"{self.nome}@{self.versione}:{self.impronta}"
 
 
-@lru_cache(maxsize=None)
+@cache
 def carica(nome: str) -> Prompt:
     percorso = CARTELLA / f"{nome}.txt"
     if not percorso.is_file():

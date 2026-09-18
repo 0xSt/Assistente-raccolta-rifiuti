@@ -6,7 +6,6 @@ su quel testo, e una frase sbagliata è un errore che nessun metodo di ricerca p
 """
 import sqlite3
 
-import pytest
 
 from ecoscan.db.carica import carica
 from ecoscan.db.documenti import (
@@ -15,7 +14,7 @@ from ecoscan.db.documenti import (
 )
 from ecoscan.db.documenti import testo_oggetto as componi_oggetto
 from ecoscan.db.documenti import testo_regola as componi_regola
-from tests.conftest import DESTINAZIONI, REGOLE, VOCI
+from tests.conftest import DESTINAZIONI
 
 
 # ------------------------------------------------------------------ frasi

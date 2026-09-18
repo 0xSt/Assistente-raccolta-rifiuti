@@ -27,7 +27,8 @@ import time
 import urllib.error
 import urllib.request
 from pathlib import Path
-from typing import Iterable, Protocol, Sequence
+from typing import Protocol
+from collections.abc import Iterable, Sequence
 
 from qdrant_client import QdrantClient, models
 
@@ -135,7 +136,7 @@ def indicizza(qdrant: QdrantClient, documenti: Iterable[Documento], vettorizzato
         vettori = vettorizzatore.vettorizza([d.testo for d in gruppo], "documento")
         qdrant.upsert(COLLEZIONE, points=[
             models.PointStruct(id=numero, vector={NOME_VETTORE: vettore}, payload=documento.payload())
-            for numero, (documento, vettore) in enumerate(zip(gruppo, vettori), start=n + 1)])
+            for numero, (documento, vettore) in enumerate(zip(gruppo, vettori, strict=True), start=n + 1)])
         fatti = min(n + lotto, len(da_fare))
         trascorso = time.monotonic() - inizio
         avanzamento(f"  {fatti}/{len(da_fare)} — stimati "

@@ -18,7 +18,8 @@ l'agente funziona uguale e non importa MLflow.
 """
 from __future__ import annotations
 
-from dataclasses import asdict
+from dataclasses import asdict, dataclass
+from functools import partial
 
 from ecoscan import condizioni as condizioni_
 from ecoscan import configurazione as conf
@@ -49,6 +50,32 @@ def domande(riconoscimento: Riconoscimento, testo_utente: str | None = None) -> 
     return poste
 
 
+@dataclass(frozen=True)
+class Richiesta:
+    """Cosa si sta cercando, in un oggetto solo.
+
+    Riconoscimento, comune, parole dell'utente e "ho già chiesto" viaggiano insieme in ogni
+    passaggio: passarli uno per uno faceva firme da sei e sette parametri, in cui l'ordine
+    contava più del significato.
+    """
+
+    riconoscimento: Riconoscimento
+    comune: str
+    testo_utente: str | None = None
+    gia_chiesto: bool = False
+
+    @property
+    def domande(self) -> list[str]:
+        return domande(self.riconoscimento, self.testo_utente)
+
+    @property
+    def affidabile(self) -> bool:
+        """Sotto la soglia non si cerca: cercare a partire da un riconoscimento incerto
+        produce risposte sicure di sé e sbagliate."""
+        return (self.riconoscimento.riuscito
+                and self.riconoscimento.confidenza >= CONFIDENZA_MINIMA)
+
+
 class Agente:
     def __init__(self, qdrant, vettorizzatore, modello: ModelloVisione, k: int = 8,
                  tracciatore=None):
@@ -72,71 +99,99 @@ class Agente:
 
     # ------------------------------------------------------------------ passaggi
 
-    def _scegli_nel_livello(self, riconoscimento: Riconoscimento, comune: str, livello: int,
-                            testo_utente: str | None) -> tuple[list[Candidato], Scelta]:
-        poste = domande(riconoscimento, testo_utente)
+    def _recupera(self, richiesta: Richiesta, livello: int) -> list[Candidato]:
+        """La ricerca semantica a un livello di evidenza, tracciata come span RETRIEVER."""
+        poste = richiesta.domande
         with self.tracciatore.span(f"recupero_livello{livello}", RETRIEVER,
-                                   {"domande": poste, "comune": comune, "livello": livello,
-                                    "k": self.k}) as span:
-            trovati = recupera(self.qdrant, self.vettorizzatore, poste, comune,
+                                   {"domande": poste, "comune": richiesta.comune,
+                                    "livello": livello, "k": self.k}) as span:
+            trovati = recupera(self.qdrant, self.vettorizzatore, poste, richiesta.comune,
                                livello=livello, k=self.k)
             span.uscita([documento(c) for c in trovati])
-        if not trovati:
-            return [], Scelta(scheda_id=None, motivo=f"nessun candidato al livello {livello}")
+        return trovati
 
+    def _scegli(self, richiesta: Richiesta, trovati: list[Candidato], livello: int) -> Scelta:
+        """La scelta vincolata del modello fra i documenti trovati.
+
+        Se il modello indica un documento ma dichiara che non corrisponde davvero
+        (`solo_materiale`, `nessuna`), la politica lo scarta: vale per qualunque modello,
+        quindi sta qui e non nel prompt.
+        """
         with self.tracciatore.span(f"scelta_livello{livello}", LLM, {
                 "prompt": prompt_.carica("scelta").etichetta, "modello": self.modello.nome,
-                "riconoscimento": riconoscimento, "testo_utente": testo_utente,
+                "riconoscimento": richiesta.riconoscimento,
+                "testo_utente": richiesta.testo_utente,
                 "candidati": [{"numero": i, "id": c.id, "testo": c.testo}
                               for i, c in enumerate(trovati, start=1)]}) as span:
-            scelta = self.modello.scegli(riconoscimento, trovati, testo_utente)
+            scelta = self.modello.scegli(richiesta.riconoscimento, trovati,
+                                         richiesta.testo_utente)
             scartata = scelta.tipo_corrispondenza in TIPI_NON_VALIDI
             span.uscita({**asdict(scelta), "scartata_dall_agente": scartata})
-        if scartata:
-            # il modello ha indicato un documento ma ha dichiarato che non corrisponde:
-            # la politica lo scarta, qualunque modello l'abbia prodotta
-            return trovati, Scelta(scheda_id=None, tipo_corrispondenza=scelta.tipo_corrispondenza,
-                                   motivo=scelta.motivo or f"scartata: {scelta.tipo_corrispondenza}")
-        return trovati, scelta
+        if not scartata:
+            return scelta
+        return Scelta(scheda_id=None, tipo_corrispondenza=scelta.tipo_corrispondenza,
+                      motivo=scelta.motivo or f"scartata: {scelta.tipo_corrispondenza}")
 
-    def _componi(self, scelto: Candidato, riconoscimento: Riconoscimento, scelta: Scelta,
-                 comune: str, candidati: list[Candidato], testo_utente: str | None,
-                 gia_chiesto: bool) -> Risposta:
-        noti = [testo_utente, riconoscimento.stato]
-        motivo = scelta.motivo
+    def _prova_livello(self, richiesta: Richiesta,
+                       livello: int) -> tuple[list[Candidato], Scelta]:
+        trovati = self._recupera(richiesta, livello)
+        if not trovati:
+            return [], Scelta(scheda_id=None, motivo=f"nessun candidato al livello {livello}")
+        return trovati, self._scegli(richiesta, trovati, livello)
 
-        # Il modello preferisce il documento generico a quello specifico: davanti a un
-        # cartone della pizza ha scelto "Cartone da imballaggio" mentre "Cartone per pizze"
-        # era il primo risultato. Se un documento nomina proprio l'oggetto, vince.
-        if not nomina_l_oggetto(scelto, riconoscimento, testo_utente):
-            specifici = [c for c in candidati if nomina_l_oggetto(c, riconoscimento, testo_utente)]
-            if specifici:
-                scelto = specifici[0]
-                motivo = f"{motivo} · scelto il documento che nomina l'oggetto".strip(" ·")
-        variante, da_chiarire = scegli_variante(scelto, noti)
+    @staticmethod
+    def _piu_specifico(scelto: Candidato, candidati: list[Candidato],
+                       richiesta: Richiesta) -> tuple[Candidato, str]:
+        """Il documento che nomina proprio l'oggetto batte quello generico.
 
-        chiarimento, opzioni = None, []
-        if da_chiarire and not gia_chiesto:
-            # le condizioni diventano i pulsanti dell'interfaccia: l'utente sceglie invece
-            # di indovinare come si scrive la risposta
-            opzioni = list(da_chiarire)
-            # la domanda cambia con la natura delle condizioni: "com'è" per lo stato,
-            # "quanto ne hai" per le quantità, "chi lo conferisce" per le utenze
-            chiarimento = condizioni_.domanda(da_chiarire)
-        elif not gia_chiesto:
-            chiarimento = scelta.chiarimento
+        Il modello preferisce il generico: davanti a un cartone della pizza ha scelto
+        "Cartone da imballaggio" mentre "Cartone per pizze" era il primo risultato.
+        Restituisce il documento e la nota da aggiungere al motivo.
+        """
+        nomina = partial(nomina_l_oggetto, riconoscimento=richiesta.riconoscimento,
+                         testo_utente=richiesta.testo_utente)
+        if nomina(scelto):
+            return scelto, ""
+        specifici = [c for c in candidati if nomina(c)]
+        return (specifici[0], "scelto il documento che nomina l'oggetto") if specifici else (scelto, "")
 
-        destinazioni = variante.destinazioni if variante else scelto.destinazioni
-        condizioni = variante.condizioni if variante else []
-        avvertenza = (variante.avvertenza if variante else None)
+    @staticmethod
+    def _chiarimento(da_chiarire: list[str], scelta: Scelta,
+                     gia_chiesto: bool) -> tuple[str | None, list[str]]:
+        """La domanda da fare e le risposte possibili.
+
+        Le condizioni diventano i pulsanti dell'interfaccia, e la domanda cambia con la loro
+        natura: "com'è" per lo stato, "quanto ne hai" per le quantità, "chi lo conferisce"
+        per le utenze. Dopo una domanda già fatta non se ne fa un'altra: l'utente ha
+        risposto, e ripetergliela lo lascerebbe in un giro senza uscita.
+        """
+        if gia_chiesto:
+            return None, []
+        if da_chiarire:
+            return condizioni_.domanda(da_chiarire), list(da_chiarire)
+        return scelta.chiarimento, []
+
+    def _componi(self, scelto: Candidato, scelta: Scelta, candidati: list[Candidato],
+                 richiesta: Richiesta) -> Risposta:
+        """Dal documento scelto alla risposta: variante, chiarimento e provenienza."""
+        scelto, nota = self._piu_specifico(scelto, candidati, richiesta)
+        motivo = " · ".join(p for p in (scelta.motivo, nota) if p)
+
+        variante, da_chiarire = scegli_variante(
+            scelto, [richiesta.testo_utente, richiesta.riconoscimento.stato])
+        chiarimento, opzioni = self._chiarimento(da_chiarire, scelta, richiesta.gia_chiesto)
 
         return Risposta(
-            livello_evidenza=scelto.livello, comune=comune, oggetto=riconoscimento.oggetto,
-            destinazioni=destinazioni, polarita=scelto.polarita, condizioni=condizioni,
-            avvertenza=avvertenza, fonte=scelto.fonte, riferimento=scelto.riferimento,
+            livello_evidenza=scelto.livello, comune=richiesta.comune,
+            oggetto=richiesta.riconoscimento.oggetto,
+            destinazioni=variante.destinazioni if variante else scelto.destinazioni,
+            polarita=scelto.polarita,
+            condizioni=variante.condizioni if variante else [],
+            avvertenza=variante.avvertenza if variante else None,
+            fonte=scelto.fonte, riferimento=scelto.riferimento,
             chiarimento=chiarimento, opzioni=opzioni, scelto_id=scelto.id,
-            tipo_corrispondenza=scelta.tipo_corrispondenza,
-            motivo=motivo, candidati=candidati, riconoscimento=riconoscimento,
+            tipo_corrispondenza=scelta.tipo_corrispondenza, motivo=motivo,
+            candidati=candidati, riconoscimento=richiesta.riconoscimento,
             contraddizione=scelto.contraddizione,
         )
 
@@ -171,31 +226,40 @@ class Agente:
         Chiamato da solo non apre una traccia: gli span si registrano solo dentro un turno.
         """
         conversazione = conversazione or (contesto or {}).get("id_conversazione")
+        richiesta = Richiesta(riconoscimento, comune, testo_utente, gia_chiesto)
         base = {"comune": comune, "riconoscimento": riconoscimento,
                 "contesto": self._contesto(riconoscimento, comune, testo_utente, conversazione)}
 
-        if not riconoscimento.riuscito or riconoscimento.confidenza < CONFIDENZA_MINIMA:
+        if not richiesta.affidabile:
             return Risposta(livello_evidenza=3, oggetto=riconoscimento.oggetto or None,
                             motivo="oggetto non riconosciuto con sufficiente sicurezza",
-                            chiarimento="Puoi rifare la foto più da vicino, o dirmi di che oggetto si tratta?",
+                            chiarimento="Puoi rifare la foto più da vicino, o dirmi di che "
+                                        "oggetto si tratta?",
                             **base)
 
+        risposta, tutti = self._cascata(richiesta)
+        if risposta is None:
+            return Risposta(livello_evidenza=3, oggetto=riconoscimento.oggetto,
+                            motivo=f"nessuna regola di {comune} copre questo oggetto",
+                            candidati=tutti, **base)
+        risposta.candidati = tutti
+        risposta.contesto = base["contesto"]
+        return risposta
+
+    def _cascata(self, richiesta: Richiesta) -> tuple[Risposta | None, list[Candidato]]:
+        """Prima il dizionario degli oggetti, poi le regole di categoria.
+
+        L'ordine è la garanzia del livello di evidenza: una voce che nomina l'oggetto vale
+        più di una regola generale, e si scende al livello 2 solo se il livello 1 tace.
+        """
         tutti: list[Candidato] = []
         for livello in (1, 2):
-            trovati, scelta = self._scegli_nel_livello(riconoscimento, comune, livello,
-                                                       testo_utente)
+            trovati, scelta = self._prova_livello(richiesta, livello)
             tutti.extend(trovati)
             if scelta.scheda_id is not None:
                 scelto = next(c for c in trovati if c.id == scelta.scheda_id)
-                risposta = self._componi(scelto, riconoscimento, scelta, comune, trovati,
-                                         testo_utente, gia_chiesto)
-                risposta.candidati = tutti
-                risposta.contesto = base["contesto"]
-                return risposta
-
-        return Risposta(livello_evidenza=3, oggetto=riconoscimento.oggetto,
-                        motivo=f"nessuna regola di {comune} copre questo oggetto",
-                        candidati=tutti, **base)
+                return self._componi(scelto, scelta, trovati, richiesta), tutti
+        return None, tutti
 
     def _contesto(self, riconoscimento: Riconoscimento, comune: str,
                   testo_utente: str | None, conversazione: str | None = None) -> dict:

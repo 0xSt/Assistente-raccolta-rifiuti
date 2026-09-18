@@ -20,7 +20,7 @@ class RiconoscimentoUscita(BaseModel):
     confidenza: float = 0.0
 
     @classmethod
-    def da(cls, r: Riconoscimento) -> "RiconoscimentoUscita":
+    def da(cls, r: Riconoscimento) -> RiconoscimentoUscita:
         return cls(oggetto=r.oggetto, sinonimi=r.sinonimi, categoria=r.categoria,
                    materiali=r.materiali, stato=r.stato, confidenza=r.confidenza)
 
@@ -42,7 +42,7 @@ class CandidatoUscita(BaseModel):
     punteggio: float = 0.0
 
     @classmethod
-    def da(cls, c: Candidato) -> "CandidatoUscita":
+    def da(cls, c: Candidato) -> CandidatoUscita:
         return cls(id=c.id, livello=c.livello, testo=c.testo, nome=c.nome,
                    varianti=[VarianteUscita(condizione=v.condizione, destinazioni=v.destinazioni,
                                             avvertenza=v.avvertenza) for v in c.varianti],
@@ -77,7 +77,7 @@ class RispostaUscita(BaseModel):
         description="da rimandare a /continua: il servizio non conserva stato fra le chiamate")
 
     @classmethod
-    def da(cls, r: Risposta) -> "RispostaUscita":
+    def da(cls, r: Risposta) -> RispostaUscita:
         return cls(
             livello_evidenza=r.livello_evidenza, comune=r.comune, oggetto=r.oggetto,
             destinazioni=r.destinazioni, polarita=r.polarita, condizioni=r.condizioni,

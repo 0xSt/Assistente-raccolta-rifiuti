@@ -18,7 +18,8 @@ import base64
 import json
 import urllib.error
 import urllib.request
-from typing import Protocol, Sequence
+from typing import Protocol
+from collections.abc import Sequence
 
 from ecoscan import configurazione as conf
 from ecoscan import prompt as prompt_

@@ -66,7 +66,8 @@ def estrai_marcatori(pagina) -> list[dict]:
 
 def estrai_voci(pagina) -> list[dict]:
     """Ogni '•' apre una voce; le righe successive nella stessa colonna la continuano."""
-    span = [s for b in pagina.get_text("dict")["blocks"] for l in b.get("lines", []) for s in l["spans"]
+    span = [s for b in pagina.get_text("dict")["blocks"] for riga in b.get("lines", [])
+            for s in riga["spans"]
             if s["font"] == "Roboto-Light" and abs(s["size"] - 8.5) < 0.2 and s["text"].strip()]
     span.sort(key=lambda s: (int(s["bbox"][0] // 180), s["bbox"][1], s["bbox"][0]))
     voci = []

@@ -105,7 +105,7 @@ class Candidato:
     per_codice: str | None = None      # trovato agganciando un codice materiale
 
     @classmethod
-    def da_payload(cls, payload: dict) -> "Candidato":
+    def da_payload(cls, payload: dict) -> Candidato:
         varianti = [Variante(condizioni=v.get("condizioni") or [],
                              destinazioni=v.get("destinazioni") or [],
                              avvertenza=v.get("avvertenza"))

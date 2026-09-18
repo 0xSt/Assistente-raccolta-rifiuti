@@ -230,7 +230,6 @@ def test_il_frontend_non_importa_il_backend():
     """Il frontend deve parlare solo con le API: se importasse l'agente o il database,
     la valutazione misurerebbe qualcosa di diverso da ciò che usa l'utente."""
     import ast
-    from pathlib import Path
 
     from ecoscan.percorsi import RADICE
 

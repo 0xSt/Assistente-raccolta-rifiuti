@@ -1,5 +1,4 @@
 """La radice del progetto deve risolversi anche lanciando i comandi da un'altra cartella."""
-import os
 import subprocess
 import sys
 from pathlib import Path

@@ -19,7 +19,7 @@ import csv
 import json
 import sqlite3
 from collections import defaultdict
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from pathlib import Path
 
 from ecoscan.etl import revisioni as rev
@@ -81,71 +81,106 @@ def verifica(destinazioni: list[dict], voci: list[dict], regole: list[dict]) -> 
 
 # --------------------------------------------------------------------------- caricamento
 
-def carica(db: sqlite3.Connection, destinazioni: list[dict], voci: list[dict],
-           regole: list[dict], decisioni: dict[str, dict[str, list[dict]]]) -> dict[str, int]:
-    q = db.execute
-    db.executescript(SCHEMA_SQL.read_text(encoding="utf-8"))
+def _inserisci_comuni(db: sqlite3.Connection, voci: list[dict]) -> dict[str, int]:
+    return {nome: db.execute("INSERT INTO comune (nome, gestore) VALUES (?, ?)",
+                             (nome, GESTORI.get(nome, "?"))).lastrowid
+            for nome in sorted({v["comune"] for v in voci})}
 
-    comuni = {}
-    for nome in sorted({v["comune"] for v in voci}):
-        comuni[nome] = q("INSERT INTO comune (nome, gestore) VALUES (?, ?)",
-                         (nome, GESTORI.get(nome, "?"))).lastrowid
 
+def _inserisci_destinazioni(db: sqlite3.Connection, destinazioni: list[dict],
+                            comuni: dict[str, int]) -> dict[tuple[str, str], int]:
+    """Destinazioni e loro alias, con la mappa (comune, nome) -> id che serve a tutto il resto.
+
+    Gli alias si inseriscono dopo, perché puntano a una destinazione che deve già esistere,
+    e nella mappa portano all'id del bersaglio: una voce che usa l'alias finisce nel posto
+    giusto senza saperlo.
+    """
     db.executemany("INSERT INTO flusso VALUES (?)",
                    [(f,) for f in sorted({f for d in destinazioni for f in d["flussi"]})])
 
     dest_id: dict[tuple[str, str], int] = {}
-    presenti = {v["comune"] for v in voci}
-    destinazioni = [d for d in destinazioni if d["comune"] in presenti]
     for d in (x for x in destinazioni if not x["alias_di"]):
         chiave = (d["comune"], d["nome"])
-        dest_id[chiave] = q(
+        dest_id[chiave] = db.execute(
             """INSERT INTO destinazione (comune_id, nome, canale, colore, etichetta, note)
                VALUES (?, ?, ?, ?, ?, ?)""",
             (comuni[d["comune"]], d["nome"], d["canale"], d["colore"] or None,
-             d.get("etichetta") or d["nome"], d["note"] or None)
-        ).lastrowid
+             d.get("etichetta") or d["nome"], d["note"] or None)).lastrowid
         db.executemany("INSERT INTO destinazione_flusso VALUES (?, ?)",
                        [(dest_id[chiave], f) for f in d["flussi"]])
+
     for d in (x for x in destinazioni if x["alias_di"]):
         bersaglio = dest_id[(d["comune"], d["alias_di"])]
-        q("INSERT INTO destinazione_alias VALUES (?, ?)", (bersaglio, d["nome"]))
-        dest_id[(d["comune"], d["nome"])] = bersaglio  # le voci che usano l'alias puntano qui
+        db.execute("INSERT INTO destinazione_alias VALUES (?, ?)", (bersaglio, d["nome"]))
+        dest_id[(d["comune"], d["nome"])] = bersaglio
+    return dest_id
 
+
+def _inserisci_voci(db: sqlite3.Connection, voci: list[dict], comuni: dict[str, int],
+                    dest_id: dict[tuple[str, str], int]) -> None:
     for v in voci:
-        voce_id = q("""INSERT INTO voce (comune_id, slug, nome, nome_originale, codice_materiale,
-                                         avvertenza, fonte, riferimento, revisione_manuale)
-                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                    (comuni[v["comune"]], v["slug"], v["nome"], v["nome_originale"],
-                     v["codice_materiale"], v["avvertenza"], v.get("fonte"), v.get("riferimento"),
-                     int(any(m.startswith("risolto a mano") for m in v.get("motivi", []))))).lastrowid
+        revisionata = int(any(m.startswith("risolto a mano") for m in v.get("motivi", [])))
+        voce_id = db.execute(
+            """INSERT INTO voce (comune_id, slug, nome, nome_originale, codice_materiale,
+                                 avvertenza, fonte, riferimento, revisione_manuale)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (comuni[v["comune"]], v["slug"], v["nome"], v["nome_originale"],
+             v["codice_materiale"], v["avvertenza"], v.get("fonte"), v.get("riferimento"),
+             revisionata)).lastrowid
         db.executemany("INSERT INTO voce_condizione VALUES (?, ?)",
                        [(voce_id, c) for c in v["condizioni"]])
         db.executemany("INSERT OR IGNORE INTO voce_alias VALUES (?, ?)",
                        [(voce_id, a) for a in v["alias"]])
         db.executemany("INSERT OR IGNORE INTO voce_destinazione VALUES (?, ?, ?)",
-                       [(voce_id, dest_id[(v["comune"], d)], i) for i, d in enumerate(v["destinazioni"])])
+                       [(voce_id, dest_id[(v["comune"], d)], i)
+                        for i, d in enumerate(v["destinazioni"])])
 
-    for r in regole:
-        q("""INSERT INTO regola (destinazione_id, polarita, testo, dettaglio, origine, fonte, riferimento)
-             VALUES (?, ?, ?, ?, ?, ?, ?)""",
-          (dest_id[(r["comune"], r["destinazione"])], r["polarita"], r["testo"], r["dettaglio"],
-           r["origine"], r["fonte"], r["riferimento"]))
 
-    for comune, per_slug in decisioni.items():
-        for slug, lista in per_slug.items():
-            for d in lista:
-                q("INSERT INTO decisione_revisione (comune_id, slug, azione, valore, nota) "
-                  "VALUES (?, ?, ?, ?, ?)", (comuni[comune], slug, d["azione"], d["valore"], d["nota"]))
+def _inserisci_regole(db: sqlite3.Connection, regole: list[dict],
+                      dest_id: dict[tuple[str, str], int]) -> None:
+    db.executemany(
+        """INSERT INTO regola (destinazione_id, polarita, testo, dettaglio, origine, fonte,
+                               riferimento)
+           VALUES (?, ?, ?, ?, ?, ?, ?)""",
+        [(dest_id[(r["comune"], r["destinazione"])], r["polarita"], r["testo"], r["dettaglio"],
+          r["origine"], r["fonte"], r["riferimento"]) for r in regole])
+
+
+def _inserisci_decisioni(db: sqlite3.Connection, decisioni: dict[str, dict[str, list[dict]]],
+                         comuni: dict[str, int]) -> int:
+    righe = [(comuni[comune], slug, d["azione"], d["valore"], d["nota"])
+             for comune, per_slug in decisioni.items()
+             for slug, lista in per_slug.items() for d in lista]
+    db.executemany("INSERT INTO decisione_revisione (comune_id, slug, azione, valore, nota) "
+                   "VALUES (?, ?, ?, ?, ?)", righe)
+    return len(righe)
+
+
+def carica(db: sqlite3.Connection, destinazioni: list[dict], voci: list[dict],
+           regole: list[dict], decisioni: dict[str, dict[str, list[dict]]]) -> dict[str, int]:
+    """Costruisce il database dal livello normalizzato, tabella per tabella.
+
+    L'ordine non è arbitrario: comuni, poi destinazioni (che li referenziano), poi voci e
+    regole (che referenziano le destinazioni). Le decisioni di revisione si conservano
+    perché il database dica anche cosa è stato deciso a mano, non solo il risultato.
+    """
+    db.executescript(SCHEMA_SQL.read_text(encoding="utf-8"))
+
+    comuni = _inserisci_comuni(db, voci)
+    presenti = {v["comune"] for v in voci}
+    dest_id = _inserisci_destinazioni(
+        db, [d for d in destinazioni if d["comune"] in presenti], comuni)
+    _inserisci_voci(db, voci, comuni, dest_id)
+    _inserisci_regole(db, regole, dest_id)
+    quante_decisioni = _inserisci_decisioni(db, decisioni, comuni)
 
     db.commit()
-    return {"comuni": len(comuni), "destinazioni": len({v for v in dest_id.values()}),
-            "voci": len(voci), "regole": len(regole),
-            "decisioni": sum(len(l) for p in decisioni.values() for l in p.values())}
+    return {"comuni": len(comuni), "destinazioni": len(set(dest_id.values())),
+            "voci": len(voci), "regole": len(regole), "decisioni": quante_decisioni}
 
 
 def registra_caricamento(db: sqlite3.Connection, sorgenti: dict[str, int]) -> None:
-    adesso = datetime.now(timezone.utc).isoformat()
+    adesso = datetime.now(UTC).isoformat()
     db.executemany("INSERT INTO caricamento VALUES (?, ?, ?, ?)",
                    [(adesso, VERSIONE_CARICAMENTO, nome, righe) for nome, righe in sorgenti.items()])
     db.commit()

@@ -14,7 +14,6 @@ from dataclasses import asdict
 from pathlib import Path
 
 import csv
-from collections import Counter
 
 from ecoscan.etl.napoli_qualita import slugify_wp
 
