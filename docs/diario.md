@@ -153,6 +153,8 @@ Formato: decisione, motivazione, stato.
 | D142 | Ruff configurato nel `pyproject.toml` ed eseguito come test (`test_lint.py`), saltato se ruff non è installato | Import morti e parametri inutilizzati si accumulano in silenzio. Un test che li trova a ogni `pytest` costa un secondo; ricordarsene ogni tanto non funziona | Accettata |
 | D143 | Le rotte dell'API si registrano per area (stato, agente, ricerca, riscontro), e i passaggi dell'agente stanno in metodi separati (`_recupera`, `_scegli`, `_prova_livello`, `_cascata`, `_componi`) | `crea_app` era una funzione di 112 righe in cui ogni rotta nuova allungava la stessa closure; `rispondi` teneva insieme soglia, cascata e composizione. Le unità piccole si leggono e si provano da sole | Accettata |
 | D144 | I passaggi che lavorano sullo stesso oggetto lo ricevono come dato: `Richiesta` nell'agente, `Estratti` nel Transform | Erano firme da sei e sette parametri, in cui l'ordine contava più del significato e ogni aggiunta li allungava | Accettata |
+| D145 | Il recupero è un'**interfaccia** (`Recupero`) con un'implementazione (`RecuperoQdrant`): l'agente riceve un recupero, non Qdrant e il vettorizzatore | L'agente dichiara cosa gli serve — candidati per comune e livello — e non sa da dove arrivino. Una ricerca ibrida diventa un'implementazione in più invece di una modifica all'agente, e i test possono usare un recupero in memoria senza Qdrant | Accettata |
+| D146 | Nella configurazione tracciata `modello_embedding` diventa `recupero` (per esempio `qdrant:embeddinggemma`) | Il parametro che conta non è il modello di embedding ma la strategia di ricerca nel suo insieme: quando ce ne sarà più d'una, la traccia dovrà dire quale era in uso | Accettata |
 | D116 | Il tracciamento su MLflow **non è mai bloccante** e fallisce in fretta (tre secondi, un solo tentativo) | Serve a capire come va il sistema, non a farlo funzionare. Senza i limiti sui tentativi il client riprova per minuti e la risposta all'utente resta appesa | Accettata |
 | D117 | Delle foto si registra solo l'**impronta**, mai l'immagine | Due richieste sulla stessa foto si riconoscono, ma l'immagine non lascia il computer di chi l'ha scattata: è coerente con un progetto che gira in locale | Superata da D124, per decisione di Stef |
 | D118 | I prompt restano file in git; il registro di MLflow li **collega alle run** che li hanno usati | La verità e il diff stanno in git; MLflow serve a sapere quale versione ha prodotto un certo risultato | Superata da D126: il registro collega i prompt alle tracce, non più alle run |
@@ -291,6 +293,18 @@ Cose imparate che non sono decisioni, ma che conviene ricordare.
 ---
 
 ## Cronologia
+
+### v0.36.0 — 17/09/2026
+
+**Architettura.** Il recupero diventa un oggetto con un'interfaccia (D145). `Recupero` è un `Protocol` con un nome e un metodo `candidati(domande, comune, livello, k)`; `RecuperoQdrant` è l'unica implementazione di oggi, con la ricerca semantica e l'aggancio esatto dei codici materiale divisi in due metodi privati.
+
+**Cambia la firma dell'agente**, per la prima volta da quando esiste: `Agente(recupero, modello, k=..., tracciatore=...)` invece di `Agente(qdrant, vettorizzatore, modello, ...)`. L'agente non importa più nulla da Qdrant. `Risorse` costruisce il recupero e lo passa sia all'agente sia alla rotta `/cerca`.
+
+**Nelle tracce** il parametro `modello_embedding` diventa `recupero` (D146), quindi la prima risposta dopo l'aggiornamento crea un LoggedModel nuovo: è corretto, la configurazione è cambiata davvero.
+
+**Nessuna ricerca ibrida**, per scelta: questo giro prepara il posto dove metterla, non la mette.
+
+**Test.** 366 (erano 364): l'agente che risponde con un recupero in memoria, senza Qdrant né embedding, e la configurazione che dichiara quale ricerca era in uso.
 
 ### v0.35.0 — 17/09/2026
 

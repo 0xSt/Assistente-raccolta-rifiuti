@@ -16,6 +16,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from ecoscan.agente.agente import Agente
+from ecoscan.agente.recupero import Recupero, RecuperoQdrant
 from ecoscan.agente.modelli import ModelloOllama, ModelloVisione
 from ecoscan.db.vettorizza import COLLEZIONE, DB, VettorizzatoreOllama, apri_qdrant
 from ecoscan.osservabilita.tracciamento import Tracciatore
@@ -33,6 +34,7 @@ class Risorse:
     db: sqlite3.Connection
     qdrant: object
     vettorizzatore: object
+    recupero: Recupero
     modello: ModelloVisione
     agente: Agente
 
@@ -42,8 +44,9 @@ class Risorse:
         qdrant = apri_qdrant()
         vettorizzatore = VettorizzatoreOllama()
         modello = ModelloOllama()
-        return cls(db, qdrant, vettorizzatore, modello,
-                   Agente(qdrant, vettorizzatore, modello, k=k, tracciatore=Tracciatore()))
+        recupero = RecuperoQdrant(qdrant, vettorizzatore)
+        return cls(db, qdrant, vettorizzatore, recupero, modello,
+                   Agente(recupero, modello, k=k, tracciatore=Tracciatore()))
 
     def chiudi(self) -> None:
         self.db.close()

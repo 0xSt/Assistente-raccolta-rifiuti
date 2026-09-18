@@ -19,8 +19,8 @@ from tests.conftest import ModelloFinto
 @pytest.fixture
 def risorse(ambiente):
     modello = ModelloFinto()
-    yield Risorse(ambiente.db, ambiente.qdrant, ambiente.vettorizzatore, modello,
-                  Agente(ambiente.qdrant, ambiente.vettorizzatore, modello))
+    yield Risorse(ambiente.db, ambiente.qdrant, ambiente.vettorizzatore, ambiente.recupero,
+                  modello, Agente(ambiente.recupero, modello))
 
 
 @pytest.fixture

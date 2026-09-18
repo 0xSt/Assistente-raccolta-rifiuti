@@ -11,6 +11,7 @@ from dataclasses import dataclass
 import numpy as np
 import pytest
 
+from ecoscan.agente.recupero import RecuperoQdrant
 from ecoscan.agente.tipi import Riconoscimento, Scelta
 from ecoscan.db.carica import carica
 from ecoscan.db.documenti import costruisci
@@ -142,6 +143,7 @@ class Ambiente:
     db: sqlite3.Connection
     qdrant: object
     vettorizzatore: VettorizzatoreFinto
+    recupero: RecuperoQdrant
     documenti: list
 
 
@@ -164,5 +166,5 @@ def ambiente(db, tmp_path):
     qdrant = apri_qdrant(str(tmp_path / "qdrant"))
     vettorizzatore = VettorizzatoreFinto()
     indicizza(qdrant, documenti, vettorizzatore, avanzamento=lambda *_: None)
-    yield Ambiente(db, qdrant, vettorizzatore, documenti)
+    yield Ambiente(db, qdrant, vettorizzatore, RecuperoQdrant(qdrant, vettorizzatore), documenti)
     qdrant.close()

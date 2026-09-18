@@ -22,6 +22,7 @@ from pathlib import Path
 
 from ecoscan import configurazione as conf
 from ecoscan.agente.agente import Agente
+from ecoscan.agente.recupero import RecuperoQdrant
 from ecoscan.agente.modelli import ModelloOllama
 from ecoscan.agente.tipi import Riconoscimento, Risposta
 from ecoscan.db.vettorizza import DB, VettorizzatoreOllama, apri_qdrant
@@ -188,7 +189,8 @@ def prova_risposta(modello: ModelloOllama, args: argparse.Namespace) -> None:
         if args.comune not in comuni:
             raise SystemExit(f"comune sconosciuto: {args.comune}. Caricati: {', '.join(comuni)}")
 
-        agente = Agente(apri_qdrant(), VettorizzatoreOllama(), modello, k=args.k)
+        recupero = RecuperoQdrant(apri_qdrant(), VettorizzatoreOllama())
+        agente = Agente(recupero, modello, k=args.k)
         riconoscimento = _riconosci(modello, args)
         stampa_riconoscimento(riconoscimento, args.testo)
 

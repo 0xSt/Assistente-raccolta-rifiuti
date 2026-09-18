@@ -25,7 +25,6 @@ from collections.abc import Callable
 
 from fastapi import Depends, FastAPI, File, Form, HTTPException, UploadFile
 
-from ecoscan.agente.recupero import candidati as recupera
 from ecoscan.api.risorse import Risorse
 from ecoscan.api.schemi import (
     CandidatoUscita, Comune, Continuazione, Correzione, Destinazione, Ricerca, Riscontro,
@@ -125,8 +124,8 @@ def rotte_ricerca(app: FastAPI, dip: Dipendenze) -> None:
         dip.controlla_comune(r, dati.comune)
         livelli = [dati.livello] if dati.livello else [1, 2]
         trovati = [c for livello in livelli
-                   for c in recupera(r.qdrant, r.vettorizzatore, [dati.domanda], dati.comune,
-                                     livello=livello, k=dati.k)]
+                   for c in r.recupero.candidati([dati.domanda], dati.comune, livello=livello,
+                                                 k=dati.k)]
         return [CandidatoUscita.da(c) for c in trovati]
 
 

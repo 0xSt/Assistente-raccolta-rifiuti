@@ -7,13 +7,13 @@ import pytest
 
 from ecoscan import condizioni
 from ecoscan.agente.agente import Agente, domande
-from ecoscan.agente.recupero import candidati, menzionata, scegli_variante
+from ecoscan.agente.recupero import menzionata, scegli_variante
 from ecoscan.agente.tipi import Candidato, Riconoscimento, Scelta, Variante
 from tests.conftest import ModelloFinto, SceglieIlDocumento
 
 
 def crea_agente(ambiente, modello):
-    return Agente(ambiente.qdrant, ambiente.vettorizzatore, modello)
+    return Agente(ambiente.recupero, modello)
 
 
 # ------------------------------------------------------------------ domande
@@ -41,7 +41,7 @@ def test_le_formulazioni_includono_sinonimi_e_categoria():
 
 def test_i_candidati_arrivano_dal_payload_del_documento(ambiente):
     """Nessuna lettura aggiuntiva dal relazionale: tutto ciò che serve è nel payload."""
-    trovati = candidati(ambiente.qdrant, ambiente.vettorizzatore,
+    trovati = ambiente.recupero.candidati(
                         ["Bottiglia di plastica"], "Torino", livello=1)
     bottiglia = next(c for c in trovati if c.nome == "Bottiglia di plastica")
     assert bottiglia.destinazioni == ["imballaggi_plastica"]
@@ -49,7 +49,7 @@ def test_i_candidati_arrivano_dal_payload_del_documento(ambiente):
 
 
 def test_un_documento_per_oggetto_porta_tutte_le_varianti(ambiente):
-    trovati = candidati(ambiente.qdrant, ambiente.vettorizzatore,
+    trovati = ambiente.recupero.candidati(
                         ["Cartone da pizza"], "Torino", livello=1)
     pizza = next(c for c in trovati if c.nome == "Cartone da pizza")
     assert {v.condizione for v in pizza.varianti} == {"pulito", "sporco"}
@@ -57,19 +57,19 @@ def test_un_documento_per_oggetto_porta_tutte_le_varianti(ambiente):
 
 
 def test_i_livelli_non_si_mescolano(ambiente):
-    oggetti = candidati(ambiente.qdrant, ambiente.vettorizzatore, ["carta"], "Torino", livello=1)
-    regole = candidati(ambiente.qdrant, ambiente.vettorizzatore, ["carta"], "Torino", livello=2)
+    oggetti = ambiente.recupero.candidati( ["carta"], "Torino", livello=1)
+    regole = ambiente.recupero.candidati( ["carta"], "Torino", livello=2)
     assert all(c.livello == 1 for c in oggetti) and all(c.livello == 2 for c in regole)
 
 
 def test_i_candidati_non_si_ripetono(ambiente):
-    trovati = candidati(ambiente.qdrant, ambiente.vettorizzatore,
+    trovati = ambiente.recupero.candidati(
                         ["giornali", "giornali e riviste", "quotidiani"], "Torino", livello=1)
     assert len({c.id for c in trovati}) == len(trovati)
 
 
 def test_il_codice_materiale_entra_fra_i_candidati(ambiente):
-    trovati = candidati(ambiente.qdrant, ambiente.vettorizzatore,
+    trovati = ambiente.recupero.candidati(
                         ["cosa vuol dire PAP 21"], "Torino", livello=1)
     assert any(c.nome == "Simbolo PAP" for c in trovati)
 
@@ -209,7 +209,7 @@ def test_il_contesto_permette_di_continuare_senza_rileggere_la_foto(ambiente):
 
 def test_i_candidati_sono_ordinati_per_somiglianza(ambiente):
     """L'ordine è un'informazione: il modello legge un elenco."""
-    trovati = candidati(ambiente.qdrant, ambiente.vettorizzatore,
+    trovati = ambiente.recupero.candidati(
                         ["cartone da pizza", "carta"], "Torino", livello=1)
     punteggi = [c.punteggio for c in trovati]
     assert punteggi == sorted(punteggi, reverse=True)
@@ -304,3 +304,37 @@ def test_il_chiarimento_sulle_quantita_chiede_quanto_ne_hai(ambiente):
     _, da_chiarire = scegli_variante(candidato, [None, None])
     assert da_chiarire == ["piccole quantità", "grandi quantità"]
     assert "quanto ne hai" in condizioni.domanda(da_chiarire)
+
+
+def test_l_agente_funziona_con_un_recupero_qualunque():
+    """La prova che il recupero è davvero un'interfaccia: nessun Qdrant, nessun embedding,
+    e l'agente non se ne accorge. È anche ciò che permetterà di aggiungere una ricerca
+    diversa senza toccare l'agente."""
+    class RecuperoDiProva:
+        nome = "elenco in memoria"
+
+        def __init__(self, per_livello):
+            self.per_livello = per_livello
+            self.chiamate = []
+
+        def candidati(self, domande, comune, livello, k=8):
+            self.chiamate.append((tuple(domande), comune, livello, k))
+            return list(self.per_livello.get(livello, []))
+
+    documento = Candidato(id="x", livello=1, testo="Bottiglia di plastica.",
+                          nome="Bottiglia di plastica",
+                          varianti=[Variante(destinazioni=["imballaggi_plastica"])])
+    recupero = RecuperoDiProva({1: [documento]})
+    modello = SceglieIlDocumento("bottiglia",
+                                 Riconoscimento(oggetto="bottiglia", confidenza=0.9))
+
+    risposta = Agente(recupero, modello, k=3).analizza(b"foto", "Torino")
+
+    assert risposta.destinazioni == ["imballaggi_plastica"] and risposta.scelto_id == "x"
+    assert recupero.chiamate[0][1:] == ("Torino", 1, 3), "comune, livello e k arrivano"
+
+
+def test_il_recupero_si_dichiara_nella_configurazione(ambiente):
+    """Le tracce devono dire con quale ricerca è stata prodotta una risposta."""
+    agente = crea_agente(ambiente, ModelloFinto())
+    assert agente.configurazione()["recupero"] == ambiente.recupero.nome

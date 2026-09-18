@@ -101,16 +101,17 @@ def test_il_documento_del_retrieval_ha_testo_e_metadati():
 
 
 def test_l_agente_include_i_prompt_nella_configurazione(ambiente):
-    agente = Agente(ambiente.qdrant, ambiente.vettorizzatore, bottiglia())
+    agente = Agente(ambiente.recupero, bottiglia())
     configurazione = agente.configurazione()
     assert configurazione["prompt_scelta"] == prompt_.carica("scelta").etichetta
-    assert {"modello_visione", "modello_embedding", "k", "confidenza_minima"} <= set(configurazione)
+    assert {"modello_visione", "recupero", "k", "confidenza_minima"} <= set(configurazione)
+    assert configurazione["recupero"].startswith("qdrant:"), "la traccia dice quale ricerca era in uso"
 
 
 # ---------------------------------------------------------------------- senza MLflow
 
 def test_senza_tracciatore_l_agente_funziona_uguale(ambiente):
-    agente = Agente(ambiente.qdrant, ambiente.vettorizzatore, bottiglia())
+    agente = Agente(ambiente.recupero, bottiglia())
     assert isinstance(agente.tracciatore, TracciatoreNullo)
     risposta = agente.analizza(JPEG, "Torino")
     assert risposta.livello_evidenza in (1, 2, 3)
@@ -118,7 +119,7 @@ def test_senza_tracciatore_l_agente_funziona_uguale(ambiente):
 
 
 def test_si_puo_spegnere(ambiente, archivio):
-    agente = Agente(ambiente.qdrant, ambiente.vettorizzatore, bottiglia(),
+    agente = Agente(ambiente.recupero, bottiglia(),
                     tracciatore=tracciatore(archivio, attivo=False))
     agente.analizza(JPEG, "Torino")
     assert tracce() == []
@@ -126,7 +127,7 @@ def test_si_puo_spegnere(ambiente, archivio):
 
 def test_mlflow_spento_non_ferma_la_risposta(ambiente, caplog):
     """Il server non risponde: la risposta arriva, in fretta, con un solo avviso."""
-    agente = Agente(ambiente.qdrant, ambiente.vettorizzatore, bottiglia(),
+    agente = Agente(ambiente.recupero, bottiglia(),
                     tracciatore=Tracciatore(indirizzo="http://127.0.0.1:1", esperimento="prova"))
     inizio = time.monotonic()
     with caplog.at_level(logging.WARNING):
@@ -154,7 +155,7 @@ def test_un_errore_dell_agente_non_viene_nascosto(ambiente, archivio):
         def riconosci(self, immagine, testo_utente=None):
             raise RuntimeError("Ollama spento")
 
-    agente = Agente(ambiente.qdrant, ambiente.vettorizzatore,
+    agente = Agente(ambiente.recupero,
                     ModelloRotto("x", Riconoscimento(oggetto="x")),
                     tracciatore=tracciatore(archivio))
     with pytest.raises(RuntimeError, match="Ollama spento"):
@@ -171,7 +172,7 @@ def test_span_nullo_fuori_dal_turno(archivio):
 # ---------------------------------------------------------------------- cosa si registra
 
 def test_un_turno_registra_input_output_e_foto(ambiente, archivio):
-    agente = Agente(ambiente.qdrant, ambiente.vettorizzatore, bottiglia(),
+    agente = Agente(ambiente.recupero, bottiglia(),
                     tracciatore=tracciatore(archivio))
     risposta = agente.analizza(JPEG, "Torino", testo_utente="è vuota")
 
@@ -199,7 +200,7 @@ def test_un_turno_registra_input_output_e_foto(ambiente, archivio):
 
 
 def test_il_retrieval_registra_domande_e_documenti(ambiente, archivio):
-    agente = Agente(ambiente.qdrant, ambiente.vettorizzatore, bottiglia(),
+    agente = Agente(ambiente.recupero, bottiglia(),
                     tracciatore=tracciatore(archivio))
     risposta = agente.analizza(JPEG, "Torino")
 
@@ -212,7 +213,7 @@ def test_il_retrieval_registra_domande_e_documenti(ambiente, archivio):
 
 
 def test_senza_salvataggio_delle_foto_resta_l_impronta(ambiente, archivio):
-    agente = Agente(ambiente.qdrant, ambiente.vettorizzatore, bottiglia(),
+    agente = Agente(ambiente.recupero, bottiglia(),
                     tracciatore=tracciatore(archivio, salva_foto=False))
     agente.analizza(JPEG, "Torino")
     radice = span(tracce()[0], "analizza")
@@ -220,7 +221,7 @@ def test_senza_salvataggio_delle_foto_resta_l_impronta(ambiente, archivio):
 
 
 def test_i_turni_di_una_conversazione_condividono_la_sessione(ambiente, archivio):
-    agente = Agente(ambiente.qdrant, ambiente.vettorizzatore, pizza(),
+    agente = Agente(ambiente.recupero, pizza(),
                     tracciatore=tracciatore(archivio))
     prima = agente.analizza(JPEG, "Torino")
     assert prima.chiarimento
@@ -237,7 +238,7 @@ def test_i_turni_di_una_conversazione_condividono_la_sessione(ambiente, archivio
 
 def test_un_contesto_senza_conversazione_ne_apre_una_nuova(ambiente, archivio):
     """Un client precedente a questa versione non manda l'identificativo."""
-    agente = Agente(ambiente.qdrant, ambiente.vettorizzatore, pizza(),
+    agente = Agente(ambiente.recupero, pizza(),
                     tracciatore=tracciatore(archivio))
     contesto = dict(agente.analizza(JPEG, "Torino").contesto)
     contesto.pop("id_conversazione")
@@ -245,7 +246,7 @@ def test_un_contesto_senza_conversazione_ne_apre_una_nuova(ambiente, archivio):
 
 
 def test_rispondi_da_solo_non_crea_tracce(ambiente, archivio):
-    agente = Agente(ambiente.qdrant, ambiente.vettorizzatore, bottiglia(),
+    agente = Agente(ambiente.recupero, bottiglia(),
                     tracciatore=tracciatore(archivio))
     agente.analizza(JPEG, "Torino")          # prepara il tracciatore
     agente.rispondi(Riconoscimento(oggetto="bottiglia di plastica", confidenza=0.9), "Torino")
@@ -254,7 +255,7 @@ def test_rispondi_da_solo_non_crea_tracce(ambiente, archivio):
 
 def test_la_traccia_e_collegata_alla_versione_dell_applicazione(ambiente, archivio):
     t = tracciatore(archivio)
-    agente = Agente(ambiente.qdrant, ambiente.vettorizzatore, bottiglia(), tracciatore=t)
+    agente = Agente(ambiente.recupero, bottiglia(), tracciatore=t)
     agente.analizza(JPEG, "Torino")
 
     [traccia] = tracce()
@@ -266,7 +267,7 @@ def test_la_traccia_e_collegata_alla_versione_dell_applicazione(ambiente, archiv
 
     # stessi parametri dopo un riavvio: stesso LoggedModel, non uno nuovo
     di_nuovo = tracciatore(archivio)
-    Agente(ambiente.qdrant, ambiente.vettorizzatore, bottiglia(),
+    Agente(ambiente.recupero, bottiglia(),
            tracciatore=di_nuovo).analizza(JPEG, "Torino")
     assert di_nuovo.id_modello == t.id_modello
 
@@ -279,7 +280,7 @@ def test_i_prompt_pubblicati_sono_collegati_alle_tracce(ambiente, archivio):
     for p in prompt_.tutti():
         assert pubblica(p, archivio)[1] is False, "ripubblicare non crea versioni doppie"
 
-    agente = Agente(ambiente.qdrant, ambiente.vettorizzatore, bottiglia(),
+    agente = Agente(ambiente.recupero, bottiglia(),
                     tracciatore=tracciatore(archivio))
     agente.analizza(JPEG, "Torino")
     collegati = tracce()[0].info.tags.get("mlflow.linkedPrompts", "")
@@ -288,7 +289,7 @@ def test_i_prompt_pubblicati_sono_collegati_alle_tracce(ambiente, archivio):
 
 
 def test_un_prompt_non_pubblicato_non_impedisce_di_tracciare(ambiente, archivio):
-    agente = Agente(ambiente.qdrant, ambiente.vettorizzatore, bottiglia(),
+    agente = Agente(ambiente.recupero, bottiglia(),
                     tracciatore=tracciatore(archivio))
     agente.analizza(JPEG, "Torino")
     [traccia] = tracce()
@@ -299,7 +300,7 @@ def test_un_prompt_non_pubblicato_non_impedisce_di_tracciare(ambiente, archivio)
 def test_anche_la_correzione_e_un_turno_della_conversazione(ambiente, archivio):
     """Correggere l'oggetto è parte della stessa conversazione: va letta insieme agli altri
     turni, non come una richiesta a sé."""
-    agente = Agente(ambiente.qdrant, ambiente.vettorizzatore, bottiglia(),
+    agente = Agente(ambiente.recupero, bottiglia(),
                     tracciatore=tracciatore(archivio))
     prima = agente.analizza(JPEG, "Torino")
     agente.correggi(prima.contesto, "giornali e riviste")

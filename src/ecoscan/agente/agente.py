@@ -25,8 +25,7 @@ from ecoscan import condizioni as condizioni_
 from ecoscan import configurazione as conf
 from ecoscan import prompt as prompt_
 from ecoscan.agente.modelli import ModelloVisione
-from ecoscan.agente.recupero import candidati as recupera
-from ecoscan.agente.recupero import nomina_l_oggetto, scegli_variante
+from ecoscan.agente.recupero import Recupero, nomina_l_oggetto, scegli_variante
 from ecoscan.agente.tipi import TIPI_NON_VALIDI, Candidato, Riconoscimento, Risposta, Scelta
 from ecoscan.osservabilita.tracciamento import (
     LLM, RETRIEVER, TracciatoreNullo, documento, impronta, nuova_conversazione,
@@ -77,9 +76,9 @@ class Richiesta:
 
 
 class Agente:
-    def __init__(self, qdrant, vettorizzatore, modello: ModelloVisione, k: int = 8,
+    def __init__(self, recupero: Recupero, modello: ModelloVisione, k: int = 8,
                  tracciatore=None):
-        self.qdrant, self.vettorizzatore, self.modello, self.k = qdrant, vettorizzatore, modello, k
+        self.recupero, self.modello, self.k = recupero, modello, k
         self.tracciatore = tracciatore or TracciatoreNullo()
         self.tracciatore.configura(self.configurazione())
 
@@ -88,7 +87,7 @@ class Agente:
         versione dell'applicazione a cui ogni traccia viene collegata."""
         return {
             "modello_visione": self.modello.nome,
-            "modello_embedding": getattr(self.vettorizzatore, "nome", ""),
+            "recupero": self.recupero.nome,
             "k": str(self.k),
             "confidenza_minima": str(CONFIDENZA_MINIMA),
             "lato_max_immagine": str(getattr(self.modello, "lato_max", conf.LATO_MAX_IMMAGINE)),
@@ -105,8 +104,8 @@ class Agente:
         with self.tracciatore.span(f"recupero_livello{livello}", RETRIEVER,
                                    {"domande": poste, "comune": richiesta.comune,
                                     "livello": livello, "k": self.k}) as span:
-            trovati = recupera(self.qdrant, self.vettorizzatore, poste, richiesta.comune,
-                               livello=livello, k=self.k)
+            trovati = self.recupero.candidati(poste, richiesta.comune, livello=livello,
+                                              k=self.k)
             span.uscita([documento(c) for c in trovati])
         return trovati
 

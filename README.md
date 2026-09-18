@@ -4,7 +4,7 @@ Assistente per la raccolta differenziata che gira interamente in locale. L'utent
 
 Progetto universitario. Comuni del prototipo: **Napoli** (ASIA) e **Torino** (AMIAT).
 
-## Stato attuale (v0.35.0)
+## Stato attuale (v0.36.0)
 
 Il quadro completo è in [docs/diario.md](docs/diario.md).
 
@@ -146,7 +146,7 @@ Qdrant sta in modalità `server` o `in-process`.
 | `etl/normalizza_regole.py` | Collega le regole di categoria alle destinazioni dei comuni |
 | `agente/tipi.py` | Riconoscimento, candidato, scelta, risposta |
 | `agente/modelli.py` | Modello di visione: interfaccia e implementazione Ollama |
-| `agente/recupero.py` | Candidati per livello di evidenza, arricchiti dal relazionale |
+| `agente/recupero.py` | L'interfaccia `Recupero` e `RecuperoQdrant`: candidati per livello di evidenza; scelta della variante |
 | `condizioni.py` | Natura di una condizione (stato, quantità, utenza): come si scrive e che domanda fa |
 | `agente/agente.py` | Orchestrazione: riconoscimento → cascata → scelta → risposta |
 | `agente/prova.py` | Comando per provare l'agente su una foto, con i tempi per fase |

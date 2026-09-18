@@ -1,5 +1,11 @@
 """Dai documenti ai candidati, e dalla condizione dichiarata alla variante giusta.
 
+Il recupero è un **oggetto con un'interfaccia** (`Recupero`), non una funzione legata a
+Qdrant: l'agente dichiara cosa gli serve — dei candidati, dato un elenco di domande, un
+comune e un livello — e non sa da dove arrivino. Oggi l'unica implementazione è
+`RecuperoQdrant`; una ricerca ibrida, o un doppio finto nei test, si aggiungono come
+implementazioni alternative senza toccare l'agente.
+
 La ricerca restituisce **documenti**: un oggetto con tutte le sue varianti, oppure una
 regola di categoria. Il modello sceglie l'oggetto, che è il compito in cui è bravo; la
 variante la sceglie il codice in base a ciò che l'utente ha detto, o la si chiede.
@@ -10,6 +16,8 @@ avvertenza, fonte. Non c'è più nessuna lettura aggiuntiva dal relazionale.
 from __future__ import annotations
 
 import re
+from dataclasses import dataclass
+from typing import Protocol
 
 from ecoscan.agente.tipi import Candidato, Riconoscimento, Variante
 from ecoscan.db.vettorizza import cerca, cerca_per_codice
@@ -63,28 +71,64 @@ def menzionata(condizione: str, noto: str) -> bool:
     return False
 
 
-def candidati(qdrant, vettorizzatore, domande: list[str], comune: str, livello: int,
-              k: int = 8) -> list[Candidato]:
-    """Una ricerca per ogni domanda, i risultati uniti senza duplicati.
+class Recupero(Protocol):
+    """Da cosa cerchiamo a cosa abbiamo trovato.
 
-    Nessuna fusione da tarare: i documenti già trovati non si ripetono, gli altri si
-    accodano. Con documenti per oggetto bastano poche domande.
+    È tutto ciò che l'agente pretende dal recupero: un nome con cui dire nelle tracce quale
+    strategia era in uso, e dei candidati per un comune e un livello di evidenza.
     """
-    trovati: dict[str, Candidato] = {}
-    for domanda in (d for d in domande if d and d.strip()):
-        for payload in cerca_per_codice(qdrant, domanda, comune, k=2):
+
+    @property
+    def nome(self) -> str: ...
+
+    def candidati(self, domande: list[str], comune: str, livello: int,
+                  k: int = 8) -> list[Candidato]: ...
+
+
+@dataclass
+class RecuperoQdrant:
+    """Ricerca semantica su Qdrant, con aggancio esatto dei codici materiale.
+
+    Una ricerca per ogni domanda, i risultati uniti senza duplicati: nessuna fusione da
+    tarare, i documenti già trovati non si ripetono e gli altri si accodano. Con documenti
+    per oggetto bastano poche domande.
+    """
+
+    qdrant: object
+    vettorizzatore: object
+
+    @property
+    def nome(self) -> str:
+        return f"qdrant:{getattr(self.vettorizzatore, 'nome', '?')}"
+
+    def candidati(self, domande: list[str], comune: str, livello: int,
+                  k: int = 8) -> list[Candidato]:
+        trovati: dict[str, Candidato] = {}
+        for domanda in (d for d in domande if d and d.strip()):
+            self._aggancia_codici(trovati, domanda, comune, livello)
+            self._cerca_per_somiglianza(trovati, domanda, comune, livello, k)
+        # ordinati per somiglianza: il modello legge un elenco, e l'ordine è un'informazione
+        ordinati = sorted(trovati.values(), key=lambda c: (c.per_codice is None, -c.punteggio))
+        return ordinati[:k + 4]
+
+    def _aggancia_codici(self, trovati: dict[str, Candidato], domanda: str, comune: str,
+                         livello: int) -> None:
+        """Un codice materiale scritto sull'oggetto ("PAP 21") è una corrispondenza esatta:
+        vale più di qualunque somiglianza, e precede i risultati semantici."""
+        for payload in cerca_per_codice(self.qdrant, domanda, comune, k=2):
             if payload.get("livello") == livello:
                 trovati.setdefault(payload["id"], Candidato.da_payload(payload))
-        for payload in cerca(qdrant, domanda, comune, vettorizzatore, livello=livello, k=k):
+
+    def _cerca_per_somiglianza(self, trovati: dict[str, Candidato], domanda: str, comune: str,
+                               livello: int, k: int) -> None:
+        for payload in cerca(self.qdrant, domanda, comune, self.vettorizzatore,
+                             livello=livello, k=k):
             esistente = trovati.get(payload["id"])
             if esistente is None:
                 trovati[payload["id"]] = Candidato.da_payload(payload)
             else:
                 # lo stesso documento trovato da più domande: vale il punteggio migliore
                 esistente.punteggio = max(esistente.punteggio, payload.get("punteggio", 0.0))
-    # ordinati per somiglianza: il modello legge un elenco, e l'ordine è un'informazione
-    ordinati = sorted(trovati.values(), key=lambda c: (c.per_codice is None, -c.punteggio))
-    return ordinati[:k + 4]
 
 
 def nomina_l_oggetto(candidato: Candidato, riconoscimento: Riconoscimento,

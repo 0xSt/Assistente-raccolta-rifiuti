@@ -243,6 +243,10 @@ l'ambiente da `uv.lock`, `uv run` esegue un comando dentro quell'ambiente.
 **Profilo** — In questo progetto, l'insieme delle regole di Transform specifiche di un
 comune. Il motore è unico, i profili cambiano.
 
+**Recupero** — L'interfaccia da cui l'agente prende i candidati: date delle domande, un
+comune e un livello di evidenza, restituisce documenti. Oggi l'unica implementazione cerca
+su Qdrant.
+
 **Clausola di ammissibilità** — Un requisito perché una destinazione valga ("solo se
 compostabile certificato"), diverso da una condizione: non apre un ramo alternativo, avverte
 su quello scelto. Nei dati sta ancora fra le condizioni.
