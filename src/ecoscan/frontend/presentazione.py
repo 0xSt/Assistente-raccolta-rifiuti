@@ -108,11 +108,15 @@ def corpo(risposta: dict, etichette: dict[str, str] | None = None) -> str:
     if avvertenza := risposta.get("avvertenza"):
         righe.append(f"⚠️ {avvertenza}")
 
+    if passi := procedure(risposta):
+        righe.append(passi)
+
     livello = risposta.get("livello_evidenza", 3)
     righe.append(spiegazione_livello(risposta))
 
     if livello == 3:
-        righe.append("Puoi controllare sul sito del comune o portarlo a un centro di raccolta.")
+        righe.append(ripiego(risposta)
+                     or "Puoi controllare sul sito del comune o portarlo a un centro di raccolta.")
     if risposta.get("contraddizione"):
         righe.append("Attenzione: la fonte del comune indica destinazioni diverse per lo "
                      "stesso caso.")
@@ -120,6 +124,50 @@ def corpo(risposta: dict, etichette: dict[str, str] | None = None) -> str:
         righe.append(f"**{chiarimento}**")
 
     return "\n\n".join(r for r in righe if r)
+
+
+def procedure(risposta: dict) -> str:
+    """Come si conferisce, quando non basta un sacco.
+
+    Per la raccolta ordinaria non si scrive niente: tutti sanno cos'è un cassonetto, e una
+    procedura lì trasformerebbe ogni risposta in un elenco puntato. Il backend la toglie già
+    quando ci sono altri canali; qui si presenta ciò che resta.
+
+    **Quando i canali sono più d'uno** (115 voci a Napoli) diventano alternative numerate e
+    ordinate per sforzo: chi legge trova per prima quella che può fare da casa, e solo dopo
+    quella che gli chiede di prendere la macchina. L'ordine è il messaggio.
+    """
+    elenco = risposta.get("procedure") or []
+    if not elenco:
+        return ""
+    pezzi = []
+    if len(elenco) > 1:
+        pezzi.append("**Puoi fare in due modi:**" if len(elenco) == 2
+                     else f"**Puoi fare in {len(elenco)} modi:**")
+    for numero, procedura in enumerate(elenco, start=1):
+        capo = procedura.get("titolo") or procedura.get("canale", "")
+        if len(elenco) > 1:
+            capo = f"{numero}. {capo}" + ("  ·  *il più comodo*" if numero == 1 else "")
+        pezzi.append(f"**{capo}**" if len(elenco) == 1 else capo)
+        pezzi.extend(f"   - {passo}" for passo in procedura.get("passi") or [])
+        if nota := procedura.get("nota"):
+            pezzi.append(f"   ℹ️ {nota}")
+    return "\n".join(pezzi)
+
+
+def ripiego(risposta: dict) -> str:
+    """Al livello 3: il comune non dice nulla, ma l'oggetto va comunque buttato.
+
+    Non è indovinare la destinazione — quello resterebbe scorretto. È dire **dove si
+    chiede**: il centro di raccolta accetta le tipologie che il dizionario non elenca.
+    """
+    procedura = risposta.get("ripiego")
+    if not procedura:
+        return ""
+    passi = "\n".join(f"   - {p}" for p in procedura.get("passi") or [])
+    return "\n".join(filter(None, [
+        "Puoi comunque portarlo dove si accettano le tipologie che il dizionario non elenca.",
+        f"**{procedura.get('titolo') or 'Centro di raccolta'}**", passi]))
 
 
 def documento_scelto(risposta: dict) -> dict | None:

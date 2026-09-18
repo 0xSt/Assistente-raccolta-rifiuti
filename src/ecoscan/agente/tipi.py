@@ -21,10 +21,20 @@ class Riconoscimento:
     confidenza: float = 0.0
     note: str | None = None
 
+    MATERIALI_NELLA_QUERY = 2
+
     @property
     def query(self) -> str:
-        """Formulazione estesa: oggetto, materiali e stato insieme."""
-        return " ".join(filter(None, [self.oggetto, *self.materiali, self.stato])).strip()
+        """Formulazione estesa: oggetto, materiali e stato insieme.
+
+        I materiali si fermano a due. Il modello di visione ne elenca volentieri quattro
+        ("acciaio inossidabile, vetro, plastica, metallo" per un microonde) e una domanda
+        così lunga parla più di *di cosa è fatto* che di *cos'è*: l'oggetto diventa una
+        parola su cinque e la ricerca si sposta sui materiali. Due bastano a dare il
+        contesto senza annegarlo.
+        """
+        materiali = self.materiali[:self.MATERIALI_NELLA_QUERY]
+        return " ".join(filter(None, [self.oggetto, *materiali, self.stato])).strip()
 
     @property
     def query_oggetto(self) -> str:
@@ -36,39 +46,65 @@ class Riconoscimento:
         """
         return " ".join(filter(None, [self.oggetto, self.stato])).strip()
 
-    def formulazioni(self, massimo: int = 5) -> list[str]:
-        """Le domande da porre all'indice, dalla più specifica alla più generica.
+    def formulazioni(self, massimo: int = 7) -> list[str]:
+        """Le domande da porre all'indice.
 
-        I sinonimi sono il ponte fra il vocabolario del modello e quello della fonte: il
-        modello dice "sandalo", il dizionario di ASIA scrive "Scarpe". Senza sinonimi la
-        ricerca semantica su una parola sola restituisce parole che le somigliano soltanto
-        nella forma ("Salse", "Sdraio", "Scaldabagno").
+        Sono divise in due gruppi, e la divisione è il punto: le **essenziali** entrano
+        sempre, le **aggiuntive** riempiono i posti che restano. Un elenco unico ordinato
+        per specificità sembrava ragionevole e si è rotto due volte allo stesso modo — una
+        domanda che serviva stava in fondo e il tetto la tagliava proprio nei casi in cui
+        serviva:
+
+        - la **forchetta d'acciaio** (v0.37.0): la domanda con il materiale era in coda,
+          e "Stoviglie in metallo" non veniva mai raggiunta da "forchetta" da sola;
+        - il **microonde** (v0.40.2): la domanda con la sola categoria era in coda dopo i
+          sinonimi, e "Elettrodomestici" non usciva mai.
+
+        Le quattro essenziali coprono i quattro modi in cui il dizionario nomina le cose:
+        per oggetto, per oggetto con contesto, per materiale, per categoria. I dizionari
+        comunali contengono voci generiche ("Elettrodomestici", "Stoviglie in metallo") che
+        solo la domanda astratta raggiunge: senza, restano invisibili alla ricerca.
+
+        I sinonimi restano aggiuntivi ma abbondanti: sono il ponte fra il vocabolario del
+        modello e quello della fonte — il modello dice "sandalo", ASIA scrive "Scarpe" — e
+        senza di loro la ricerca su una parola sola restituisce parole che le somigliano
+        soltanto nella forma ("Salse", "Sdraio", "Scaldabagno").
         """
-        domande = [self.query_oggetto]
+        essenziali = [self.query_oggetto]
         if self.categoria:
-            # "sandalo" da solo è una parola ambigua e recupera rumore ("Salse", "Sdraio");
-            # "sandalo calzatura" dà al modello di embedding il contesto che gli manca
-            domande.append(f"{self.oggetto} {self.categoria}")
+            # "sandalo" da solo è ambiguo e recupera rumore ("Salse", "Sdraio"); "sandalo
+            # calzatura" dà al modello di embedding il contesto che gli manca
+            essenziali.append(f"{self.oggetto} {self.categoria}")
+            # la categoria DA SOLA: è l'unica domanda che raggiunge le voci generiche del
+            # dizionario, quelle che non nominano nessun oggetto in particolare
+            essenziali.append(self.categoria)
         if self.materiali:
-            # Con UN materiale, subito dopo l'oggetto: nel dizionario le voci sono scritte
-            # "Stoviglie in metallo", e "forchetta" da sola non le raggiunge. Stava in
-            # fondo all'elenco e il tetto sulle domande la tagliava via proprio nei casi in
-            # cui serviva. Non si mettono tutti i materiali insieme: la domanda lunga
-            # ("forchetta acciaio inox lucido") trascina la ricerca verso ciò che è *fatto
-            # di* quel materiale e l'oggetto sparisce.
-            domande.append(f"{self.oggetto} {self.materiali[0]}")
-        domande.extend(self.sinonimi)
-        if self.categoria:
-            domande.append(self.categoria)
+            # un materiale solo: nel dizionario le voci sono scritte "Stoviglie in metallo",
+            # e "forchetta" da sola non le raggiunge
+            essenziali.append(f"{self.oggetto} {self.materiali[0]}")
+
+        aggiuntive = [*self.sinonimi]
         if self.materiali and self.query != self.query_oggetto:
-            domande.append(self.query)
+            aggiuntive.append(self.query)
+
+        scelte = [*self.pulisci(essenziali)]
+        for domanda in self.pulisci(aggiuntive):
+            if len(scelte) >= massimo:
+                break
+            if domanda.lower() not in {s.lower() for s in scelte}:
+                scelte.append(domanda)
+        return scelte
+
+    @staticmethod
+    def pulisci(domande: list[str]) -> list[str]:
+        """Toglie vuoti e doppioni, conservando l'ordine."""
         viste, uniche = set(), []
         for d in domande:
             chiave = (d or "").strip().lower()
             if chiave and chiave not in viste:
                 viste.add(chiave)
                 uniche.append(d.strip())
-        return uniche[:massimo]
+        return uniche
 
     @property
     def riuscito(self) -> bool:

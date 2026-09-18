@@ -4,7 +4,7 @@ Come è fatto il sistema, come sono legati i file, e perché. È il documento da
 orientarsi; il **[diario](diario.md)** racconta *quando* e *perché* le cose sono cambiate,
 questo dice *com'è adesso*.
 
-Aggiornato alla **v0.40.2**.
+Aggiornato alla **v0.41.0**.
 
 ---
 
@@ -173,6 +173,7 @@ all'interfaccia:
 | `agente/cache.py` | Decoratore di `ModelloVisione`: la stessa foto non si riconosce due volte |
 | `materiali.py` | Famiglie di materiali e quando due si escludono |
 | `condizioni.py` | Natura di una condizione (stato, quantità, utenza): come si scrive, che domanda fa |
+| `procedure.py` | Come si conferisce a ciascun canale, e l'ordine per sforzo delle alternative |
 | `prompt/` | I prompt come file versionati, con versione e impronta sul contenuto |
 
 ### Confine HTTP
@@ -268,7 +269,7 @@ traccia "analizza"                       ← input, output, foto allegata, tag
 
 ## 9. Test
 
-459 test, tutti veloci: i modelli sono finti, Qdrant gira in memoria, nessuna rete.
+489 test, tutti veloci: i modelli sono finti, Qdrant gira in memoria, nessuna rete.
 
 | Gruppo | Cosa presidia |
 |---|---|
