@@ -169,6 +169,8 @@ Formato: decisione, motivazione, stato.
 | D158 | Il riconoscimento si mette in cache in memoria, dietro l'interfaccia `ModelloVisione`, con chiave impronta della foto + testo dell'utente; la **scelta no** | Il riconoscimento è il passaggio lento (minuti su CPU) ed è il più ripetuto, perché la stessa foto si rimanda decine di volte mentre si sviluppa. La scelta dipende dai candidati, che cambiano con l'indice e con le politiche: metterla in cache renderebbe invisibile proprio ciò che stiamo misurando. In memoria e non su disco perché un riconoscimento è il giudizio di una versione di un prompt, e non deve sopravvivere alla configurazione che l'ha prodotto | Accettata |
 | D159 | I nomi mutilati dalla normalizzazione si riconoscono dalla **grammatica**, non dalla lunghezza, e diventano un motivo di revisione dentro il Transform | Accorciare un nome di metà è spesso il comportamento giusto ("Barattolo in latta (scatola di pelati, tonno…)" → "Barattolo in latta") e i nomi corti sono spesso sigle legittime. I controlli stretti su 902 voci ne segnalano 4: la precisione conta più della copertura, perché un controllo che grida al lupo viene disattivato. Collegarli ai motivi di revisione fa sì che la rottura si segnali da sé, invece di finire in un elenco che nessuno guarda | Accettata |
 | D160 | Un oggetto si può **scrivere** invece di fotografarlo (`/domanda`), partendo dal riconoscimento dichiarato dall'utente con confidenza massima | Chi sa come si chiama la cosa non deve aspettare minuti perché un modello glielo confermi, e non rischia che glielo sbagli. È anche la porta d'ingresso per chi l'oggetto non ce l'ha in mano. Stessa cascata, stessa scelta, stesse tracce: cambia solo da dove viene il riconoscimento | Accettata |
+| D162 | Il prompt di scelta dichiara che una voce **fratello** — un altro oggetto della stessa categoria — non è una corrispondenza, e che `categoria` vale solo se la voce *contiene* l'oggetto | Per un microonde il modello ha scelto "Bistecchiera elettrica" dichiarando `categoria`, motivandola con "è un elettrodomestico da forno, come il microonde": il "come" è la spia, perché descrive una somiglianza fra pari e non un'appartenenza. La definizione nel prompt era giusta ma senza controesempio, e la regola sui nomi collettivi (D151) ha reso il modello più disposto a dire `categoria` | Accettata |
+| D163 | La presentazione distingue `stesso_oggetto` da `categoria` e `sinonimo`: "il comune elenca proprio questo oggetto" solo per il primo | Con una corrispondenza per categoria la frase afferma più di quanto il sistema sappia, e la fonte citata rimanda a un altro oggetto. Una frase falsa è peggio di una risposta approssimativa: toglie all'utente il motivo per dubitare e per usare il pollice giù | Accettata |
 | D161 | L'interfaccia mostra la **legenda dei contenitori del comune**, raggruppati per canale | Una risposta come "Multimateriale" non dice niente a chi non conosce i contenitori del suo comune, e l'elenco è anche il modo più onesto di dichiarare i limiti del sistema: ciò che non è in lista, l'assistente non può indicarlo. Il raggruppamento per canale è la distinzione che cambia il gesto: il porta a porta si fa da casa, il centro di raccolta richiede di spostarsi | Accettata |
 | D116 | Il tracciamento su MLflow **non è mai bloccante** e fallisce in fretta (tre secondi, un solo tentativo) | Serve a capire come va il sistema, non a farlo funzionare. Senza i limiti sui tentativi il client riprova per minuti e la risposta all'utente resta appesa | Accettata |
 | D117 | Delle foto si registra solo l'**impronta**, mai l'immagine | Due richieste sulla stessa foto si riconoscono, ma l'immagine non lascia il computer di chi l'ha scattata: è coerente con un progetto che gira in locale | Superata da D124, per decisione di Stef |
@@ -312,6 +314,22 @@ Cose imparate che non sono decisioni, ma che conviene ricordare.
 ---
 
 ## Cronologia
+
+### v0.40.2 — 18/09/2026
+
+**Caso del microonde** (Napoli). La risposta era quasi giusta e la citazione era falsa: il sistema rispondeva "Isola Ecologica Estesa oppure Ecopunto Elettrodomestici" citando **"Bistecchiera elettrica"**, e scriveva "il comune elenca proprio questo oggetto". Tre cose insieme:
+
+1. **Recupero fallito.** Nel dizionario di Napoli esistono "Elettrodomestici", "Apparecchiature elettriche ed elettroniche" e "Forno": nessuna delle tre è uscita. Fra i candidati c'erano una bistecchiera e tre voci di stoviglie e barattoli — il trascinamento verso i materiali già visto con il sandalo (D80), qui aggravato da quattro materiali dichiarati (acciaio, vetro, plastica, metallo).
+2. **Un fratello passato per categoria.** "Bistecchiera elettrica" non contiene il microonde: sono due figli di "Elettrodomestici". Il prompt definisce `categoria` come "la voce è la categoria a cui l'oggetto appartiene", e il modello l'ha usata per una relazione fratello–fratello. D162 chiude il buco con un controesempio esplicito.
+3. **La presentazione affermava più di quanto il sistema sapesse.** "Il comune elenca proprio questo oggetto" vale solo per `stesso_oggetto`; con `categoria` o `sinonimo` va detto che il comune elenca *la categoria*. Una frase che dice il falso è peggio di una risposta approssimativa, perché toglie all'utente il motivo per dubitare.
+
+**Conseguenza pratica**: la risposta perdeva il **Numero Verde Gratuito**, cioè il ritiro a domicilio — per un microonde l'opzione più utile delle tre.
+
+**Aggiunto al dataset di valutazione**: microonde, lavatrice, frullatore. Il caso del microonde è la prima diagnosi `RECUPERO_FALLITO` nata da un uso vero.
+
+**Qualità dei nomi**: l'indagine ha trovato un quinto nome mutilato che i controlli non prendevano, "Giocattolo di grosse dimensioni o elettrico" → **"Giocattolo o elettrico"**. Congiunzione seguita da un *aggettivo*, non da una preposizione: controllo aggiunto, revisione applicata. 5 su 902, e i falsi positivi restano zero ("Pentole e padelle", "Vetro e lattine", "Olio e grasso animale" passano).
+
+**Test.** 459: il prompt rifiuta i fratelli con un controesempio, la presentazione distingue i tre tipi di corrispondenza, il quinto controllo sui nomi.
 
 ### v0.40.0 — 18/09/2026
 

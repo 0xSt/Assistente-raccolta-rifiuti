@@ -27,6 +27,25 @@ SPIEGAZIONE_LIVELLO = {
     3: "Il comune non dice nulla su questo oggetto.",
 }
 
+# Al livello 1 la frase dipende da COME la voce corrisponde: dire "elenca proprio questo
+# oggetto" quando la voce è la categoria afferma più di quanto il sistema sappia, e la fonte
+# citata rimanda a un altro oggetto. L'utente perde così il motivo per dubitare (D163).
+SPIEGAZIONE_CORRISPONDENZA = {
+    "categoria": "Il comune non elenca proprio questo oggetto, ma la categoria a cui "
+                 "appartiene.",
+    "sinonimo": "Il comune elenca questo oggetto con un altro nome.",
+}
+
+
+def spiegazione_livello(risposta: dict) -> str:
+    """Perché la risposta vale, in una frase che non dice più del vero."""
+    livello = risposta.get("livello_evidenza", 3)
+    if livello == 1:
+        tipo = risposta.get("tipo_corrispondenza") or ""
+        return SPIEGAZIONE_CORRISPONDENZA.get(tipo, SPIEGAZIONE_LIVELLO[1])
+    return SPIEGAZIONE_LIVELLO.get(livello, "")
+
+
 ETICHETTA_LIVELLO = {1: "voce del dizionario", 2: "regola di categoria", 3: "nessuna regola"}
 
 # Le fonti hanno codici buoni per i dati e illeggibili per una persona
@@ -90,7 +109,7 @@ def corpo(risposta: dict, etichette: dict[str, str] | None = None) -> str:
         righe.append(f"⚠️ {avvertenza}")
 
     livello = risposta.get("livello_evidenza", 3)
-    righe.append(SPIEGAZIONE_LIVELLO.get(livello, ""))
+    righe.append(spiegazione_livello(risposta))
 
     if livello == 3:
         righe.append("Puoi controllare sul sito del comune o portarlo a un centro di raccolta.")

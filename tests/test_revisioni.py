@@ -77,7 +77,7 @@ def test_file_di_decisioni_presenti_e_validi(comune):
     assert all(d["azione"] in rev.AZIONI for lista in decisioni.values() for d in lista)
 
 
-@pytest.mark.parametrize("comune, attese", [("napoli", 17), ("torino", 19)])
+@pytest.mark.parametrize("comune, attese", [("napoli", 18), ("torino", 19)])
 def test_tutte_le_decisioni_sono_chiuse(comune, attese):
     """Nessuna voce deve restare `da_decidere`: se ne compare una, va affrontata."""
     decisioni = rev.carica(comune)

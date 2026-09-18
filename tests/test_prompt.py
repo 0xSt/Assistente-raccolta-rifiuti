@@ -120,3 +120,18 @@ def test_il_prompt_di_scelta_limita_quando_dire_nessuna():
     testo = prompt_.carica("scelta").testo.lower()
     assert "non che la voce è più generica" in testo
     assert int(prompt_.carica("scelta").versione) >= 8
+
+
+def test_il_prompt_di_scelta_rifiuta_i_fratelli():
+    """Caso del microonde: il modello aveva scelto "Bistecchiera elettrica" dichiarando
+    `categoria`, motivandola con "è un elettrodomestico, come il microonde". Il "come" è la
+    spia: descrive una somiglianza fra pari, non un'appartenenza."""
+    testo = prompt_.carica("scelta").testo.lower()
+    assert "fratello" in testo
+    assert "bistecchiera" in testo, "senza controesempio la definizione da sola non basta"
+    assert "contiene" in testo
+
+
+def test_la_categoria_e_definita_come_contenimento():
+    testo = prompt_.carica("scelta").testo.lower()
+    assert "la voce contiene l'oggetto" in testo
