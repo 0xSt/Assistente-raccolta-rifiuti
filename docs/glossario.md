@@ -243,6 +243,10 @@ l'ambiente da `uv.lock`, `uv run` esegue un comando dentro quell'ambiente.
 **Profilo** — In questo progetto, l'insieme delle regole di Transform specifiche di un
 comune. Il motore è unico, i profili cambiano.
 
+**Clausola di ammissibilità** — Un requisito perché una destinazione valga ("solo se
+compostabile certificato"), diverso da una condizione: non apre un ramo alternativo, avverte
+su quello scelto. Nei dati sta ancora fra le condizioni.
+
 **Etichetta di una destinazione** — Come un contenitore si scrive all'utente ("Carta e
 cartone"), distinta dal nome interno con cui è scritto nei dati ("carta_e_cartone"), che
 resta la chiave.

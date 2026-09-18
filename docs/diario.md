@@ -148,6 +148,8 @@ Formato: decisione, motivazione, stato.
 | D137 | *(ritirata)* L'agente annuncia le sue fasi a un oggetto `Avanzamento` | Provata in v0.33.0 e rimossa in v0.33.1 per decisione di Stef | Superata: ritirata in v0.33.1 |
 | D138 | *(ritirata)* Rotte a flusso di eventi accanto a quelle esistenti | Cade con D137 | Superata: ritirata in v0.33.1 |
 | D139 | *(ritirata)* Lavoro dell'agente in un thread, eventi in coda | Cade con D137 | Superata: ritirata in v0.33.1 |
+| D140 | Le condizioni si distinguono in **stato**, **quantità** e **chi conferisce**: cambia la frase ("vale per piccole quantità" invece di "vale se è: piccole quantità") e cambia la domanda ("quanto ne hai?" invece di "com'è?") | Contate sui dati veri: 147 condizioni, di cui 15 di quantità e 5 di utenza. Sono abbastanza da produrre frasi sbagliate spesso, e la distinzione si può leggere dal testo senza toccare i dati. Il modulo sta fuori da agente e frontend perché serve a entrambi: la domanda la compone l'agente, la frase la scrive la presentazione | Accettata |
+| D141 | Le **clausole di ammissibilità** ("solo se compostabile certificato") restano un caso da revisione manuale, non una distinzione nei dati | Contate: 1 su 147. Un campo nuovo nel normalizzato, la migrazione dello schema e la rivettorizzazione non si ripagano per una riga | Accettata |
 | D116 | Il tracciamento su MLflow **non è mai bloccante** e fallisce in fretta (tre secondi, un solo tentativo) | Serve a capire come va il sistema, non a farlo funzionare. Senza i limiti sui tentativi il client riprova per minuti e la risposta all'utente resta appesa | Accettata |
 | D117 | Delle foto si registra solo l'**impronta**, mai l'immagine | Due richieste sulla stessa foto si riconoscono, ma l'immagine non lascia il computer di chi l'ha scattata: è coerente con un progetto che gira in locale | Superata da D124, per decisione di Stef |
 | D118 | I prompt restano file in git; il registro di MLflow li **collega alle run** che li hanno usati | La verità e il diff stanno in git; MLflow serve a sapere quale versione ha prodotto un certo risultato | Superata da D126: il registro collega i prompt alle tracce, non più alle run |
@@ -286,6 +288,16 @@ Cose imparate che non sono decisioni, ma che conviene ricordare.
 ---
 
 ## Cronologia
+
+### v0.34.0 — 17/09/2026
+
+**Aggiunto.** Il modulo `condizioni.py`: riconosce se una condizione è uno stato dell'oggetto, una quantità o un'utenza, e da lì scrive la frase e compone la domanda (D140). Spariscono "Vale se è: piccole quantità" e il pulsante "Utenza domestica" in risposta a "com'è il tuo oggetto?". Le condizioni di tipo diverso restano separate: "Vale per grandi quantità e per utenza domestica".
+
+**Misurato.** Sui dati veri: 147 condizioni su 142 voci; 15 di quantità, 5 di utenza, 1 sola clausola di ammissibilità. Da qui D140 (vale la pena) e D141 (non vale la pena).
+
+**Da revisionare a mano.** Cinque voci hanno più di una condizione e tre meritano una decisione: il cartone da pizza di Torino con la clausola, i tovaglioli di carta di Torino dove "bagnati o unti" è diventato "bagnato E unto", e le stoviglie monouso di Napoli con il nome normalizzato mutilato in "Stovaglie in materiale".
+
+**Test.** 363 passati (erano 353): nuovo `test_condizioni.py` e i casi della presentazione e del chiarimento.
 
 ### v0.33.1 — 17/09/2026
 

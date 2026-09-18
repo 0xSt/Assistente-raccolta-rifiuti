@@ -1,6 +1,6 @@
 [project]
 name = "ecoscan-local"
-version = "0.33.1"
+version = "0.34.0"
 description = "Assistente locale per la raccolta differenziata: ETL da fonti comunali, schema dati e retrieval ibrido"
 readme = "README.md"
 requires-python = ">=3.11"

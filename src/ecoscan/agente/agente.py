@@ -20,6 +20,7 @@ from __future__ import annotations
 
 from dataclasses import asdict
 
+from ecoscan import condizioni as condizioni_
 from ecoscan import configurazione as conf
 from ecoscan import prompt as prompt_
 from ecoscan.agente.modelli import ModelloVisione
@@ -119,8 +120,9 @@ class Agente:
             # le condizioni diventano i pulsanti dell'interfaccia: l'utente sceglie invece
             # di indovinare come si scrive la risposta
             opzioni = list(da_chiarire)
-            chiarimento = ("Per rispondere con certezza devo sapere se l'oggetto è: "
-                           + " oppure ".join(da_chiarire) + "?")
+            # la domanda cambia con la natura delle condizioni: "com'è" per lo stato,
+            # "quanto ne hai" per le quantità, "chi lo conferisce" per le utenze
+            chiarimento = condizioni_.domanda(da_chiarire)
         elif not gia_chiesto:
             chiarimento = scelta.chiarimento
 

@@ -17,6 +17,8 @@ Due principi guidano cosa si mostra:
 """
 from __future__ import annotations
 
+from ecoscan import condizioni as condizioni_
+
 VERBO = {"escluso": "**non** va in", "ammesso": "va in"}
 
 SPIEGAZIONE_LIVELLO = {
@@ -80,8 +82,8 @@ def corpo(risposta: dict, etichette: dict[str, str] | None = None) -> str:
     """Il resto del messaggio: condizioni, varianti, avvertenza, livello di evidenza."""
     righe: list[str] = []
 
-    if condizioni := risposta.get("condizioni"):
-        righe.append(f"Vale se è: {', '.join(condizioni)}.")
+    if frase := condizioni_.frase(risposta.get("condizioni") or []):
+        righe.append(frase)
     if alternative := altre_varianti(risposta, etichette):
         righe.append(alternative)
     if avvertenza := risposta.get("avvertenza"):
@@ -124,7 +126,8 @@ def altre_varianti(risposta: dict, etichette: dict[str, str] | None = None) -> s
     for variante in varianti:
         condizione = variante.get("condizione")
         dove = " oppure ".join(etichette_di(variante.get("destinazioni") or [], etichette)) or "?"
-        riga = f"se è {condizione} → {dove}" if condizione else f"negli altri casi → {dove}"
+        premessa = condizioni_.premessa([condizione]) if condizione else ""
+        riga = f"{premessa} → {dove}" if premessa else f"negli altri casi → {dove}"
         pezzi.append(f"**{riga}** ✓" if condizione and condizione in condizioni_scelte else riga)
     return "Le varianti di questo oggetto: " + " · ".join(pezzi) + "."
 

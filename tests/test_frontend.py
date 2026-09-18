@@ -240,3 +240,19 @@ def test_il_frontend_non_importa_il_backend():
         moduli = [n.module or "" for n in ast.walk(albero) if isinstance(n, ast.ImportFrom)]
         moduli += [a.name for n in ast.walk(albero) if isinstance(n, ast.Import) for a in n.names]
         assert not [m for m in moduli if m.startswith(vietati)], f"{file.name} importa il backend"
+
+
+def test_una_condizione_di_quantita_non_diventa_uno_stato():
+    """"Vale se è: piccole quantità" era la frase sbagliata più visibile."""
+    testo = presentazione.corpo({"livello_evidenza": 1, "condizioni": ["piccole quantità"]})
+    assert "Vale per piccole quantità." in testo and "Vale se è" not in testo
+
+
+def test_le_varianti_di_quantita_si_leggono_bene():
+    testo = presentazione.corpo({"livello_evidenza": 1, "condizioni": ["grandi quantità"],
+                                 "scelto_id": "c1", "candidati": [{"id": "c1", "varianti": [
+                                     {"condizione": "piccole quantità", "destinazioni": ["organico"]},
+                                     {"condizione": "grandi quantità",
+                                      "destinazioni": ["carta_e_cartone"]}]}]}, ETICHETTE)
+    assert "per piccole quantità → Organico" in testo
+    assert "**per grandi quantità → Carta e cartone** ✓" in testo

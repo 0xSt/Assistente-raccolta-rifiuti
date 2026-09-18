@@ -5,6 +5,7 @@ di Gemma, che si misura con le sonde e con il set di valutazione.
 """
 import pytest
 
+from ecoscan import condizioni
 from ecoscan.agente.agente import Agente, domande
 from ecoscan.agente.recupero import candidati, menzionata, scegli_variante
 from ecoscan.agente.tipi import Candidato, Riconoscimento, Scelta, Variante
@@ -292,3 +293,14 @@ def test_la_correzione_resta_nella_stessa_conversazione(ambiente):
     prima = agente.analizza(b"foto", "Torino")
     dopo = agente.correggi(prima.contesto, "giornali")
     assert dopo.contesto["id_conversazione"] == prima.contesto["id_conversazione"]
+
+
+def test_il_chiarimento_sulle_quantita_chiede_quanto_ne_hai(ambiente):
+    """Il pulsante "Grandi quantità" in risposta a "com'è il tuo oggetto?" non ha senso."""
+    candidato = Candidato(
+        id="x", livello=1, testo="Polistirolo.", nome="Polistirolo", tipo="oggetto",
+        varianti=[Variante(condizioni=["piccole quantità"], destinazioni=["organico"]),
+                  Variante(condizioni=["grandi quantità"], destinazioni=["carta_e_cartone"])])
+    _, da_chiarire = scegli_variante(candidato, [None, None])
+    assert da_chiarire == ["piccole quantità", "grandi quantità"]
+    assert "quanto ne hai" in condizioni.domanda(da_chiarire)
