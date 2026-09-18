@@ -22,13 +22,6 @@ BENVENUTO = (
     "\"è vuota\", \"è unto\"."
 )
 
-MOTIVI = {
-    "contenitore_sbagliato": "Il contenitore indicato è sbagliato",
-    "oggetto_sbagliato": "Non ha capito che oggetto è",
-    "altro": "Altro",
-}
-
-
 def prepara_stato() -> None:
     st.session_state.setdefault("messaggi", [{"ruolo": "assistente", "testo": BENVENUTO}])
     st.session_state.setdefault("contesto", None)      # l'ultimo consegnato dal backend
@@ -207,64 +200,11 @@ def correzione(cliente: ClienteAPI, etichette: dict[str, str]) -> None:
             st.rerun()
 
 
-def riscontro(cliente: ClienteAPI, comune: str, etichette: dict[str, str]) -> None:
-    """Il giudizio dell'utente, raccolto in modo che diventi misurabile.
-
-    Il pollice su basta da solo: l'attesa sono le destinazioni appena date, e il caso serve
-    a non regredire. Il pollice giù da solo invece non misura niente — sapere che una
-    risposta è sbagliata senza sapere quale fosse quella giusta non si può rieseguire — per
-    questo chiede **dove andava davvero**, scegliendolo fra i contenitori del comune.
-
-    Il motivo separa i due difetti che il sistema affronta in punti diversi: "non ha capito
-    che oggetto è" riguarda il modello di visione, "il contenitore è sbagliato" riguarda
-    recupero e scelta. Solo il secondo diventa un caso di valutazione.
-    """
-    ultima = st.session_state.get("ultima")
-    if not ultima or not ultima.get("destinazioni"):
-        return
-    oggetto = (ultima.get("riconoscimento") or {}).get("oggetto")
-    date = ultima.get("destinazioni") or []
-    contesto = ultima.get("contesto", {})
-
-    sinistra, destra, _ = st.columns([1, 1, 6])
-    if sinistra.button("👍", help="La risposta è giusta"):
-        cliente.riscontro(comune, True, oggetto=oggetto, destinazioni_date=date,
-                          contesto=contesto)
-        st.session_state.pop("segnala", None)
-        st.toast("Grazie: ora è un caso da non sbagliare più.")
-    if destra.button("👎", help="La risposta è sbagliata"):
-        st.session_state.segnala = True
-
-    if not st.session_state.get("segnala"):
-        return
-    with st.form("segnalazione"):
-        st.caption("Cosa non andava?")
-        motivo = st.radio("Motivo", list(MOTIVI), format_func=MOTIVI.get,
-                          label_visibility="collapsed")
-        # si sceglie il nome INTERNO mostrando l'etichetta: l'attesa deve essere confrontabile
-        # con le destinazioni delle risposte, che portano il nome interno
-        attesa = st.selectbox(
-            "Dove andava davvero?", [None, *sorted(etichette)],
-            format_func=lambda n: "Non lo so" if n is None else etichette.get(n, n),
-            help="Se lo sai, questa risposta diventa un caso di prova per l'assistente.")
-        nota = st.text_input("Vuoi aggiungere qualcosa?", placeholder="facoltativo")
-        if st.form_submit_button("Invia"):
-            esito = cliente.riscontro(
-                comune, False, oggetto=oggetto, destinazioni_date=date,
-                destinazione_attesa=attesa, motivo=motivo, nota=nota or None, contesto=contesto)
-            st.session_state.pop("segnala", None)
-            st.toast("Grazie: mi servirà a migliorare."
-                     if not esito.get("diventato_caso_di_valutazione")
-                     else "Grazie: è diventato un caso di prova.")
-            st.rerun()
-
-
-def mostra_conversazione(cliente: ClienteAPI, comune: str, etichette: dict[str, str]) -> None:
+def mostra_conversazione(cliente: ClienteAPI, etichette: dict[str, str]) -> None:
     """I messaggi e i comandi che accompagnano l'ultima risposta."""
     for messaggio in st.session_state.messaggi:
         mostra_messaggio(messaggio)
     pulsanti_chiarimento(cliente, etichette)
-    riscontro(cliente, comune, etichette)
     correzione(cliente, etichette)
 
 
@@ -311,7 +251,7 @@ def principale() -> None:
         st.stop()
 
     etichette = etichette_destinazioni(cliente.base, comune)
-    mostra_conversazione(cliente, comune, etichette)
+    mostra_conversazione(cliente, etichette)
 
     inserito = st.chat_input("Scrivi o allega una foto…", accept_file=True,
                              file_type=["jpg", "jpeg", "png", "webp"])

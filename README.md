@@ -4,7 +4,7 @@ Assistente per la raccolta differenziata che gira interamente in locale. L'utent
 
 Progetto universitario. Comuni del prototipo: **Napoli** (ASIA) e **Torino** (AMIAT).
 
-## Stato attuale (v0.41.2)
+## Stato attuale (v0.42.0)
 
 Il quadro completo è in [docs/diario.md](docs/diario.md).
 
@@ -155,7 +155,7 @@ Qdrant sta in modalità `server` o `in-process`.
 | `agente/agente.py` | Orchestrazione: riconoscimento → cascata → scelta → risposta |
 | `agente/prova.py` | Comando per provare l'agente su una foto, con i tempi per fase |
 | `agente/diagnostica.py` | Verifica del canale immagine con un'immagine dal contenuto noto |
-| `api/app.py` | Rotte FastAPI per area: stato, agente (analizza, continua, correggi), ricerca, riscontro |
+| `api/app.py` | Rotte FastAPI per area: stato, agente (analizza, domanda, continua, correggi), ricerca |
 | `api/risorse.py` | Connessioni e agente condivisi, database in sola lettura |
 | `api/schemi.py` | Forma pubblica di ingressi e uscite (Pydantic) |
 | `osservabilita/tracciamento.py` | Tracce delle conversazioni su MLflow: turni, retrieval, foto, versione dell'app; mai bloccanti |

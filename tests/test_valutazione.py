@@ -1,8 +1,8 @@
-"""Test della valutazione: i casi, la diagnosi, il riscontro che diventa dataset.
+"""Test della valutazione: i casi e la diagnosi.
 
 Si misura la meccanica della misura, non la qualità del sistema: che un caso si legga e si
 scriva senza doppioni, che la diagnosi distingua un recupero fallito da una scelta
-sbagliata, e che un pollice giù senza alternativa non entri nel dataset.
+sbagliata, e che una misura non dichiari di sapere ciò che non ha misurato.
 """
 import json
 
@@ -10,7 +10,7 @@ import pytest
 
 from ecoscan.agente.agente import Agente
 from ecoscan.valutazione import esegui as val
-from ecoscan.valutazione.casi import Caso, aggiungi, caso_da_riscontro, leggi, tutti
+from ecoscan.valutazione.casi import Caso, aggiungi, leggi
 
 # --------------------------------------------------------------------------- i casi
 
@@ -32,27 +32,12 @@ def test_un_caso_senza_attesa_non_e_valido():
 
 
 def test_lo_stesso_caso_non_si_aggiunge_due_volte(tmp_path):
-    """Dieci pollici su sullo stesso oggetto gonfierebbero le percentuali senza misurare
-    niente di nuovo."""
-    percorso = tmp_path / "da_riscontri.jsonl"
+    """Lo stesso caso ripetuto gonfierebbe le percentuali senza misurare niente di nuovo."""
+    percorso = tmp_path / "casi.jsonl"
     caso = Caso(comune="Napoli", oggetto="forchetta", destinazioni_attese=["Indifferenziata"])
     assert aggiungi(caso, percorso) is True
     assert aggiungi(caso, percorso) is False
     assert len(leggi(percorso)) == 1
-
-
-def test_il_caso_manuale_vince_su_quello_da_riscontro(tmp_path):
-    """L'attesa decisa da noi batte quella di un utente che potrebbe sbagliarsi."""
-    manuale = Caso(comune="Napoli", oggetto="forchetta", destinazioni_attese=["Metalli"])
-    da_utente = Caso(comune="Napoli", oggetto="forchetta", destinazioni_attese=["Indifferenziata"],
-                     origine="riscontro")
-    (tmp_path / "casi.jsonl").write_text(
-        json.dumps(manuale.__dict__, ensure_ascii=False) + "\n", encoding="utf-8")
-    aggiungi(da_utente, tmp_path / "da_riscontri.jsonl")
-
-    raccolti = tutti(tmp_path)
-    assert len(raccolti) == 1
-    assert raccolti[0].destinazioni_attese == ["Metalli"]
 
 
 def test_un_campo_sconosciuto_nel_file_non_rompe_la_lettura(tmp_path):
@@ -63,43 +48,6 @@ def test_un_campo_sconosciuto_nel_file_non_rompe_la_lettura(tmp_path):
         {"comune": "Napoli", "oggetto": "x", "destinazioni_attese": ["y"], "domani": 1}) + "\n",
         encoding="utf-8")
     assert leggi(percorso)[0].oggetto == "x"
-
-
-# --------------------------------------------------------------- dal riscontro al caso
-
-BASE = {"comune": "Napoli", "oggetto": "forchetta", "destinazioni_date": ["Indifferenziata"],
-        "contesto": {"riconoscimento": {"oggetto": "forchetta", "materiali": ["acciaio"],
-                                        "categoria": "posata"}}}
-
-
-def test_il_pollice_su_fissa_le_destinazioni_date():
-    caso = caso_da_riscontro({**BASE, "corretta": True})
-    assert caso.destinazioni_attese == ["Indifferenziata"]
-    assert caso.origine == "riscontro"
-    assert caso.materiali == ["acciaio"]      # rieseguibile senza rileggere la foto
-    assert caso.categoria == "posata"
-
-
-def test_il_pollice_giu_con_alternativa_fissa_quella_dell_utente():
-    caso = caso_da_riscontro({**BASE, "corretta": False,
-                              "destinazione_attesa": "Plastica e Metalli",
-                              "motivo": "contenitore_sbagliato"})
-    assert caso.destinazioni_attese == ["Plastica e Metalli"]
-
-
-def test_il_pollice_giu_senza_alternativa_non_diventa_un_caso():
-    """Sapere che è sbagliata senza sapere cosa era giusto non si può misurare."""
-    assert caso_da_riscontro({**BASE, "corretta": False}) is None
-
-
-def test_un_oggetto_riconosciuto_male_non_diventa_un_caso():
-    """Il difetto sta nel riconoscimento, che è proprio il passaggio che i casi tengono fermo."""
-    assert caso_da_riscontro({**BASE, "corretta": False, "motivo": "oggetto_sbagliato",
-                              "destinazione_attesa": "Vetro"}) is None
-
-
-def test_senza_oggetto_non_si_costruisce_niente():
-    assert caso_da_riscontro({"comune": "Napoli", "corretta": True}) is None
 
 
 # --------------------------------------------------------------------------- la diagnosi

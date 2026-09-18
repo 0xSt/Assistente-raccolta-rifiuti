@@ -18,6 +18,5 @@ data/qdrant/
 # Impostazioni locali: il modello versionato è .env.example
 .env
 
-# i casi scritti a mano sono versionati, quelli nati dai riscontri no
-data/valutazione/da_riscontri.jsonl
+# i casi sono versionati; le esecuzioni salvate con --salva no
 data/valutazione/esecuzioni/

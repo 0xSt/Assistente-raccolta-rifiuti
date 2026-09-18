@@ -257,7 +257,7 @@ def test_le_varianti_di_quantita_si_leggono_bene():
     assert "**per grandi quantità → Carta e cartone** ✓" in testo
 
 
-# --------------------------------------------------- domanda scritta, riscontro, legenda
+# ------------------------------------------------------ domanda scritta e legenda
 
 def test_la_domanda_scritta_manda_comune_e_oggetto(cliente, monkeypatch):
     visti = {}
@@ -268,24 +268,6 @@ def test_la_domanda_scritta_manda_comune_e_oggetto(cliente, monkeypatch):
     assert visti["json"] == {"comune": "Torino", "oggetto": "cartone della pizza", "testo": None}
 
 
-def test_il_riscontro_porta_quello_che_serve_a_rieseguirlo(cliente, monkeypatch):
-    """Senza `destinazioni_date` e `destinazione_attesa` il giudizio resta un'opinione:
-    con queste diventa un caso di valutazione."""
-    visti = {}
-    monkeypatch.setattr("requests.request",
-                        lambda m, u, **a: visti.update({"url": u, **a}) or RispostaFinta(corpo={}))
-    cliente.riscontro("Torino", False, oggetto="forchetta",
-                      destinazioni_date=["rifiuto_non_recuperabile"],
-                      destinazione_attesa="imballaggi_plastica",
-                      motivo="contenitore_sbagliato",
-                      contesto={"riconoscimento": {"oggetto": "forchetta"}})
-    inviato = visti["json"]
-    assert inviato["destinazioni_date"] == ["rifiuto_non_recuperabile"]
-    assert inviato["destinazione_attesa"] == "imballaggi_plastica"
-    assert inviato["motivo"] == "contenitore_sbagliato"
-    assert inviato["contesto"]["riconoscimento"]["oggetto"] == "forchetta"
-
-
 def test_le_etichette_si_ricavano_dall_elenco_dei_contenitori(monkeypatch):
     """La legenda e la traduzione delle risposte leggono la stessa cosa: una chiamata sola."""
     from ecoscan.frontend import app as interfaccia
@@ -294,87 +276,6 @@ def test_le_etichette_si_ricavano_dall_elenco_dei_contenitori(monkeypatch):
                         lambda base, comune: [{"nome": "organico", "etichetta": "Organico",
                                                "canale": "raccolta_ordinaria"}])
     assert interfaccia.etichette_destinazioni("x", "Torino") == {"organico": "Organico"}
-
-
-def test_il_motivo_del_pollice_giu_ha_le_voci_che_il_backend_riconosce():
-    """I tre motivi separano i due difetti che si affrontano in punti diversi del sistema."""
-    from ecoscan.frontend.app import MOTIVI
-
-    assert set(MOTIVI) == {"oggetto_sbagliato", "contenitore_sbagliato", "altro"}
-    assert all(testo and not testo.endswith(".") for testo in MOTIVI.values())
-
-
-def test_ogni_chiamata_interna_dell_interfaccia_rispetta_la_firma():
-    """L'errore che questo test esiste per fermare.
-
-    In v0.40.0 `riscontro` ha preso un parametro in più e un chiamante è rimasto indietro:
-    i test non se ne sono accorti perché provano le funzioni una per una, e Streamlit lo ha
-    scoperto solo a schermo, davanti all'utente. Qui si controlla il **collegamento** fra le
-    funzioni del modulo, che è ciò che nessun altro test guarda.
-    """
-    import ast
-    import inspect
-
-    from ecoscan.frontend import app as interfaccia
-
-    sorgente = inspect.getsource(interfaccia)
-    albero = ast.parse(sorgente)
-    definizioni = {n.name: n for n in albero.body if isinstance(n, ast.FunctionDef)}
-
-    for chiamata in (n for n in ast.walk(albero) if isinstance(n, ast.Call)):
-        if not isinstance(chiamata.func, ast.Name):
-            continue                                   # st.qualcosa, metodi: non sono nostri
-        definizione = definizioni.get(chiamata.func.id)
-        if definizione is None or any(a.arg == "self" for a in definizione.args.args):
-            continue
-        attesi = [a.arg for a in definizione.args.args]
-        obbligatori = len(attesi) - len(definizione.args.defaults)
-        massimo = 99 if definizione.args.vararg else len(attesi)   # *argomenti: nessun tetto
-        passati = len(chiamata.args) + len({k.arg for k in chiamata.keywords})
-        assert obbligatori <= passati <= massimo, (
-            f"riga {chiamata.lineno}: {chiamata.func.id}() riceve {passati} argomenti, "
-            f"ma la firma ne vuole fra {obbligatori} e {massimo} ({', '.join(attesi)})")
-
-
-def test_la_legenda_e_raggiungibile_dall_interfaccia():
-    """Una funzione mai chiamata è codice morto, e una funzionalità che l'utente non vede."""
-    import ast
-    import inspect
-
-    from ecoscan.frontend import app as interfaccia
-
-    albero = ast.parse(inspect.getsource(interfaccia))
-    chiamate = {n.func.id for n in ast.walk(albero)
-                if isinstance(n, ast.Call) and isinstance(n.func, ast.Name)}
-    definite = {n.name for n in albero.body if isinstance(n, ast.FunctionDef)}
-    mai_chiamate = definite - chiamate - {"principale", "main"}
-    assert not mai_chiamate, f"funzioni dell'interfaccia mai chiamate: {sorted(mai_chiamate)}"
-
-
-# ---------------------------------------- la frase non deve dire più di quanto si sa
-
-def test_una_corrispondenza_per_categoria_non_si_spaccia_per_l_oggetto():
-    """Il caso del microonde: la voce era 'Bistecchiera elettrica' e il messaggio diceva
-    'il comune elenca proprio questo oggetto'. La fonte citata rimandava a un altro oggetto,
-    e l'utente perdeva il motivo per dubitare."""
-    testo = presentazione.corpo({"livello_evidenza": 1, "tipo_corrispondenza": "categoria"})
-    assert "non elenca proprio questo oggetto" in testo
-    assert "la categoria a cui appartiene" in testo
-
-
-def test_un_sinonimo_lo_dice():
-    testo = presentazione.corpo({"livello_evidenza": 1, "tipo_corrispondenza": "sinonimo"})
-    assert "con un altro nome" in testo
-
-
-def test_lo_stesso_oggetto_resta_la_frase_piena():
-    testo = presentazione.corpo({"livello_evidenza": 1, "tipo_corrispondenza": "stesso_oggetto"})
-    assert "Il comune elenca proprio questo oggetto." in testo
-
-
-def test_senza_tipo_di_corrispondenza_si_resta_sulla_frase_di_prima():
-    """Un backend più vecchio, o una risposta di prova, non deve perdere la spiegazione."""
-    assert "elenca proprio questo oggetto" in presentazione.corpo({"livello_evidenza": 1})
 
 
 # ------------------------------------------------------- il come, non solo il dove

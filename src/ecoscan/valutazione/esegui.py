@@ -266,8 +266,8 @@ def main() -> None:
 
     casi = [c for c in tutti() if not args.comune or c.comune == args.comune]
     if not casi:
-        raise SystemExit("Nessun caso in data/valutazione/. Scrivine a mano in casi.jsonl, "
-                         "oppure raccogli riscontri dall'interfaccia.")
+        raise SystemExit("Nessun caso in data/valutazione/casi.jsonl: scrivine a mano, "
+                         "una riga per caso.")
 
     from ecoscan.agente.modelli import ModelloOllama
     from ecoscan.agente.recupero import RecuperoQdrant

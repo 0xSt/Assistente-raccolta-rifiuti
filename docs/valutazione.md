@@ -1,6 +1,6 @@
 # La valutazione del recupero
 
-> Aggiornato alla **v0.41.2**.
+> Aggiornato alla **v0.42.0**.
 
 Questo documento spiega **perché** si misura il recupero, **cosa** si misura esattamente,
 **come** si usa lo strumento e **come si leggono** i numeri che produce.
@@ -94,36 +94,19 @@ Un **caso** è un riconoscimento già avvenuto più la risposta attesa:
  "nota": "D78: sceglieva 'Forchetta in plastica'"}
 ```
 
-Due sorgenti, stesso formato, file separati:
+I casi stanno in un file solo: **`data/valutazione/casi.jsonl`**, scritti a mano e
+versionati in git. Sono un contratto — descrivono cosa il sistema *deve* saper fare — e ogni
+riga si discute come si discute una riga di codice.
 
-| file | origine | versionato | a cosa serve |
-|---|---|---|---|
-| `data/valutazione/casi.jsonl` | scritti a mano | sì | il contratto: cosa il sistema **deve** saper fare |
-| `data/valutazione/da_riscontri.jsonl` | pollice su/giù degli utenti | no | un campione di cosa succede **davvero** |
+**Perché una sorgente sola.** Un dataset di valutazione vale quanto vale l'autorità delle
+sue attese, e un'attesa che nessuno ha esaminato fa più danno di un caso mancante: fa
+"correggere" un sistema che funziona. È successo con il caso `frullatore`, scritto in fretta
+e sbagliato, e sarebbe successo più spesso con casi generati da giudizi non rivisti. Meglio
+diciotto attese di cui rispondiamo che duecento di cui non sappiamo niente.
 
-Sono separati perché hanno autorità diversa: i primi li decidiamo noi e si discutono, i
-secondi crescono da sé e possono contenere l'attesa sbagliata di un utente. Quando lo stesso
-caso compare in entrambi, **vince il manuale**.
-
-### Come un riscontro diventa un caso
-
-Questo è il punto che rende il pollice su/giù qualcosa di più di un registro (`/riscontro` →
-`caso_da_riscontro`):
-
-- **pollice su** → l'attesa sono le destinazioni appena date. Fissa un comportamento giusto
-  perché non regredisca;
-- **pollice giù con l'alternativa** ("andava in Plastica e Metalli") → l'attesa è quella
-  dell'utente. È il caso più prezioso, perché nasce da un errore vero;
-- **pollice giù senza alternativa** → nessun caso. Sapere che una risposta è sbagliata senza
-  sapere quale fosse quella giusta non si può rieseguire: resta nel registro grezzo;
-- **pollice giù con motivo "non ha capito che oggetto è"** → nessun caso. Il difetto sta nel
-  riconoscimento, cioè proprio nel passaggio che i casi tengono fermo.
-
-Per questo l'interfaccia, dopo un pollice giù, chiede **dove andava davvero** scegliendolo
-fra i contenitori del comune: è l'unica domanda che trasforma un giudizio in una misura.
-
-I duplicati vengono scartati: dieci pollici su sullo stesso oggetto gonfierebbero le
-percentuali senza misurare niente di nuovo.
+Se in futuro si aggiungerà una seconda sorgente — casi derivati dagli alias del dizionario,
+casi estratti dalle tracce — starà in un file suo e avrà una sua percentuale: mescolare
+attese di autorità diversa in un numero solo lo rende illeggibile.
 
 ---
 
@@ -197,16 +180,16 @@ uno.
 
 ## 6. Limiti dichiarati
 
-- **il dataset è piccolo** (una dozzina di casi scritti a mano, più quelli che arrivano dai
-  riscontri). Le percentuali su numeri così piccoli oscillano molto: si leggono come
-  indicatori di direzione, non come misure di precisione. Il meccanismo dei riscontri esiste
-  proprio per farlo crescere senza doverlo scrivere tutto a mano;
+- **il dataset è piccolo** (diciotto casi scritti a mano). Le percentuali su numeri così
+  piccoli oscillano molto — un caso vale cinque punti e mezzo — e si leggono come indicatori
+  di direzione, non come misure di precisione. Farlo crescere è il lavoro che vale di più
+  oggi, e va fatto con attese che qualcuno ha esaminato;
 - **non si misura il riconoscimento.** È deliberato (§2), ma vuol dire che gli errori del
   modello di visione restano fuori da questi numeri e vanno guardati altrove, nelle tracce
   MLflow;
 - **le attese le abbiamo decise noi.** Un caso con l'attesa sbagliata rende il sistema
   peggiore mentre sembra migliorarlo: per questo i casi manuali si discutono e i casi da
-  riscontro restano in un file separato. **È già successo**: il caso `frullatore` chiedeva
+  manuali si discutono uno per uno. **È già successo**: il caso `frullatore` chiedeva
   le destinazioni di "Elettrodomestici", ma ASIA ha una voce `Frullatore` che manda ai
   piccoli RAEE — il sistema dava la risposta migliore e la valutazione la contava come
   errore. Da lì la riga "i documenti trovati portano a…" nell'uscita: prima di dare la
@@ -221,8 +204,6 @@ uno.
 
 | file | cosa fa |
 |---|---|
-| `valutazione/casi.py` | cos'è un caso, dove vive, come un riscontro diventa un caso |
+| `valutazione/casi.py` | cos'è un caso, dove vive, come si legge e si scrive |
 | `valutazione/esegui.py` | esecuzione, diagnosi, misure, confronto; comando `ecoscan-valuta` |
-| `api/app.py` (`/riscontro`) | registra il giudizio e, se misurabile, lo aggiunge al dataset |
-| `frontend/app.py` (`riscontro`) | il pollice giù che chiede dove andava davvero |
 | `data/valutazione/casi.jsonl` | i casi scritti a mano, versionati |

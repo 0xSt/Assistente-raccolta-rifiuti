@@ -13,17 +13,17 @@ di diverso: tre cause per un solo effetto. Fissando il riconoscimento, ciò che 
 solo recupero e scelta. È lo stesso motivo per cui `analizza` e `rispondi` sono separati
 nell'agente (D72).
 
-**Da dove vengono i casi.** Due sorgenti, nello stesso formato:
+**Da dove vengono i casi.** Da `data/valutazione/casi.jsonl`, scritti a mano e versionati
+in git. Sono un contratto: descrivono cosa il sistema *deve* saper fare, e ogni riga si
+discute come si discute una riga di codice. Ogni volta che si osserva un errore vero, il
+primo gesto è scriverlo lì: da quel momento quella regressione non ripassa inosservata.
 
-- `manuale` — scritti a mano in `data/valutazione/casi.jsonl`, versionati in git. Sono i
-  casi che descrivono cosa il sistema *deve* saper fare, compresi quelli nati da un errore
-  osservato;
-- `riscontro` — generati dai giudizi degli utenti sulle risposte vere (il pollice su e giù
-  dell'interfaccia). Vivono in `data/valutazione/da_riscontri.jsonl`, non versionato,
-  perché cresce da sé e dipende da chi ha usato l'applicazione.
-
-Tenerli separati serve: i primi sono un contratto che decidiamo noi, i secondi un campione
-di ciò che succede davvero. Si misurano insieme, ma solo i primi si discutono in revisione.
+Una sorgente sola è una scelta, non una mancanza. Un dataset di valutazione vale quanto
+vale l'autorità delle sue attese, e un'attesa che nessuno ha esaminato fa più danno di un
+caso mancante: "corregge" un sistema che funziona (D171, il caso del frullatore). Se in
+futuro si aggiungerà una seconda sorgente — casi derivati dagli alias del dizionario,
+casi estratti dalle tracce — starà in un file suo e con una sua percentuale, perché
+mescolare attese di autorità diversa in un numero solo lo rende illeggibile.
 """
 from __future__ import annotations
 
@@ -35,8 +35,7 @@ from ecoscan.agente.tipi import Riconoscimento
 from ecoscan.percorsi import DATI
 
 CARTELLA = DATI / "valutazione"
-CASI_MANUALI = CARTELLA / "casi.jsonl"
-CASI_DA_RISCONTRI = CARTELLA / "da_riscontri.jsonl"
+CASI = CARTELLA / "casi.jsonl"
 
 
 @dataclass
@@ -52,13 +51,12 @@ class Caso:
     sinonimi: list[str] = field(default_factory=list)
     testo_utente: str | None = None
     livello_atteso: int | None = None      # 1, 2, 3; None = non lo verifichiamo
-    origine: str = "manuale"               # manuale | riscontro
     nota: str = ""
 
     @property
     def id(self) -> str:
-        """Identifica il caso senza dipendere da un contatore: due file che crescono in
-        parallelo non si scontrano, e un caso ripetuto si riconosce."""
+        """Identifica il caso senza dipendere da un contatore: un caso ripetuto si
+        riconosce anche se le righe vengono riordinate."""
         pezzi = [self.comune, self.oggetto, self.stato or "", self.testo_utente or ""]
         return " · ".join(p for p in pezzi if p)
 
@@ -79,58 +77,6 @@ class Caso:
         return bool(self.oggetto.strip() and self.comune.strip() and self.destinazioni_attese)
 
 
-def caso_da_riscontro(riscontro: dict) -> Caso | None:
-    """Il giudizio di un utente diventa un caso, quando dice abbastanza da essere rieseguito.
-
-    Un riscontro è utile alla valutazione solo se porta con sé **un'attesa**: dove la
-    risposta doveva andare a finire. Da qui le tre strade:
-
-    - pollice su → l'attesa sono le destinazioni che il sistema ha dato. Fissa un
-      comportamento giusto perché non regredisca: è il caso di non-regressione;
-    - pollice giù con un'alternativa → l'attesa è quella dell'utente. È il caso più
-      prezioso, perché nasce da un errore vero;
-    - pollice giù senza alternativa → `None`. Sapere che una risposta è sbagliata senza
-      sapere quale fosse quella giusta non si può misurare: resta nel registro grezzo dei
-      riscontri, da leggere a mano, ma non entra nel dataset.
-
-    Il `motivo` "oggetto_sbagliato" è a parte: il difetto sta nel riconoscimento, cioè
-    proprio nel passaggio che i casi tengono fermo. Un caso costruito su un oggetto
-    sbagliato misurerebbe recupero e scelta su una domanda che non era quella giusta.
-
-    Il riconoscimento si ripesca dal `contesto`, ed è ciò che rende il caso rieseguibile
-    senza la foto: materiali, categoria e stato erano l'input vero della cascata.
-    """
-    contesto = riscontro.get("contesto") or {}
-    riconosciuto = contesto.get("riconoscimento") or {}
-    oggetto = (riscontro.get("oggetto") or riconosciuto.get("oggetto") or "").strip()
-    comune = (riscontro.get("comune") or contesto.get("comune") or "").strip()
-    if not oggetto or not comune:
-        return None
-
-    corretta = bool(riscontro.get("corretta"))
-    attesa = (riscontro.get("destinazione_attesa") or "").strip()
-    if corretta:
-        attese = [d for d in (riscontro.get("destinazioni_date") or []) if d]
-    elif riscontro.get("motivo") == "oggetto_sbagliato":
-        return None
-    elif attesa:
-        attese = [attesa]
-    else:
-        return None
-    if not attese:
-        return None
-
-    motivo = riscontro.get("motivo") or ("confermata" if corretta else "corretta dall'utente")
-    nota = " — ".join(filter(None, [motivo, (riscontro.get("nota") or "").strip()]))
-    return Caso(comune=comune, oggetto=oggetto, destinazioni_attese=attese,
-                categoria=riconosciuto.get("categoria"),
-                materiali=list(riconosciuto.get("materiali") or []),
-                stato=riconosciuto.get("stato"),
-                sinonimi=list(riconosciuto.get("sinonimi") or []),
-                testo_utente=contesto.get("testo_utente"),
-                origine="riscontro", nota=nota)
-
-
 def leggi(percorso: Path) -> list[Caso]:
     if not percorso.is_file():
         return []
@@ -143,28 +89,20 @@ def leggi(percorso: Path) -> list[Caso]:
 
 
 def tutti(cartella: Path | None = None) -> list[Caso]:
-    """I casi manuali più quelli nati dai riscontri, senza duplicati.
-
-    Se lo stesso caso esiste in entrambi, vince il manuale: è quello che abbiamo deciso noi,
-    e il riscontro potrebbe portare un'attesa sbagliata dell'utente.
-    """
-    cartella = cartella or CARTELLA
-    manuali = leggi(cartella / CASI_MANUALI.name)
-    visti = {c.id for c in manuali}
-    da_riscontri = [c for c in leggi(cartella / CASI_DA_RISCONTRI.name) if c.id not in visti]
-    return [c for c in [*manuali, *da_riscontri] if c.valido]
+    """I casi da eseguire, senza duplicati e senza quelli che non misurano nulla."""
+    casi = leggi((cartella or CARTELLA) / CASI.name)
+    visti, unici = set(), []
+    for caso in casi:
+        if caso.valido and caso.id not in visti:
+            visti.add(caso.id)
+            unici.append(caso)
+    return unici
 
 
 def aggiungi(caso: Caso, percorso: Path | None = None) -> bool:
-    """Accoda un caso, saltandolo se c'è già. Restituisce True se è stato scritto.
-
-    Il controllo dei duplicati evita che dieci pollici su sullo stesso oggetto diventino
-    dieci casi identici, che gonfierebbero le percentuali senza misurare niente di nuovo.
-    """
-    percorso = percorso or CASI_DA_RISCONTRI
-    if not caso.valido:
-        return False
-    if any(c.id == caso.id for c in leggi(percorso)):
+    """Accoda un caso, saltandolo se c'è già. Restituisce True se è stato scritto."""
+    percorso = percorso or CASI
+    if not caso.valido or any(c.id == caso.id for c in leggi(percorso)):
         return False
     percorso.parent.mkdir(parents=True, exist_ok=True)
     with open(percorso, "a", encoding="utf-8") as fh:
