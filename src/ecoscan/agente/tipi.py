@@ -181,6 +181,10 @@ class Candidato:
 # non dall'adattatore di un singolo modello: vale per qualunque modello, anche futuro.
 TIPI_NON_VALIDI = frozenset({"solo_materiale", "nessuna"})
 
+# La voce nomina proprio l'oggetto. È l'unico tipo che il codice sa verificare da sé,
+# confrontando il nome del documento con l'oggetto riconosciuto.
+STESSO_OGGETTO = "stesso_oggetto"
+
 
 @dataclass
 class Scelta:

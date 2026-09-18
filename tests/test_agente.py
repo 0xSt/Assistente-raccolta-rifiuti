@@ -6,7 +6,7 @@ di Gemma, che si misura con le sonde e con il set di valutazione.
 import pytest
 
 from ecoscan import condizioni
-from ecoscan.agente.agente import Agente, domande
+from ecoscan.agente.agente import Agente, Richiesta, domande
 from ecoscan.agente.recupero import menzionata, scegli_variante
 from ecoscan.agente.tipi import Candidato, Riconoscimento, Scelta, Variante
 from tests.conftest import ModelloFinto, SceglieIlDocumento
@@ -472,3 +472,62 @@ def test_il_materiale_entra_fra_le_domande_poste_all_indice():
     assert "forchetta acciaio" in poste
     # deve stare fra le essenziali: il tetto sulle domande tagliava via proprio questa
     assert poste.index("forchetta acciaio") <= 3
+
+
+# ----------------------------------------- l'etichetta della corrispondenza la verifica il codice
+
+def documento_divano() -> Candidato:
+    return Candidato(id="oggetto:Napoli:divano", livello=1, nome="Divani",
+                     testo="Divani. Va in Isola Ecologica Estesa.",
+                     varianti=[Variante(destinazioni=["Isola Ecologica Estesa"])])
+
+
+def test_se_il_documento_nomina_l_oggetto_e_lo_stesso_oggetto():
+    """Il caso del divano: il documento scelto era proprio "Divani" e il modello ha
+    dichiarato "categoria", motivandolo con "il divano rientra nella categoria mobile".
+    Da quando la presentazione mostra l'etichetta, sbagliarla è dire una frase falsa:
+    "il comune non elenca proprio questo oggetto" mentre il comune lo elencava."""
+    richiesta = Richiesta(Riconoscimento(oggetto="divano", categoria="mobile",
+                                         confidenza=0.9), "Napoli")
+    verificato = Agente._corrispondenza_verificata(documento_divano(), "categoria", richiesta)
+    assert verificato == "stesso_oggetto"
+
+
+def test_una_corrispondenza_per_categoria_vera_resta_tale():
+    """Il caso del microonde: "Bistecchiera elettrica" non nomina il microonde, e stabilire
+    se una voce lo *contenga* richiede il senso delle parole. Lì il codice non entra."""
+    bistecchiera = Candidato(id="x", livello=1, nome="Bistecchiera elettrica",
+                             testo="Bistecchiera elettrica.")
+    richiesta = Richiesta(Riconoscimento(oggetto="microonde", categoria="elettrodomestico",
+                                         confidenza=0.9), "Napoli")
+    assert Agente._corrispondenza_verificata(bistecchiera, "categoria", richiesta) == "categoria"
+
+
+def test_il_plurale_della_fonte_conta_come_lo_stesso_oggetto():
+    """Il dizionario scrive "Divani", il modello dice "divano": è lo stesso oggetto."""
+    richiesta = Richiesta(Riconoscimento(oggetto="divano", confidenza=0.9), "Torino")
+    assert Agente._corrispondenza_verificata(
+        documento_divano(), "sinonimo", richiesta) == "stesso_oggetto"
+
+
+def test_la_verifica_non_declassa_mai_una_corrispondenza_gia_dichiarata_piena():
+    richiesta = Richiesta(Riconoscimento(oggetto="tetrapak", confidenza=0.9), "Torino")
+    cartone = Candidato(id="y", livello=1, nome="Cartone per latte", testo="Cartone per latte.")
+    assert Agente._corrispondenza_verificata(
+        cartone, "stesso_oggetto", richiesta) == "stesso_oggetto"
+
+
+def test_l_etichetta_verificata_arriva_nella_risposta(ambiente):
+    """Non basta che la funzione sia giusta: deve essere quella che finisce nella risposta,
+    perché è quella che l'utente legge."""
+    riconoscimento = Riconoscimento(oggetto="cartone da pizza", confidenza=0.9)
+
+    class DichiaraCategoria(SceglieIlDocumento):
+        def scegli(self, riconoscimento, candidati, testo_utente=None):
+            scelta = super().scegli(riconoscimento, candidati, testo_utente)
+            scelta.tipo_corrispondenza = "categoria"
+            return scelta
+
+    agente = Agente(ambiente.recupero, DichiaraCategoria("Cartone da pizza", riconoscimento))
+    risposta = agente.rispondi(riconoscimento, "Torino")
+    assert risposta.tipo_corrispondenza == "stesso_oggetto"
