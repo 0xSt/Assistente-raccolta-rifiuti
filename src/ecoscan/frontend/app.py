@@ -104,6 +104,7 @@ def barra_laterale(cliente: ClienteAPI) -> str | None:
         st.caption(f"{scelto['gestore']} · {scelto['voci']} voci · {scelto['regole']} regole")
 
         st.divider()
+        legenda(cliente.base, comune)
         if st.button("Nuova conversazione", width="stretch"):
             st.session_state.messaggi = [{"ruolo": "assistente", "testo": BENVENUTO}]
             st.session_state.contesto = None
@@ -263,7 +264,7 @@ def mostra_conversazione(cliente: ClienteAPI, comune: str, etichette: dict[str, 
     for messaggio in st.session_state.messaggi:
         mostra_messaggio(messaggio)
     pulsanti_chiarimento(cliente, etichette)
-    riscontro(cliente, comune)
+    riscontro(cliente, comune, etichette)
     correzione(cliente, etichette)
 
 
