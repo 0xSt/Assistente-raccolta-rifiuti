@@ -268,7 +268,7 @@ traccia "analizza"                       ← input, output, foto allegata, tag
 
 ## 9. Test
 
-447 test, tutti veloci: i modelli sono finti, Qdrant gira in memoria, nessuna rete.
+449 test, tutti veloci: i modelli sono finti, Qdrant gira in memoria, nessuna rete.
 
 | Gruppo | Cosa presidia |
 |---|---|

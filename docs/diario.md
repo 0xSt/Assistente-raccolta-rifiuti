@@ -329,7 +329,7 @@ Cose imparate che non sono decisioni, ma che conviene ricordare.
 
 **Revisioni manuali**: 36 (erano 32), le 4 nuove sono i nomi corretti. **Serve rigenerare i dati**: `uv run ecoscan-transform && uv run ecoscan-carica && uv run ecoscan-regole && uv run ecoscan-carica && uv run ecoscan-vettorizza`.
 
-**Test.** 447 (erano 382): valutazione, cache, qualità dei nomi, `/domanda`, riscontro arricchito, legenda.
+**Test.** 449 (erano 382): valutazione, cache, qualità dei nomi, `/domanda`, riscontro arricchito, legenda, e due controlli statici sull'interfaccia — le chiamate interne rispettano le firme, e nessuna funzione resta mai chiamata.
 
 ### v0.39.0 — 18/09/2026
 
