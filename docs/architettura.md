@@ -4,7 +4,7 @@ Come è fatto il sistema, come sono legati i file, e perché. È il documento da
 orientarsi; il **[diario](diario.md)** racconta *quando* e *perché* le cose sono cambiate,
 questo dice *com'è adesso*.
 
-Aggiornato alla **v0.39.0**.
+Aggiornato alla **v0.40.0**.
 
 ---
 
@@ -155,6 +155,7 @@ all'interfaccia:
 | `etl/normalizza_regole.py` | Le regole di categoria collegate alle destinazioni |
 | `etl/revisioni.py` | Applica le decisioni prese a mano, versionate in git |
 | `etl/trascrizioni.py` | Le parti di fonte trascritte a mano, quando l'estrazione non arriva |
+| `etl/qualita_nomi.py` | I nomi rimasti sgrammaticati dopo la normalizzazione diventano motivi di revisione |
 | `db/schema.sql` | Lo schema relazionale: 12 tabelle |
 | `db/carica.py` | Costruisce il database, una funzione per tabella |
 | `db/documenti.py` | Costruisce i documenti da indicizzare: oggetto, regola, destinazione |
@@ -169,6 +170,7 @@ all'interfaccia:
 | `agente/modelli.py` | Il modello di visione dietro un protocollo, con l'implementazione Ollama |
 | `agente/tipi.py` | `Riconoscimento`, `Candidato`, `Variante`, `Scelta`, `Risposta` |
 | `agente/immagini.py` | Ridimensiona e ricodifica le foto prima dell'invio al modello |
+| `agente/cache.py` | Decoratore di `ModelloVisione`: la stessa foto non si riconosce due volte |
 | `materiali.py` | Famiglie di materiali e quando due si escludono |
 | `condizioni.py` | Natura di una condizione (stato, quantità, utenza): come si scrive, che domanda fa |
 | `prompt/` | I prompt come file versionati, con versione e impronta sul contenuto |
@@ -177,18 +179,18 @@ all'interfaccia:
 
 | File | Responsabilità |
 |---|---|
-| `api/app.py` | Otto rotte, registrate per area: stato, agente, ricerca, riscontro |
+| `api/app.py` | Nove rotte, registrate per area: stato, agente, ricerca, riscontro |
 | `api/schemi.py` | La forma pubblica di ingressi e uscite (Pydantic), separata dai tipi interni |
 | `api/risorse.py` | Connessioni e agente costruiti una volta all'avvio; database in sola lettura |
 
 Le rotte: `/salute`, `/comuni`, `/destinazioni`, `/analizza`, `/continua`, `/correggi`,
-`/cerca`, `/riscontro`.
+`/domanda`, `/cerca`, `/riscontro`.
 
 ### Interfaccia
 
 | File | Responsabilità |
 |---|---|
-| `frontend/app.py` | La chat in Streamlit: allegato, chiarimenti a pulsante, correzione, riscontro |
+| `frontend/app.py` | La chat in Streamlit: allegato o nome scritto, chiarimenti a pulsante, correzione, riscontro, legenda dei contenitori |
 | `frontend/cliente.py` | L'unico punto di contatto col backend |
 | `frontend/presentazione.py` | Da risposta dell'API a messaggio leggibile: titolo, corpo, fonte, spiegazione |
 
@@ -201,6 +203,8 @@ Le rotte: `/salute`, `/comuni`, `/destinazioni`, `/analizza`, `/continua`, `/cor
 | `agente/prova.py` | `ecoscan-analizza`: prova l'agente su una foto vera, con i tempi |
 | `agente/diagnostica.py` | Verifica il canale immagine con un'immagine dal contenuto noto |
 | `db/sonda.py` | Misura dove finisce il documento atteso per domande note |
+| `valutazione/casi.py` | Cos'è un caso, dove vive, come un riscontro diventa un caso misurabile |
+| `valutazione/esegui.py` | `ecoscan-valuta`: recall@k come tetto, diagnosi 2×2, confronto fra esecuzioni. Vedi [valutazione.md](valutazione.md) |
 
 ### Trasversali
 
@@ -264,7 +268,7 @@ traccia "analizza"                       ← input, output, foto allegata, tag
 
 ## 9. Test
 
-382 test, tutti veloci: i modelli sono finti, Qdrant gira in memoria, nessuna rete.
+447 test, tutti veloci: i modelli sono finti, Qdrant gira in memoria, nessuna rete.
 
 | Gruppo | Cosa presidia |
 |---|---|

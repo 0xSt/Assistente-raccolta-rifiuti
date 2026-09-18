@@ -22,6 +22,7 @@ import re
 from collections import defaultdict
 from dataclasses import dataclass, field
 
+from ecoscan.etl import qualita_nomi
 from ecoscan.etl.napoli_qualita import chiave_confronto, normalizza_spazi, senza_accenti
 
 # --------------------------------------------------------------------------- profilo
@@ -366,6 +367,11 @@ def trasforma_voce(record: dict, profilo: Profilo | None = None,
     if not nome:
         estratti.motivi.append("nome vuoto dopo la normalizzazione")
         nome = normalizza_spazi(record["nome_originale"])
+    # Togliere una condizione da IN MEZZO al nome può lasciare un frammento di sintassi
+    # invece di un oggetto ("Stovaglie in materiale"). Un nome rotto è un documento che il
+    # recupero non trova mai, quindi va segnalato come le altre voci da revisionare.
+    if difetto := qualita_nomi.motivo(nome):
+        estratti.motivi.append(difetto)
 
     return VoceNormalizzata(
         slug=record["slug"], comune=profilo.comune,

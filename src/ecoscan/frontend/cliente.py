@@ -82,10 +82,21 @@ class ClienteAPI:
         return self._chiedi("POST", "/correggi", ATTESA_LUNGA,
                             json={"contesto": contesto, "oggetto": oggetto})
 
+    def domanda(self, comune: str, oggetto: str, testo: str | None = None) -> dict:
+        """L'utente scrive il nome dell'oggetto invece di fotografarlo: nessun modello di
+        visione di mezzo, quindi l'attesa è breve."""
+        return self._chiedi("POST", "/domanda", ATTESA_LUNGA,
+                            json={"comune": comune, "oggetto": oggetto, "testo": testo})
+
     def riscontro(self, comune: str, corretta: bool, oggetto: str | None = None,
-                  destinazione_attesa: str | None = None, nota: str | None = None,
-                  contesto: dict | None = None) -> dict:
+                  destinazioni_date: list[str] | None = None,
+                  destinazione_attesa: str | None = None, motivo: str | None = None,
+                  nota: str | None = None, contesto: dict | None = None) -> dict:
+        """Il giudizio dell'utente. `destinazioni_date` e `destinazione_attesa` sono ciò che
+        lo rende misurabile: senza un'attesa resta un'opinione, con un'attesa diventa un
+        caso di valutazione."""
         return self._chiedi("POST", "/riscontro", ATTESA_BREVE, json={
             "comune": comune, "corretta": corretta, "oggetto": oggetto,
-            "destinazione_attesa": destinazione_attesa, "nota": nota,
+            "destinazioni_date": destinazioni_date or [],
+            "destinazione_attesa": destinazione_attesa, "motivo": motivo, "nota": nota,
             "contesto": contesto or {}})

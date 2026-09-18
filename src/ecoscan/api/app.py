@@ -27,10 +27,11 @@ from fastapi import Depends, FastAPI, File, Form, HTTPException, UploadFile
 
 from ecoscan.api.risorse import Risorse
 from ecoscan.api.schemi import (
-    CandidatoUscita, Comune, Continuazione, Correzione, Destinazione, Ricerca, Riscontro,
-    RispostaUscita, Salute,
+    CandidatoUscita, Comune, Continuazione, Correzione, Destinazione, Domanda, Ricerca,
+    Riscontro, RispostaUscita, Salute,
 )
 from ecoscan.percorsi import DATI
+from ecoscan.valutazione.casi import CASI_DA_RISCONTRI, aggiungi, caso_da_riscontro
 
 RISCONTRI = DATI / "riscontri.jsonl"
 PREFISSO = "/api/v1"
@@ -103,6 +104,17 @@ def rotte_agente(app: FastAPI, dip: Dipendenze) -> None:
         dip.contesto_valido(dati.contesto, "riconoscimento", "comune")
         return RispostaUscita.da(r.agente.continua(dati.contesto, dati.risposta))
 
+    @app.post(f"{PREFISSO}/domanda", response_model=RispostaUscita, tags=["agente"])
+    def domanda(dati: Domanda, r: Risorse = Depends(dip.correnti)) -> RispostaUscita:
+        """Una domanda scritta, senza foto: "dove butto la carta stagnola?".
+
+        Salta il modello di visione, che è il passaggio lento, e parte dall'oggetto detto
+        dall'utente come se l'avesse riconosciuto lui: chi scrive il nome dell'oggetto lo sa
+        meglio di qualunque modello che guardi una fotografia.
+        """
+        dip.controlla_comune(r, dati.comune)
+        return RispostaUscita.da(r.agente.domanda(dati.comune, dati.oggetto, dati.testo))
+
     @app.post(f"{PREFISSO}/correggi", response_model=RispostaUscita, tags=["agente"])
     def correggi(dati: Correzione, r: Risorse = Depends(dip.correnti)) -> RispostaUscita:
         """L'oggetto riconosciuto era sbagliato e l'utente dice qual è.
@@ -129,7 +141,7 @@ def rotte_ricerca(app: FastAPI, dip: Dipendenze) -> None:
         return [CandidatoUscita.da(c) for c in trovati]
 
 
-def rotte_riscontro(app: FastAPI, dip: Dipendenze, riscontri: Path) -> None:
+def rotte_riscontro(app: FastAPI, dip: Dipendenze, riscontri: Path, casi: Path) -> None:
 
     @app.post(f"{PREFISSO}/riscontro", status_code=201, tags=["riscontro"])
     def riscontro(dati: Riscontro, r: Risorse = Depends(dip.correnti)) -> dict:
@@ -143,10 +155,17 @@ def rotte_riscontro(app: FastAPI, dip: Dipendenze, riscontri: Path) -> None:
         riscontri.parent.mkdir(parents=True, exist_ok=True)
         with open(riscontri, "a", encoding="utf-8") as fh:
             fh.write(json.dumps(riga, ensure_ascii=False) + "\n")
-        return {"registrato": True}
+
+        # Il giudizio diventa un caso di valutazione quando dice cosa sarebbe stato giusto:
+        # un pollice su conferma la risposta data, un pollice giù vale se l'utente indica
+        # dove andava. Un "sbagliato" senza alternativa resta nel registro e basta.
+        caso = caso_da_riscontro(dati.model_dump())
+        aggiunto = aggiungi(caso, casi) if caso else False
+        return {"registrato": True, "diventato_caso_di_valutazione": aggiunto}
 
 
-def crea_app(risorse: Risorse | None = None, riscontri: Path = RISCONTRI) -> FastAPI:
+def crea_app(risorse: Risorse | None = None, riscontri: Path = RISCONTRI,
+             casi: Path = CASI_DA_RISCONTRI) -> FastAPI:
     """Costruisce l'applicazione. `risorse` si passa nei test; in produzione si apre da sé."""
     stato: dict[str, Risorse | None] = {"risorse": risorse}
 
@@ -170,7 +189,7 @@ def crea_app(risorse: Risorse | None = None, riscontri: Path = RISCONTRI) -> Fas
     rotte_stato(app, dipendenze)
     rotte_agente(app, dipendenze)
     rotte_ricerca(app, dipendenze)
-    rotte_riscontro(app, dipendenze, riscontri)
+    rotte_riscontro(app, dipendenze, riscontri, casi)
     return app
 
 

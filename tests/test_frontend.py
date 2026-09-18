@@ -255,3 +255,50 @@ def test_le_varianti_di_quantita_si_leggono_bene():
                                       "destinazioni": ["carta_e_cartone"]}]}]}, ETICHETTE)
     assert "per piccole quantità → Organico" in testo
     assert "**per grandi quantità → Carta e cartone** ✓" in testo
+
+
+# --------------------------------------------------- domanda scritta, riscontro, legenda
+
+def test_la_domanda_scritta_manda_comune_e_oggetto(cliente, monkeypatch):
+    visti = {}
+    monkeypatch.setattr("requests.request",
+                        lambda m, u, **a: visti.update({"url": u, **a}) or RispostaFinta(corpo={}))
+    cliente.domanda("Torino", "cartone della pizza")
+    assert visti["url"].endswith("/domanda")
+    assert visti["json"] == {"comune": "Torino", "oggetto": "cartone della pizza", "testo": None}
+
+
+def test_il_riscontro_porta_quello_che_serve_a_rieseguirlo(cliente, monkeypatch):
+    """Senza `destinazioni_date` e `destinazione_attesa` il giudizio resta un'opinione:
+    con queste diventa un caso di valutazione."""
+    visti = {}
+    monkeypatch.setattr("requests.request",
+                        lambda m, u, **a: visti.update({"url": u, **a}) or RispostaFinta(corpo={}))
+    cliente.riscontro("Torino", False, oggetto="forchetta",
+                      destinazioni_date=["rifiuto_non_recuperabile"],
+                      destinazione_attesa="imballaggi_plastica",
+                      motivo="contenitore_sbagliato",
+                      contesto={"riconoscimento": {"oggetto": "forchetta"}})
+    inviato = visti["json"]
+    assert inviato["destinazioni_date"] == ["rifiuto_non_recuperabile"]
+    assert inviato["destinazione_attesa"] == "imballaggi_plastica"
+    assert inviato["motivo"] == "contenitore_sbagliato"
+    assert inviato["contesto"]["riconoscimento"]["oggetto"] == "forchetta"
+
+
+def test_le_etichette_si_ricavano_dall_elenco_dei_contenitori(monkeypatch):
+    """La legenda e la traduzione delle risposte leggono la stessa cosa: una chiamata sola."""
+    from ecoscan.frontend import app as interfaccia
+
+    monkeypatch.setattr(interfaccia, "elenco_destinazioni",
+                        lambda base, comune: [{"nome": "organico", "etichetta": "Organico",
+                                               "canale": "raccolta_ordinaria"}])
+    assert interfaccia.etichette_destinazioni("x", "Torino") == {"organico": "Organico"}
+
+
+def test_il_motivo_del_pollice_giu_ha_le_voci_che_il_backend_riconosce():
+    """I tre motivi separano i due difetti che si affrontano in punti diversi del sistema."""
+    from ecoscan.frontend.app import MOTIVI
+
+    assert set(MOTIVI) == {"oggetto_sbagliato", "contenitore_sbagliato", "altro"}
+    assert all(testo and not testo.endswith(".") for testo in MOTIVI.values())
