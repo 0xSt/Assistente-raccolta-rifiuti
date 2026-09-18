@@ -197,3 +197,38 @@ def test_un_documento_porta_alla_destinazione_attesa(destinazioni, attese, attes
     candidato = Candidato(id="x", livello=1, testo="t",
                           varianti=[Variante(destinazioni=destinazioni)])
     assert val.porta_alla_destinazione(candidato, attese) is atteso
+
+
+# ------------------------------------------ una misura che non sa non deve dire di sapere
+
+def test_senza_modello_il_livello_non_si_misura():
+    """Il difetto del 18/09: senza modello il livello non viene mai determinato, e
+    confrontare None con l'atteso dava False per ogni caso. La misura riportava "0% di
+    livelli corretti" su un'esecuzione in cui il livello non era stato misurato affatto.
+    Una metrica che mente è peggio di una che manca, perché la si legge."""
+    caso = caso_dei_giornali(livello_atteso=1)
+    senza = val.Esito(caso=caso, recuperato=True, valutata_la_scelta=False)
+    assert senza.livello_corretto is None
+    assert val.misure([senza])["livello_atteso"] is None
+
+
+def test_con_modello_il_livello_si_misura_eccome():
+    caso = caso_dei_giornali(livello_atteso=1)
+    assert val.Esito(caso=caso, recuperato=True, livello=1).livello_corretto is True
+    assert val.Esito(caso=caso, recuperato=True, livello=2).livello_corretto is False
+
+
+def test_senza_modello_la_diagnosi_non_dice_corretto():
+    """"corretto" farebbe leggere come risposta giusta ciò che è solo un documento trovato."""
+    senza = val.Esito(caso=caso_dei_giornali(), recuperato=True, valutata_la_scelta=False)
+    assert senza.diagnosi == val.RECUPERATO
+    assert "non è stata valutata" in senza.diagnosi
+
+
+def test_un_esito_dice_dove_portavano_i_documenti_trovati(ambiente):
+    """Serve a distinguere un recupero fallito da un'attesa sbagliata, che è l'errore che
+    ho fatto io col frullatore: il sistema aveva ragione e il caso no."""
+    from ecoscan.valutazione.esegui import _ModelloAssente
+    agente = Agente(ambiente.recupero, _ModelloAssente(), k=8)
+    esito = val.valuta_caso(agente, caso_dei_giornali(), con_modello=False)
+    assert "carta_e_cartone" in esito.raggiungibili

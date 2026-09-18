@@ -1,6 +1,6 @@
 # La valutazione del recupero
 
-> Aggiornato alla **v0.40.0**.
+> Aggiornato alla **v0.41.2**.
 
 Questo documento spiega **perché** si misura il recupero, **cosa** si misura esattamente,
 **come** si usa lo strumento e **come si leggono** i numeri che produce.
@@ -166,7 +166,7 @@ L'uscita ha due parti. Le misure:
 |---|---|---|
 | `recupero` | recall@k: il tetto | formulazioni, nomi, `k`, ricerca ibrida |
 | `risposte_corrette` | quanto si arriva davvero | dipende dalla diagnosi, sotto |
-| `livello_atteso` | la risposta viene dal livello giusto | cascata, soglie |
+| `livello_atteso` | la risposta viene dal livello giusto (solo con il modello) | cascata, soglie |
 | `posizione_media` | dove sta il documento giusto | se cresce verso `k`, l'ordinamento è debole |
 
 E la diagnosi caso per caso, che è la parte azionabile. È una tabella 2×2:
@@ -206,7 +206,12 @@ uno.
   MLflow;
 - **le attese le abbiamo decise noi.** Un caso con l'attesa sbagliata rende il sistema
   peggiore mentre sembra migliorarlo: per questo i casi manuali si discutono e i casi da
-  riscontro restano in un file separato;
+  riscontro restano in un file separato. **È già successo**: il caso `frullatore` chiedeva
+  le destinazioni di "Elettrodomestici", ma ASIA ha una voce `Frullatore` che manda ai
+  piccoli RAEE — il sistema dava la risposta migliore e la valutazione la contava come
+  errore. Da lì la riga "i documenti trovati portano a…" nell'uscita: prima di dare la
+  colpa al recupero si guarda dove portavano i candidati, e un'attesa sbagliata si vede
+  subito;
 - **non si misura la qualità della spiegazione**, solo la destinazione. Una risposta giusta
   con una motivazione confusa conta come corretta.
 

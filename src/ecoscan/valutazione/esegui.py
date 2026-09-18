@@ -54,6 +54,9 @@ CORRETTO = "corretto"
 SCELTA_SBAGLIATA = "il documento c'era, non è stato scelto"
 RECUPERO_FALLITO = "il documento non è stato recuperato"
 ALTRA_STRADA = "corretto per un'altra strada"
+# Senza modello non si misura la risposta, solo il tetto: chiamarlo "corretto" farebbe
+# leggere come una risposta giusta ciò che è soltanto un documento trovato.
+RECUPERATO = "documento recuperato (la risposta non è stata valutata)"
 
 
 @dataclass
@@ -67,6 +70,7 @@ class Esito:
     candidati: int = 0
     posizione: int | None = None           # dove stava il primo documento giusto (1-based)
     valutata_la_scelta: bool = True
+    raggiungibili: list[str] = field(default_factory=list)   # dove portano i candidati trovati
 
     @property
     def risposta_corretta(self) -> bool:
@@ -74,14 +78,21 @@ class Esito:
 
     @property
     def livello_corretto(self) -> bool | None:
-        if self.caso.livello_atteso is None:
+        """`None` quando non lo sappiamo, non `False`.
+
+        Senza modello il livello non viene mai determinato, e confrontare `None` con
+        l'atteso dava `False` per ogni caso: la misura riportava 0% di livelli corretti su
+        un'esecuzione in cui il livello non era stato misurato affatto. Una metrica che
+        mente è peggio di una metrica che manca, perché la si legge.
+        """
+        if self.caso.livello_atteso is None or not self.valutata_la_scelta:
             return None
         return self.livello == self.caso.livello_atteso
 
     @property
     def diagnosi(self) -> str:
         if not self.valutata_la_scelta:
-            return CORRETTO if self.recuperato else RECUPERO_FALLITO
+            return RECUPERATO if self.recuperato else RECUPERO_FALLITO
         if self.risposta_corretta:
             return CORRETTO if self.recuperato else ALTRA_STRADA
         return SCELTA_SBAGLIATA if self.recuperato else RECUPERO_FALLITO
@@ -110,13 +121,21 @@ def valuta_caso(agente: Agente, caso: Caso, con_modello: bool = True) -> Esito:
     posizione = next((i for i, c in enumerate(trovati, start=1)
                       if porta_alla_destinazione(c, caso.destinazioni_attese)), None)
 
+    # dove portano i documenti trovati: senza questo, un caso con l'attesa sbagliata è
+    # indistinguibile da un recupero fallito, ed è successo al primo giro (il frullatore)
+    raggiungibili: list[str] = []
+    for candidato in trovati:
+        raggiungibili.extend(d for d in candidato.destinazioni if d not in raggiungibili)
+
     if not con_modello:
         return Esito(caso=caso, recuperato=posizione is not None, candidati=len(trovati),
-                     posizione=posizione, valutata_la_scelta=False)
+                     posizione=posizione, valutata_la_scelta=False,
+                     raggiungibili=raggiungibili)
 
     risposta = agente.rispondi(caso.riconoscimento, caso.comune, caso.testo_utente)
     return Esito(caso=caso, recuperato=posizione is not None, destinazioni=risposta.destinazioni,
-                 livello=risposta.livello_evidenza, candidati=len(trovati), posizione=posizione)
+                 livello=risposta.livello_evidenza, candidati=len(trovati), posizione=posizione,
+                 raggiungibili=raggiungibili)
 
 
 def esegui(agente: Agente, casi: list[Caso], con_modello: bool = True,
@@ -154,13 +173,21 @@ def misure(esiti: list[Esito]) -> dict[str, float | int]:
 def riepiloga(esiti: list[Esito]) -> None:
     print(f"\n{'esito':4} {'caso':44} {'pos.':>5}  diagnosi")
     print("-" * 100)
-    for e in sorted(esiti, key=lambda e: (e.diagnosi == CORRETTO, e.caso.id)):
-        segno = "OK" if e.diagnosi == CORRETTO else "  "
+    buone = (CORRETTO, RECUPERATO)
+    for e in sorted(esiti, key=lambda e: (e.diagnosi in buone, e.caso.id)):
+        segno = "OK" if e.diagnosi in buone else "  "
         posizione = str(e.posizione) if e.posizione else "-"
-        coda = "" if e.diagnosi == CORRETTO else f"  (atteso {', '.join(e.caso.destinazioni_attese)}"
-        if coda and e.destinazioni:
-            coda += f"; ottenuto {', '.join(e.destinazioni)}"
-        print(f"{segno:4} {e.caso.id[:44]:44} {posizione:>5}  {e.diagnosi}{coda}{')' if coda else ''}")
+        print(f"{segno:4} {e.caso.id[:44]:44} {posizione:>5}  {e.diagnosi}")
+        if e.diagnosi in buone:
+            continue
+        print(f"     atteso:   {', '.join(e.caso.destinazioni_attese)}")
+        if e.destinazioni:
+            print(f"     ottenuto: {', '.join(e.destinazioni)}")
+        # Prima di dare la colpa al recupero, si guarda dove portavano i documenti trovati:
+        # se l'attesa non compare da nessuna parte, spesso è l'attesa a essere sbagliata
+        if e.raggiungibili:
+            print(f"     i documenti trovati portano a: {', '.join(e.raggiungibili[:8])}")
+            print("     (se l'attesa non è qui dentro, controlla il caso prima del recupero)")
 
     m = misure(esiti)
     print(f"\n## Misure su {m['casi']} casi")

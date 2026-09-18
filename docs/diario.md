@@ -169,6 +169,7 @@ Formato: decisione, motivazione, stato.
 | D158 | Il riconoscimento si mette in cache in memoria, dietro l'interfaccia `ModelloVisione`, con chiave impronta della foto + testo dell'utente; la **scelta no** | Il riconoscimento è il passaggio lento (minuti su CPU) ed è il più ripetuto, perché la stessa foto si rimanda decine di volte mentre si sviluppa. La scelta dipende dai candidati, che cambiano con l'indice e con le politiche: metterla in cache renderebbe invisibile proprio ciò che stiamo misurando. In memoria e non su disco perché un riconoscimento è il giudizio di una versione di un prompt, e non deve sopravvivere alla configurazione che l'ha prodotto | Accettata |
 | D159 | I nomi mutilati dalla normalizzazione si riconoscono dalla **grammatica**, non dalla lunghezza, e diventano un motivo di revisione dentro il Transform | Accorciare un nome di metà è spesso il comportamento giusto ("Barattolo in latta (scatola di pelati, tonno…)" → "Barattolo in latta") e i nomi corti sono spesso sigle legittime. I controlli stretti su 902 voci ne segnalano 4: la precisione conta più della copertura, perché un controllo che grida al lupo viene disattivato. Collegarli ai motivi di revisione fa sì che la rottura si segnali da sé, invece di finire in un elenco che nessuno guarda | Accettata |
 | D160 | Un oggetto si può **scrivere** invece di fotografarlo (`/domanda`), partendo dal riconoscimento dichiarato dall'utente con confidenza massima | Chi sa come si chiama la cosa non deve aspettare minuti perché un modello glielo confermi, e non rischia che glielo sbagli. È anche la porta d'ingresso per chi l'oggetto non ce l'ha in mano. Stessa cascata, stessa scelta, stesse tracce: cambia solo da dove viene il riconoscimento | Accettata |
+| D171 | Quando un caso fallisce, la valutazione mostra **dove portavano i documenti recuperati**, non solo l'attesa | Un'attesa sbagliata e un recupero fallito producono la stessa riga, e nella modalità senza modello non c'è nemmeno la risposta a distinguerli. Col frullatore ho accusato il recupero di un errore che era mio: il sistema trovava la voce giusta e più specifica. Il costo di un dataset sbagliato è che si "corregge" un sistema che funziona | Accettata |
 | D170 | Il tipo di corrispondenza dichiarato dal modello viene **verificato dal codice** dove è verificabile: se il nome del documento nomina l'oggetto, è `stesso_oggetto`, comunque il modello abbia voluto chiamare la relazione | Da quando la presentazione mostra l'etichetta all'utente (D163), sbagliarla è dire una frase falsa. Per un divano a Napoli il documento scelto era proprio "Divani" e il modello ha dichiarato "categoria": il messaggio negava che il comune elencasse l'oggetto mentre la fonte citata era la sua pagina dedicata. La direzione opposta (una voce che *contiene* l'oggetto) richiede il senso delle parole e resta al prompt. È D83 applicato all'etichetta invece che alla scelta | Accettata |
 | D164 | Le **essenziali** delle formulazioni entrano sempre, le aggiuntive riempiono i posti che restano; il tetto sale da 5 a 7 | Un elenco unico ordinato per specificità si è rotto due volte allo stesso modo: la domanda col materiale (forchetta, v0.37.0) e quella con la sola categoria (microonde, v0.40.2) stavano in coda e il tetto le tagliava proprio nei casi in cui servivano. Le quattro essenziali coprono i quattro modi in cui il dizionario nomina le cose: per oggetto, per oggetto con contesto, per materiale, per categoria | Accettata |
 | D165 | La domanda estesa usa al massimo **due materiali** | Il modello ne elenca volentieri quattro; una domanda di cinque parole in cui l'oggetto è una parola sola parla di *di cosa è fatto* e non di *cos'è*, e la ricerca si sposta sui materiali. È la stessa causa di D80, misurata su un caso nuovo | Accettata |
@@ -321,6 +322,22 @@ Cose imparate che non sono decisioni, ma che conviene ricordare.
 ---
 
 ## Cronologia
+
+### v0.41.2 — 18/09/2026
+
+**Prima esecuzione vera della valutazione**, e ha trovato tre cose — due nel sistema di misura, una nei dati.
+
+**Il divano di Torino è risolto** senza averlo toccato: le formulazioni essenziali di v0.41.0 lo portano in posizione 1. È la prova che quella correzione era strutturale e non un cerotto, perché il caso è stato scritto dopo.
+
+**"0.0% livello di evidenza atteso" era una bugia della misura.** Senza modello il livello non viene mai determinato, e `livello_corretto` confrontava `None` con l'atteso restituendo `False` per ogni caso. Ora restituisce `None` quando non lo sappiamo, e la misura si omette. Una metrica che mente è peggio di una che manca, perché la si legge.
+
+**"corretto" senza modello non era corretto**: significava solo "documento trovato". Diagnosi rinominata in "documento recuperato (la risposta non è stata valutata)".
+
+**Il frullatore non era un errore del sistema, era un errore mio** (D171). Avevo scritto il caso con le destinazioni di "Elettrodomestici", ma ASIA ha una voce `Frullatore` che manda alle Ecoisole RAEE R4, il raggruppamento dei piccoli elettrodomestici: il sistema dava la risposta *più specifica e più giusta*, e la valutazione la contava come recupero fallito. Esattamente il rischio dichiarato in `valutazione.md` — "un caso con l'attesa sbagliata rende il sistema peggiore mentre sembra migliorarlo" — verificatosi entro un giorno.
+
+Da qui la correzione utile: quando un caso fallisce, l'uscita mostra ora **dove portavano i documenti trovati**. Se l'attesa non compare in quell'elenco, quasi sempre è l'attesa a essere sbagliata. Senza quella riga, un'attesa sbagliata e un recupero fallito sono indistinguibili nella modalità più veloce.
+
+**Test.** 498.
 
 ### v0.41.1 — 18/09/2026
 
