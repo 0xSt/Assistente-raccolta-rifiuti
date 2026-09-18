@@ -1,4 +1,4 @@
-# versione: 8
+# versione: 9
 # scopo: secondo passaggio, scelta vincolata fra i candidati trovati nel dizionario comunale
 Ti do la descrizione di un oggetto e un elenco numerato di voci del dizionario dei rifiuti
 del comune. Devi dire QUALE voce corrisponde all'oggetto.
@@ -28,11 +28,18 @@ Regole:
 - in "tipo_corrispondenza" dichiara CHE TIPO di corrispondenza hai trovato:
     "stesso_oggetto"   la voce nomina proprio quell'oggetto (scarpone -> "Stivali");
     "sinonimo"         la voce lo nomina con un altro nome (tetrapak -> "Cartone per latte");
-    "categoria"        la voce è la categoria a cui l'oggetto appartiene
-                       (sandalo -> "Scarpe", teglia -> "Pentole e padelle");
+    "categoria"        la voce CONTIENE l'oggetto, come categoria o come insieme
+                       (sandalo -> "Scarpe", teglia -> "Pentole e padelle",
+                        forchetta -> "Stoviglie");
     "solo_materiale"   la voce condivide solo il materiale, ma è un altro oggetto
                        (sandalo -> "Molletta in plastica"): NON è una corrispondenza;
     "nessuna"          nessuna voce descrive l'oggetto.
+- una voce che nomina un ALTRO oggetto della stessa categoria NON è una corrispondenza,
+  per quanto i due si somiglino: è un fratello, non un contenitore. Per un microonde la voce
+  "Bistecchiera elettrica" è sbagliata — sono due elettrodomestici diversi — mentre
+  "Elettrodomestici" va bene, perché lo contiene. Se stai per scrivere che la voce è
+  "come" l'oggetto, o "dello stesso tipo", allora è un fratello: cerca la voce che li
+  comprende entrambi, e se non c'è metti numero 0;
 - se il tipo è "solo_materiale" o "nessuna", metti numero 0. È una risposta corretta e
   utile: meglio dire "non lo so" che indicare il contenitore sbagliato;
 - "nessuna" vuol dire che NESSUNA voce copre l'oggetto, non che la voce è più generica di

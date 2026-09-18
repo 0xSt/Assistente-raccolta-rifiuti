@@ -349,3 +349,29 @@ def test_la_legenda_e_raggiungibile_dall_interfaccia():
     definite = {n.name for n in albero.body if isinstance(n, ast.FunctionDef)}
     mai_chiamate = definite - chiamate - {"principale", "main"}
     assert not mai_chiamate, f"funzioni dell'interfaccia mai chiamate: {sorted(mai_chiamate)}"
+
+
+# ---------------------------------------- la frase non deve dire più di quanto si sa
+
+def test_una_corrispondenza_per_categoria_non_si_spaccia_per_l_oggetto():
+    """Il caso del microonde: la voce era 'Bistecchiera elettrica' e il messaggio diceva
+    'il comune elenca proprio questo oggetto'. La fonte citata rimandava a un altro oggetto,
+    e l'utente perdeva il motivo per dubitare."""
+    testo = presentazione.corpo({"livello_evidenza": 1, "tipo_corrispondenza": "categoria"})
+    assert "non elenca proprio questo oggetto" in testo
+    assert "la categoria a cui appartiene" in testo
+
+
+def test_un_sinonimo_lo_dice():
+    testo = presentazione.corpo({"livello_evidenza": 1, "tipo_corrispondenza": "sinonimo"})
+    assert "con un altro nome" in testo
+
+
+def test_lo_stesso_oggetto_resta_la_frase_piena():
+    testo = presentazione.corpo({"livello_evidenza": 1, "tipo_corrispondenza": "stesso_oggetto"})
+    assert "Il comune elenca proprio questo oggetto." in testo
+
+
+def test_senza_tipo_di_corrispondenza_si_resta_sulla_frase_di_prima():
+    """Un backend più vecchio, o una risposta di prova, non deve perdere la spiegazione."""
+    assert "elenca proprio questo oggetto" in presentazione.corpo({"livello_evidenza": 1})

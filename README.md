@@ -4,7 +4,7 @@ Assistente per la raccolta differenziata che gira interamente in locale. L'utent
 
 Progetto universitario. Comuni del prototipo: **Napoli** (ASIA) e **Torino** (AMIAT).
 
-## Stato attuale (v0.40.0)
+## Stato attuale (v0.40.2)
 
 Il quadro completo è in [docs/diario.md](docs/diario.md).
 
@@ -15,7 +15,7 @@ Il quadro completo è in [docs/diario.md](docs/diario.md).
 | Transform Napoli | 578 voci normalizzate: 0 conflitti, 0 da revisionare |
 | Transform Torino | 324 voci normalizzate: 0 conflitti, 0 da revisionare |
 | Regole di categoria | 110 normalizzate e collegate alle destinazioni |
-| Revisione manuale | 36 decisioni prese (4% delle voci), nessuna aperta |
+| Revisione manuale | 37 decisioni prese (4% delle voci), nessuna aperta |
 | Load relazionale | Fatto: comuni, destinazioni, voci, condizioni, alias, regole, decisioni |
 | Serving — documenti su Qdrant | Fatto: 996 documenti, ricerca semantica, aggancio esatto dei codici |
 | Agente (riconoscimento, cascata, scelta, risposta) | Fatto: usabile senza HTTP |

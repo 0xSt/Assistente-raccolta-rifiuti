@@ -14,6 +14,7 @@ from ecoscan.etl import qualita_nomi
     ("Piatti di materiale", "materiale annunciato e non detto"),
     ("Tovaglioli di carta o di cibo", "congiunzione seguita da preposizione"),
     ("Scatole di cartone e", "congiunzione orfana"),
+    ("Giocattolo o elettrico", "congiunzione seguita da aggettivo"),
     ("Contenitori in di plastica", "preposizioni consecutive"),
     ("Bottiglia bottiglia di vetro", "parola ripetuta"),
     ("Cartone da pizza di", "finisce con una preposizione"),
@@ -30,6 +31,9 @@ def test_i_nomi_mutilati_vengono_segnalati(nome, difetto):
     "CD",                                 # i nomi corti sono spesso sigle legittime
     "Piatti e bicchieri di plastica",     # congiunzione fra due oggetti, non fra condizioni
     "Pentole e padelle",
+    "Vetro e lattine",
+    "Olio e grasso animale",              # congiunzione fra due sostantivi, non un aggettivo
+    "Bambola non elettrica",
     "Lampadine a risparmio energetico",
     "Toner e cartucce per stampanti",
     "Olio di frittura",

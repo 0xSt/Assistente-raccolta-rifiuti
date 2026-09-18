@@ -16,7 +16,7 @@ modello non può scegliere. È un problema di retrieval travestito da problema d
 metà del nome è spesso il comportamento giusto ("Barattolo in latta (scatola di pelati,
 tonno, ...)" -> "Barattolo in latta"), e i nomi corti sono spesso sigle legittime (CD, PC).
 Si riconoscono dalla **grammatica**: preposizioni doppie, congiunzioni orfane, un materiale
-annunciato e mai detto. Sono controlli stretti, e su 902 voci ne segnalano 4: la precisione
+annunciato e mai detto. Sono controlli stretti, e su 902 voci ne segnalano 5: la precisione
 conta più della copertura, perché un controllo che grida al lupo viene disattivato.
 
 I difetti trovati diventano un motivo di revisione, quindi la voce compare fra quelle "da
@@ -38,6 +38,10 @@ CONTROLLI: dict[str, re.Pattern] = {
     # "Tovaglioli di carta o di cibo": è rimasta la congiunzione di due condizioni
     "congiunzione seguita da preposizione": re.compile(r"\s[eo]\s+(di|in|da|per|con)\s", re.I),
     "congiunzione orfana": re.compile(r"^\s*[eo]\s|\s+[eo]\s*$", re.I),
+    # "Giocattolo o elettrico": il primo termine della congiunzione era una condizione
+    # ("di grosse dimensioni") ed e stato tolto, lasciando un oggetto congiunto a un aggettivo
+    "congiunzione seguita da aggettivo": re.compile(
+        r"^\S+\s+[eo]\s+\w+(ico|ica|ale|ato|ata|ito|ita|oso|osa|ivo|iva)\b", re.I),
     "preposizioni consecutive": re.compile(r"\b(di|in|da|per|con|a)\s+(di|in|da|per|con)\b", re.I),
     "parola ripetuta": re.compile(r"\b(\w{4,})\b\s+\1\b", re.I),
     "finisce con una preposizione": re.compile(
