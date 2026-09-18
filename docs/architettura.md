@@ -4,7 +4,7 @@ Come è fatto il sistema, come sono legati i file, e perché. È il documento da
 orientarsi; il **[diario](diario.md)** racconta *quando* e *perché* le cose sono cambiate,
 questo dice *com'è adesso*.
 
-Aggiornato alla **v0.38.0**.
+Aggiornato alla **v0.39.0**.
 
 ---
 
@@ -264,7 +264,7 @@ traccia "analizza"                       ← input, output, foto allegata, tag
 
 ## 9. Test
 
-380 test, tutti veloci: i modelli sono finti, Qdrant gira in memoria, nessuna rete.
+382 test, tutti veloci: i modelli sono finti, Qdrant gira in memoria, nessuna rete.
 
 | Gruppo | Cosa presidia |
 |---|---|

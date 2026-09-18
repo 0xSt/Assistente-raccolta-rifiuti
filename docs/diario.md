@@ -159,6 +159,8 @@ Formato: decisione, motivazione, stato.
 | D148 | Il confronto sul materiale legge il **nome** del documento, non tutto il testo | Il testo dice anche dove va ("Va in Plastica e Metalli"), e quello è il contenitore: letto come materiale faceva scartare "Scatolette per tonno", che è di metallo. Trovato provando il filtro sui candidati veri di `/cerca`, non a tavolino | Accettata |
 | D149 | La formulazione "oggetto + materiale" si pone all'indice **subito dopo** l'oggetto e la categoria | Misurato: "forchetta" non raggiunge "Stoviglie in metallo", "forchetta acciaio" sì (posizione 9). La formulazione col materiale esisteva ma stava in fondo, e il tetto di cinque domande la tagliava via proprio quando serviva | Accettata |
 | D150 | `docs/architettura.md` descrive la struttura del sistema, e due test lo tengono allineato: ogni modulo dev'essere citato, e il documento deve nominare la versione corrente | Il diario racconta *quando* le cose sono cambiate, il glossario *cosa* vuol dire una parola: mancava il documento che dice *com'è fatto adesso*. Senza un test si sarebbe disallineato al terzo commit, come succede a ogni documento di architettura scritto una volta sola | Accettata |
+| D151 | Il prompt di scelta dichiara che una voce con un nome **collettivo** ("stoviglie", "posate", "imballaggi") copre ogni oggetto dell'insieme, ed è una corrispondenza buona e non un ripiego | Osservato su foto vera: per una forchetta d'acciaio il modello aveva "Stoviglie in metallo" fra i candidati e rispondeva comunque "nessuna", facendo scendere la risposta al livello 2. Il concetto di "categoria" c'era già, ma gli esempi erano tutti specifico→generico dello stesso tipo di oggetto (sandalo→scarpe), non membro→insieme | Accettata |
+| D152 | Lo stesso prompt limita quando dire "nessuna": vale se l'elenco parla d'altro, non se la voce è più larga dell'oggetto | La riga "meglio dire non lo so che indicare il contenitore sbagliato" è giusta ma sbilanciava verso lo 0: va equilibrata, o la prudenza diventa rinuncia | Accettata |
 | D116 | Il tracciamento su MLflow **non è mai bloccante** e fallisce in fretta (tre secondi, un solo tentativo) | Serve a capire come va il sistema, non a farlo funzionare. Senza i limiti sui tentativi il client riprova per minuti e la risposta all'utente resta appesa | Accettata |
 | D117 | Delle foto si registra solo l'**impronta**, mai l'immagine | Due richieste sulla stessa foto si riconoscono, ma l'immagine non lascia il computer di chi l'ha scattata: è coerente con un progetto che gira in locale | Superata da D124, per decisione di Stef |
 | D118 | I prompt restano file in git; il registro di MLflow li **collega alle run** che li hanno usati | La verità e il diff stanno in git; MLflow serve a sapere quale versione ha prodotto un certo risultato | Superata da D126: il registro collega i prompt alle tracce, non più alle run |
@@ -299,6 +301,20 @@ Cose imparate che non sono decisioni, ma che conviene ricordare.
 ---
 
 ## Cronologia
+
+### v0.39.0 — 18/09/2026
+
+**Corretto, seguito del caso forchetta.** Con il v0.37.0 la risposta era giusta — Plastica e Metalli — ma arrivava dal **livello 2**, la regola generale del contenitore. La traccia ha mostrato perché: al livello 1 "Stoviglie in metallo" era regolarmente fra i candidati, e il modello rispondeva "nessuna". Il recupero funzionava; a rinunciare era la scelta.
+
+**Modificato.** Prompt di scelta alla versione 8, con due regole nuove (D151, D152): una voce dal nome collettivo copre ogni oggetto dell'insieme ed è una corrispondenza buona, non un ripiego; "nessuna" vale quando l'elenco parla d'altro, non quando la voce è più larga dell'oggetto.
+
+**Perché il concetto di "categoria" non bastava.** C'era già, ma i suoi esempi erano tutti specifico→generico dello stesso tipo di oggetto: sandalo→"Scarpe", teglia→"Pentole e padelle". Il passo forchetta→"Stoviglie" è diverso, è membro→insieme, e il modello non lo faceva da solo.
+
+**Da verificare su foto vera**: se la risposta passa al livello 1, il prompt basta. Se il modello continua a rinunciare, la leva successiva sta nei dati — alias `Forchetta; Coltello; Cucchiaio; Posate` sulla voce `stoviglie-in-metallo` — e chiede di rigenerare e rivettorizzare.
+
+**Non serve rigenerare nulla**: cambia solo il testo di un prompt.
+
+**Test.** 382 (erano 380): le due regole nuove nel prompt e la sua versione.
 
 ### v0.38.0 — 18/09/2026
 

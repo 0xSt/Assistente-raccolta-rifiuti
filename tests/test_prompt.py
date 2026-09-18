@@ -103,3 +103,20 @@ def test_il_prompt_di_scelta_preferisce_la_voce_specifica_e_lo_stato():
     testo = prompt_.carica("scelta").testo.lower()
     assert "scegli la specifica" in testo and "cartone da pizza" in testo
     assert "stato" in testo and int(prompt_.carica("scelta").versione) >= 6
+
+
+def test_il_prompt_di_scelta_copre_i_nomi_collettivi():
+    """Osservato su foto vera: per una forchetta d'acciaio il modello aveva "Stoviglie in
+    metallo" fra i candidati e rispondeva "nessuna". Una voce che nomina un insieme copre
+    ogni oggetto dell'insieme, e va scelta invece di rinunciare."""
+    testo = prompt_.carica("scelta").testo.lower()
+    assert "insieme" in testo and "stoviglie" in testo
+    assert "forchetta di acciaio la voce giusta è \"stoviglie in metallo\"" in testo
+
+
+def test_il_prompt_di_scelta_limita_quando_dire_nessuna():
+    """"Nessuna" non deve diventare la risposta comoda: vale quando l'elenco parla d'altro,
+    non quando la voce è più larga dell'oggetto."""
+    testo = prompt_.carica("scelta").testo.lower()
+    assert "non che la voce è più generica" in testo
+    assert int(prompt_.carica("scelta").versione) >= 8
