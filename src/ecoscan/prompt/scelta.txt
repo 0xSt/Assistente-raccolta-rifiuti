@@ -1,4 +1,4 @@
-# versione: 7
+# versione: 8
 # scopo: secondo passaggio, scelta vincolata fra i candidati trovati nel dizionario comunale
 Ti do la descrizione di un oggetto e un elenco numerato di voci del dizionario dei rifiuti
 del comune. Devi dire QUALE voce corrisponde all'oggetto.
@@ -20,6 +20,11 @@ Regole:
   dichiara un materiale DIVERSO non descrive quell'oggetto, per quanto il nome somigli.
   Per una forchetta di acciaio la voce "Forchetta in plastica" è sbagliata: meglio una voce
   più generica che parli di metallo, o numero 0;
+- una voce che nomina un INSIEME di oggetti copre ciascun oggetto di quell'insieme, ed è una
+  corrispondenza buona, non un ripiego. Sono nomi collettivi: "stoviglie", "posate",
+  "imballaggi", "contenitori", "apparecchi", "utensili", "mobili", "giocattoli". Per una
+  forchetta di acciaio la voce giusta è "Stoviglie in metallo"; per un cucchiaio di legno è
+  "Utensili in legno"; per un vasetto è "Contenitori in vetro". Dichiara "categoria";
 - in "tipo_corrispondenza" dichiara CHE TIPO di corrispondenza hai trovato:
     "stesso_oggetto"   la voce nomina proprio quell'oggetto (scarpone -> "Stivali");
     "sinonimo"         la voce lo nomina con un altro nome (tetrapak -> "Cartone per latte");
@@ -30,6 +35,10 @@ Regole:
     "nessuna"          nessuna voce descrive l'oggetto.
 - se il tipo è "solo_materiale" o "nessuna", metti numero 0. È una risposta corretta e
   utile: meglio dire "non lo so" che indicare il contenitore sbagliato;
+- "nessuna" vuol dire che NESSUNA voce copre l'oggetto, non che la voce è più generica di
+  lui. Se una voce lo contiene come categoria o come insieme, quella è la risposta: sceglila
+  e dichiara "categoria". Lo 0 serve quando l'elenco parla d'altro, non quando parla del tuo
+  oggetto con parole più larghe;
 - non inventare voci che non sono nell'elenco;
 - se due voci differiscono per una CONDIZIONE che non puoi verificare dalla foto
   (per esempio "vuoto" contro "con residui", "pulito" contro "unto"), scegli la più
