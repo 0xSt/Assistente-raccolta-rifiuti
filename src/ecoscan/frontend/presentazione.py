@@ -129,35 +129,6 @@ def altre_varianti(risposta: dict, etichette: dict[str, str] | None = None) -> s
     return "Le varianti di questo oggetto: " + " · ".join(pezzi) + "."
 
 
-def descrizione_fase(evento: dict) -> str:
-    """Una fase dell'agente, detta a chi aspetta.
-
-    Non è decorazione: su CPU l'attesa dura minuti, e sapere se il sistema sta guardando la
-    foto o cercando fra le voci del comune è la differenza fra aspettare e chiedersi se si
-    è bloccato.
-    """
-    fase = evento.get("fase")
-    livello = evento.get("livello")
-    dove = {1: "fra le voci del dizionario", 2: "fra le regole di categoria"}.get(livello, "")
-    if fase == "riconoscimento":
-        return "Guardo la foto…"
-    if fase == "riconosciuto":
-        oggetto = (evento.get("riconoscimento") or {}).get("oggetto") or ""
-        return f"Ho riconosciuto: {oggetto}" if oggetto else "Non ho riconosciuto l'oggetto"
-    if fase == "recupero":
-        return f"Cerco {dove}…".replace("  ", " ")
-    if fase == "recuperato":
-        quanti = evento.get("candidati", 0)
-        return f"Trovate {quanti} voci possibili" if quanti else f"Nessun risultato {dove}"
-    if fase == "scelta":
-        return f"Scelgo fra {evento.get('candidati', 0)} voci…"
-    if fase == "risposta":
-        return "Fatto"
-    if fase == "errore":
-        return f"⚠️ {evento.get('dettaglio', 'errore')}"
-    return ""
-
-
 def frase_riconoscimento(risposta: dict) -> str:
     """Cosa ha visto l'assistente nella foto.
 

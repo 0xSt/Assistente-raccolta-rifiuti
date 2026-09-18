@@ -4,7 +4,7 @@ Assistente per la raccolta differenziata che gira interamente in locale. L'utent
 
 Progetto universitario. Comuni del prototipo: **Napoli** (ASIA) e **Torino** (AMIAT).
 
-## Stato attuale (v0.33.0)
+## Stato attuale (v0.33.1)
 
 Il quadro completo è in [docs/diario.md](docs/diario.md).
 
@@ -19,8 +19,8 @@ Il quadro completo è in [docs/diario.md](docs/diario.md).
 | Load relazionale | Fatto: comuni, destinazioni, voci, condizioni, alias, regole, decisioni |
 | Serving — documenti su Qdrant | Fatto: 996 documenti, ricerca semantica, aggancio esatto dei codici |
 | Agente (riconoscimento, cascata, scelta, risposta) | Fatto: usabile senza HTTP |
-| API FastAPI | Fatto: otto rotte più tre a flusso di eventi, backend senza stato e di sola lettura |
-| Frontend a chat (Streamlit) | Fatto: allegato immagine, avanzamento per fasi, chiarimenti a pulsante, riconoscimento visibile e correggibile, citazione della fonte |
+| API FastAPI | Fatto: otto rotte, backend senza stato e di sola lettura |
+| Frontend a chat (Streamlit) | Fatto: allegato immagine, chiarimenti a pulsante, riconoscimento visibile e correggibile, citazione della fonte |
 | Tracciamento e prompt su MLflow | Fatto: una traccia per turno con foto e retrieval, sessioni, versione dell'app e prompt collegati |
 | Docker completo | Fatto: cinque servizi, Ollama sull'host in sviluppo |
 | Valutazione (foto etichettate, metriche) | Da fare |
@@ -146,11 +146,10 @@ Qdrant sta in modalità `server` o `in-process`.
 | `agente/tipi.py` | Riconoscimento, candidato, scelta, risposta |
 | `agente/modelli.py` | Modello di visione: interfaccia e implementazione Ollama |
 | `agente/recupero.py` | Candidati per livello di evidenza, arricchiti dal relazionale |
-| `agente/avanzamento.py` | Le fasi dell'agente annunciate mentre accadono, senza sapere nulla di HTTP |
 | `agente/agente.py` | Orchestrazione: riconoscimento → cascata → scelta → risposta |
 | `agente/prova.py` | Comando per provare l'agente su una foto, con i tempi per fase |
 | `agente/diagnostica.py` | Verifica del canale immagine con un'immagine dal contenuto noto |
-| `api/app.py` | Rotte FastAPI: analizza, continua, correggi (anche a flusso di eventi), cerca, comuni, destinazioni, salute, riscontro |
+| `api/app.py` | Rotte FastAPI: analizza, continua, correggi, cerca, comuni, destinazioni, salute, riscontro |
 | `api/risorse.py` | Connessioni e agente condivisi, database in sola lettura |
 | `api/schemi.py` | Forma pubblica di ingressi e uscite (Pydantic) |
 | `osservabilita/tracciamento.py` | Tracce delle conversazioni su MLflow: turni, retrieval, foto, versione dell'app; mai bloccanti |

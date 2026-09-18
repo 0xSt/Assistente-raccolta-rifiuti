@@ -26,7 +26,6 @@ from ecoscan.agente.modelli import ModelloVisione
 from ecoscan.agente.recupero import candidati as recupera
 from ecoscan.agente.recupero import nomina_l_oggetto, scegli_variante
 from ecoscan.agente.tipi import TIPI_NON_VALIDI, Candidato, Riconoscimento, Risposta, Scelta
-from ecoscan.agente.avanzamento import Avanzamento, SENZA_AVANZAMENTO
 from ecoscan.osservabilita.tracciamento import (
     LLM, RETRIEVER, TracciatoreNullo, documento, impronta, nuova_conversazione,
 )
@@ -73,22 +72,17 @@ class Agente:
     # ------------------------------------------------------------------ passaggi
 
     def _scegli_nel_livello(self, riconoscimento: Riconoscimento, comune: str, livello: int,
-                            testo_utente: str | None,
-                            avanzamento: Avanzamento = SENZA_AVANZAMENTO
-                            ) -> tuple[list[Candidato], Scelta]:
+                            testo_utente: str | None) -> tuple[list[Candidato], Scelta]:
         poste = domande(riconoscimento, testo_utente)
-        avanzamento.fase("recupero", livello=livello, domande=poste)
         with self.tracciatore.span(f"recupero_livello{livello}", RETRIEVER,
                                    {"domande": poste, "comune": comune, "livello": livello,
                                     "k": self.k}) as span:
             trovati = recupera(self.qdrant, self.vettorizzatore, poste, comune,
                                livello=livello, k=self.k)
             span.uscita([documento(c) for c in trovati])
-        avanzamento.fase("recuperato", livello=livello, candidati=len(trovati))
         if not trovati:
             return [], Scelta(scheda_id=None, motivo=f"nessun candidato al livello {livello}")
 
-        avanzamento.fase("scelta", livello=livello, candidati=len(trovati))
         with self.tracciatore.span(f"scelta_livello{livello}", LLM, {
                 "prompt": prompt_.carica("scelta").etichetta, "modello": self.modello.nome,
                 "riconoscimento": riconoscimento, "testo_utente": testo_utente,
@@ -147,13 +141,8 @@ class Agente:
     # ------------------------------------------------------------------ ingresso
 
     def analizza(self, immagine: bytes, comune: str, testo_utente: str | None = None,
-                 contesto: dict | None = None,
-                 avanzamento: Avanzamento = SENZA_AVANZAMENTO) -> Risposta:
-        """Primo turno di una conversazione: dalla foto alla risposta.
-
-        `avanzamento` riceve le fasi mentre accadono: su CPU una risposta richiede minuti,
-        e chi aspetta ha diritto di sapere a che punto è e cosa ha visto il modello.
-        """
+                 contesto: dict | None = None) -> Risposta:
+        """Primo turno di una conversazione: dalla foto alla risposta."""
         conversazione = (contesto or {}).get("id_conversazione") or nuova_conversazione()
         foto = self.tracciatore.allegato(immagine)
         ingressi = {"comune": comune, "testo_utente": testo_utente, "foto": foto,
@@ -164,19 +153,16 @@ class Agente:
                     "prompt": prompt_.carica("riconoscimento").etichetta,
                     "modello": self.modello.nome, "foto": foto,
                     "testo_utente": testo_utente}) as span:
-                avanzamento.fase("riconoscimento")
                 riconoscimento = self.modello.riconosci(immagine, testo_utente)
                 span.uscita(riconoscimento)
-            avanzamento.fase("riconosciuto", riconoscimento=asdict(riconoscimento))
             risposta = self.rispondi(riconoscimento, comune, testo_utente, contesto,
-                                     conversazione=conversazione, avanzamento=avanzamento)
+                                     conversazione=conversazione)
             self.tracciatore.chiudi_turno(radice, risposta)
         return risposta
 
     def rispondi(self, riconoscimento: Riconoscimento, comune: str,
                  testo_utente: str | None = None, contesto: dict | None = None,
-                 gia_chiesto: bool = False, conversazione: str | None = None,
-                 avanzamento: Avanzamento = SENZA_AVANZAMENTO) -> Risposta:
+                 gia_chiesto: bool = False, conversazione: str | None = None) -> Risposta:
         """Dal riconoscimento alla risposta. Separato da `analizza` per poter valutare
         recupero e scelta senza rieseguire il modello di visione su ogni foto.
 
@@ -195,7 +181,7 @@ class Agente:
         tutti: list[Candidato] = []
         for livello in (1, 2):
             trovati, scelta = self._scegli_nel_livello(riconoscimento, comune, livello,
-                                                       testo_utente, avanzamento)
+                                                       testo_utente)
             tutti.extend(trovati)
             if scelta.scheda_id is not None:
                 scelto = next(c for c in trovati if c.id == scelta.scheda_id)
@@ -219,8 +205,7 @@ class Agente:
                 "modello_visione": self.modello.nome,
                 "id_conversazione": conversazione}
 
-    def correggi(self, contesto: dict, oggetto: str,
-                 avanzamento: Avanzamento = SENZA_AVANZAMENTO) -> Risposta:
+    def correggi(self, contesto: dict, oggetto: str) -> Risposta:
         """L'utente dice che l'oggetto riconosciuto è sbagliato: si riparte dal suo.
 
         Non si rilegge la foto, che è il passaggio lento, e soprattutto non la si fa
@@ -237,12 +222,11 @@ class Agente:
 
         with self.tracciatore.turno("correggi", conversazione, ingressi) as radice:
             risposta = self.rispondi(corretto, contesto["comune"], contesto.get("testo_utente"),
-                                     conversazione=conversazione, avanzamento=avanzamento)
+                                     conversazione=conversazione)
             self.tracciatore.chiudi_turno(radice, risposta)
         return risposta
 
-    def continua(self, contesto: dict, risposta_utente: str,
-                 avanzamento: Avanzamento = SENZA_AVANZAMENTO) -> Risposta:
+    def continua(self, contesto: dict, risposta_utente: str) -> Risposta:
         """Secondo giro dopo un chiarimento: si riparte dal riconoscimento già fatto.
 
         `gia_chiesto` impedisce di riproporre la stessa domanda: l'utente ha risposto, e
@@ -259,6 +243,6 @@ class Agente:
 
         with self.tracciatore.turno("continua", conversazione, ingressi) as radice:
             risposta = self.rispondi(arricchito, contesto["comune"], testo, gia_chiesto=True,
-                                     conversazione=conversazione, avanzamento=avanzamento)
+                                     conversazione=conversazione)
             self.tracciatore.chiudi_turno(radice, risposta)
         return risposta

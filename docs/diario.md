@@ -42,7 +42,7 @@ Va aggiornato **a ogni cambiamento sostanziale**, non a ogni riga di codice. In 
 | Serving | Documenti su Qdrant, sola ricerca semantica, aggancio esatto dei codici materiale |
 | Agente | Fatto: riconoscimento, cascata dei livelli, scelta vincolata, risposta. Indipendente da HTTP |
 | API FastAPI | Fatto: analizza, continua, correggi, cerca, comuni, destinazioni, salute, riscontro |
-| Frontend a chat | Fatto (v0.33.0): avanzamento per fasi, etichette leggibili, riconoscimento visibile e correggibile, chiarimenti a pulsante, citazione del documento |
+| Frontend a chat | Fatto (v0.31.0): etichette leggibili, riconoscimento visibile e correggibile, chiarimenti a pulsante, citazione del documento |
 | Osservabilità | Fatto (v0.30.0): tracce MLflow per turno con foto, retrieval e sessione; versione dell'app e prompt collegati |
 | Docker | Fatto: qdrant, mlflow, backend, frontend; ollama sotto profilo |
 | Regole di categoria — Napoli | Completo per quanto la fonte pubblica: 38 ammessi, 11 esclusi (5 Vetro estratti + 6 Umido trascritti a mano), 2 assenze verificate |
@@ -145,9 +145,9 @@ Formato: decisione, motivazione, stato.
 | D134 | *(ritirata)* Un oggetto composto riceve una risposta per ogni parte separabile | Provata in v0.32.0 e rimossa in v0.32.1: la prima foto vera (piatto con forchetta appoggiata sopra) ha mostrato che il caso frequente non è l'oggetto con parti separabili ma la foto con **più oggetti distinti**, che è un problema diverso. La funzione costava una ricerca e una chiamata al modello per parte senza risolverlo | Superata da D136, ritirata in v0.32.1 |
 | D135 | *(ritirata)* Nessun chiarimento per le parti, e parti cercate solo senza domande in sospeso | Cadono con D134 | Superata da D136, ritirata in v0.32.1 |
 | D136 | Più oggetti nella stessa foto restano **fuori portata** per ora: il modello descrive un solo oggetto, quello principale | Distinguere gli altri oggetti da buttare dallo sfondo (in una foto: un piatto, una forchetta, un portatile, una scrivania, un cavo) è un problema di riconoscimento, non di recupero, e va affrontato da solo | Accettata |
-| D137 | L'agente annuncia le sue fasi a un oggetto `Avanzamento`, che di norma non fa nulla | Su CPU una risposta richiede minuti e l'utente non sa se il sistema lavora o è bloccato. L'agente però non deve sapere nulla di HTTP né di Streamlit: chiama `fase(...)` e chi ascolta decide | Accettata |
-| D138 | Le rotte a flusso (`/analizza/flusso`, `/continua/flusso`, `/correggi/flusso`) affiancano quelle esistenti invece di sostituirle, e mandano eventi SSE | Le rotte semplici restano utili a valutazione, prove e sonde, dove il flusso sarebbe solo un impiccio. L'ultimo evento è sempre `risposta` o `errore`, così il client non deve dedurre nulla dalla chiusura della connessione | Accettata |
-| D139 | Il lavoro dell'agente gira in un thread e gli eventi passano da una coda | L'agente è sincrono: eseguirlo nel ciclo di eventi terrebbe fermo tutto il server per i minuti di una risposta | Accettata |
+| D137 | *(ritirata)* L'agente annuncia le sue fasi a un oggetto `Avanzamento` | Provata in v0.33.0 e rimossa in v0.33.1 per decisione di Stef | Superata: ritirata in v0.33.1 |
+| D138 | *(ritirata)* Rotte a flusso di eventi accanto a quelle esistenti | Cade con D137 | Superata: ritirata in v0.33.1 |
+| D139 | *(ritirata)* Lavoro dell'agente in un thread, eventi in coda | Cade con D137 | Superata: ritirata in v0.33.1 |
 | D116 | Il tracciamento su MLflow **non è mai bloccante** e fallisce in fretta (tre secondi, un solo tentativo) | Serve a capire come va il sistema, non a farlo funzionare. Senza i limiti sui tentativi il client riprova per minuti e la risposta all'utente resta appesa | Accettata |
 | D117 | Delle foto si registra solo l'**impronta**, mai l'immagine | Due richieste sulla stessa foto si riconoscono, ma l'immagine non lascia il computer di chi l'ha scattata: è coerente con un progetto che gira in locale | Superata da D124, per decisione di Stef |
 | D118 | I prompt restano file in git; il registro di MLflow li **collega alle run** che li hanno usati | La verità e il diff stanno in git; MLflow serve a sapere quale versione ha prodotto un certo risultato | Superata da D126: il registro collega i prompt alle tracce, non più alle run |
@@ -276,7 +276,6 @@ Cose imparate che non sono decisioni, ma che conviene ricordare.
 - **Un Dockerfile va costruito, non solo letto.** Mancava `COPY README.md`, che il `pyproject.toml` dichiara come `readme`: la costruzione del pacchetto falliva con un errore di hatchling che non nominava mai il Dockerfile. Ora due test leggono il pyproject e verificano che ogni file dichiarato sia copiato e non escluso dal `.dockerignore`.
 - **I comandi vanno provati eseguendoli, non solo leggendoli.** `--diagnostica` usava una variabile definita più sotto: un errore che nessun test coglieva perché nessuno eseguiva quel ramo. Ora tre test lanciano `main()` con la diagnostica sostituita da una finta.
 - **Un test che dipende dall'ambiente di chi lo esegue non è un test.** `test_il_file_env_viene_letto` passava da me e falliva sul portatile di Stef, perché ereditava le variabili della macchina. Ora l'ambiente del sottoprocesso viene ripulito di tutte le `ECOSCAN_*`.
-- **Un ascoltatore rotto non deve far fallire la risposta.** Se il client se ne va a metà, la coda o la connessione saltano: `Ascoltatore` inghiotte i propri errori, perché l'avanzamento è un di più e la risposta è il compito.
 - **La provenienza si perdeva nel Transform.** Il grezzo di Napoli ha l'URL di ogni voce e quello di Torino la pagina del PDF: nessuno dei due arrivava al livello normalizzato, e le risposte di livello 1 restavano senza fonte pur avendola a disposizione.
 - **Cambiare il payload dei documenti costringe a rivettorizzare.** Aggiungere fonte e riferimento agli oggetti significa rilanciare `ecoscan-vettorizza`, non solo `ecoscan-carica`: l'indice porta una copia del payload.
 - **Il client di MLflow riprova per minuti un server spento anche sul registro dei prompt**, non solo sulle run: i limiti di attesa ora stanno in una funzione sola (`limita_attese`), usata sia dal tracciatore sia da `ecoscan-prompt`.
@@ -288,15 +287,11 @@ Cose imparate che non sono decisioni, ma che conviene ricordare.
 
 ## Cronologia
 
-### v0.33.0 — 17/09/2026
+### v0.33.1 — 17/09/2026
 
-**Aggiunto.** L'avanzamento per fasi nella chat. L'agente annuncia cosa sta facendo (D137): guarda la foto, cosa ha riconosciuto, cerca al livello 1 o 2, quante voci ha trovato, sceglie. Il frontend le scrive in un riquadro di stato mentre accadono, invece di mostrare uno spinner fermo per minuti.
+**Rimosso.** L'avanzamento per fasi introdotto in v0.33.0 (D137, D138, D139): il modulo `agente/avanzamento.py`, le tre rotte a flusso e il riquadro di stato nella chat. Durante l'attesa torna lo spinner unico.
 
-**Aggiunto.** Tre rotte a flusso di eventi accanto a quelle esistenti (D138), con il lavoro in un thread e gli eventi in coda (D139).
-
-**Il punto.** La fase più importante è `riconosciuto`: arriva prima della ricerca, quindi chi ha fotografato un cartone della pizza e si vede riconoscere "scatola" lo scopre dopo pochi secondi, non dopo minuti di attesa.
-
-**Test.** 367 passati (erano 353): ordine delle fasi, riconoscimento annunciato prima della ricerca, cascata al livello 2 visibile, fasi in continua e correggi, ascoltatore rotto che non ferma la risposta, rotte SSE con evento finale di risposta o errore, lettura del flusso nel cliente e frasi delle fasi.
+**Invariato.** Tutto il resto della v0.31.0: etichette leggibili, provenienza delle voci, riconoscimento visibile, correzione, citazione della fonte.
 
 ### v0.32.1 — 17/09/2026
 

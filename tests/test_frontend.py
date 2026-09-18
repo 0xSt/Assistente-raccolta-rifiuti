@@ -4,7 +4,6 @@ L'interfaccia Streamlit non si prova qui; si provano le due parti che si sbaglia
 cioè come si parla col backend e come una risposta diventa un messaggio leggibile.
 """
 import pytest
-import requests
 
 from ecoscan.frontend import presentazione
 from ecoscan.frontend.cliente import ClienteAPI, ErroreBackend
@@ -241,49 +240,3 @@ def test_il_frontend_non_importa_il_backend():
         moduli = [n.module or "" for n in ast.walk(albero) if isinstance(n, ast.ImportFrom)]
         moduli += [a.name for n in ast.walk(albero) if isinstance(n, ast.Import) for a in n.names]
         assert not [m for m in moduli if m.startswith(vietati)], f"{file.name} importa il backend"
-
-
-def test_le_fasi_si_dicono_a_parole():
-    """Lo spinner fermo non distingue "sto guardando la foto" da "sono bloccato"."""
-    assert presentazione.descrizione_fase({"fase": "riconoscimento"}) == "Guardo la foto…"
-    assert "bottiglia" in presentazione.descrizione_fase(
-        {"fase": "riconosciuto", "riconoscimento": {"oggetto": "bottiglia"}})
-    assert "dizionario" in presentazione.descrizione_fase({"fase": "recupero", "livello": 1})
-    assert "categoria" in presentazione.descrizione_fase({"fase": "recupero", "livello": 2})
-    assert "8" in presentazione.descrizione_fase({"fase": "scelta", "candidati": 8})
-    assert presentazione.descrizione_fase({"fase": "sconosciuta"}) == ""
-
-
-def test_un_riconoscimento_fallito_si_dice_comunque():
-    assert "Non ho riconosciuto" in presentazione.descrizione_fase(
-        {"fase": "riconosciuto", "riconoscimento": {"oggetto": ""}})
-
-
-def test_il_cliente_legge_il_flusso_di_eventi(cliente, monkeypatch):
-    class RispostaFlusso:
-        status_code = 200
-
-        def iter_lines(self, decode_unicode=False):
-            yield "data: {\"fase\": \"riconoscimento\"}"
-            yield ""
-            yield "data: {\"fase\": \"risposta\", \"risposta\": {\"comune\": \"Torino\"}}"
-
-        def __enter__(self):
-            return self
-
-        def __exit__(self, *argomenti):
-            return False
-
-    monkeypatch.setattr("requests.post", lambda *a, **k: RispostaFlusso())
-    eventi = list(cliente.analizza_a_fasi(b"foto", "f.jpg", "Torino"))
-    assert [e["fase"] for e in eventi] == ["riconoscimento", "risposta"]
-    assert eventi[-1]["risposta"]["comune"] == "Torino"
-
-
-def test_il_flusso_riporta_un_backend_spento(cliente, monkeypatch):
-    def rifiuta(*argomenti, **opzioni):
-        raise requests.exceptions.ConnectionError()
-
-    monkeypatch.setattr("requests.post", rifiuta)
-    with pytest.raises(ErroreBackend, match="ecoscan-api"):
-        list(cliente.analizza_a_fasi(b"foto", "f.jpg", "Torino"))

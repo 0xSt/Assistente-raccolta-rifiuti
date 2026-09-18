@@ -119,27 +119,10 @@ def aggiungi_risposta(risposta: dict, etichette: dict[str, str]) -> None:
 
 
 def chiedi(cliente: ClienteAPI, etichette: dict[str, str], azione, *argomenti) -> None:
-    """Una chiamata al backend, seguita fase per fase.
-
-    L'attesa su CPU dura minuti: invece di uno spinner fermo si scrive cosa sta facendo, e
-    appena il modello ha riconosciuto l'oggetto lo si mostra. Se ha visto la cosa sbagliata
-    l'utente lo sa subito, senza aspettare il resto per scoprirlo.
-    """
+    """Una chiamata al backend, con l'attesa e l'errore gestiti una volta sola."""
     try:
-        with st.status("Ci penso… su CPU può volerci qualche minuto",
-                       expanded=True) as avanzamento:
-            risposta = None
-            for evento in azione(*argomenti):
-                if riga := presentazione.descrizione_fase(evento):
-                    avanzamento.write(riga)
-                    avanzamento.update(label=riga)
-                if evento["fase"] == "risposta":
-                    risposta = evento["risposta"]
-                elif evento["fase"] == "errore":
-                    raise ErroreBackend(evento.get("dettaglio", "errore del backend"))
-            if risposta is None:
-                raise ErroreBackend("Il backend ha interrotto la risposta a metà. Riprova.")
-            avanzamento.update(label="Fatto", state="complete", expanded=False)
+        with st.spinner("Ci penso… su CPU può volerci qualche minuto"):
+            risposta = azione(*argomenti)
         aggiungi_risposta(risposta, etichette)
     except ErroreBackend as errore:
         st.session_state.messaggi.append({"ruolo": "assistente", "testo": f"⚠️ {errore}"})
@@ -160,8 +143,7 @@ def pulsanti_chiarimento(cliente: ClienteAPI, etichette: dict[str, str]) -> None
     for colonna, opzione in zip(colonne, opzioni):
         if colonna.button(opzione.capitalize(), key=f"opzione-{opzione}", width="stretch"):
             st.session_state.messaggi.append({"ruolo": "utente", "testo": opzione})
-            chiedi(cliente, etichette, cliente.continua_a_fasi,
-                   st.session_state.contesto, opzione)
+            chiedi(cliente, etichette, cliente.continua, st.session_state.contesto, opzione)
             st.rerun()
 
 
@@ -179,8 +161,7 @@ def correzione(cliente: ClienteAPI, etichette: dict[str, str]) -> None:
                                 placeholder="per esempio: cartone della pizza")
         if st.button("Rifai la ricerca", disabled=not oggetto.strip()):
             st.session_state.messaggi.append({"ruolo": "utente", "testo": f"È un {oggetto}."})
-            chiedi(cliente, etichette, cliente.correggi_a_fasi,
-                   st.session_state.contesto, oggetto.strip())
+            chiedi(cliente, etichette, cliente.correggi, st.session_state.contesto, oggetto.strip())
             st.rerun()
 
 
@@ -239,10 +220,10 @@ def principale() -> None:
         "immagine": foto.getvalue() if foto else None})
 
     if foto:
-        chiedi(cliente, etichette, cliente.analizza_a_fasi, foto.getvalue(), foto.name, comune,
+        chiedi(cliente, etichette, cliente.analizza, foto.getvalue(), foto.name, comune,
                testo or None)
     else:
-        chiedi(cliente, etichette, cliente.continua_a_fasi, contesto, testo)
+        chiedi(cliente, etichette, cliente.continua, contesto, testo)
     st.rerun()
 
 

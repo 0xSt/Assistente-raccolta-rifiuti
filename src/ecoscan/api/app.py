@@ -13,16 +13,11 @@ from __future__ import annotations
 
 import argparse
 import json
-import queue
-import threading
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, File, Form, HTTPException, UploadFile
-from fastapi.responses import StreamingResponse
-
-from ecoscan.agente.avanzamento import Ascoltatore
 
 from ecoscan.agente.recupero import candidati as recupera
 from ecoscan.api.risorse import Risorse
@@ -34,36 +29,6 @@ from ecoscan.percorsi import DATI
 
 RISCONTRI = DATI / "riscontri.jsonl"
 PREFISSO = "/api/v1"
-# Fine dello stream: il generatore lo riconosce e chiude
-FINITO = object()
-
-
-def flusso(esegui) -> StreamingResponse:
-    """Esegue una richiesta dell'agente mandando le fasi man mano che accadono (SSE).
-
-    Il lavoro gira in un thread e gli eventi passano da una coda: l'agente è sincrono e
-    bloccarlo nel ciclo di eventi terrebbe fermo tutto il server per i minuti di una
-    risposta. L'ultimo evento è sempre `risposta` o `errore`, così il client sa di aver
-    finito senza dover dedurre nulla dalla chiusura della connessione.
-    """
-    eventi: queue.Queue = queue.Queue()
-
-    def lavora() -> None:
-        try:
-            risposta = esegui(Ascoltatore(eventi.put))
-            eventi.put({"fase": "risposta",
-                        "risposta": RispostaUscita.da(risposta).model_dump()})
-        except Exception as errore:            # il client deve sapere che è finita male
-            eventi.put({"fase": "errore", "dettaglio": str(errore)})
-        finally:
-            eventi.put(FINITO)
-
-    def generatore():
-        threading.Thread(target=lavora, daemon=True).start()
-        while (evento := eventi.get()) is not FINITO:
-            yield f"data: {json.dumps(evento, ensure_ascii=False, default=str)}\n\n"
-
-    return StreamingResponse(generatore(), media_type="text/event-stream")
 
 
 def crea_app(risorse: Risorse | None = None, riscontri: Path = RISCONTRI) -> FastAPI:
@@ -126,21 +91,6 @@ def crea_app(risorse: Risorse | None = None, riscontri: Path = RISCONTRI) -> Fas
             raise HTTPException(status_code=400, detail="la foto è vuota")
         return RispostaUscita.da(r.agente.analizza(immagine, comune, testo))
 
-    @app.post(f"{PREFISSO}/analizza/flusso", tags=["agente"])
-    async def analizza_flusso(comune: str = Form(...), foto: UploadFile = File(...),
-                              testo: str | None = Form(default=None),
-                              r: Risorse = Depends(risorse_correnti)) -> StreamingResponse:
-        """Come `/analizza`, ma manda le fasi mentre accadono.
-
-        Serve perché su CPU la risposta richiede minuti: chi aspetta vede subito cosa il
-        modello ha riconosciuto, e può fermarsi se ha sbagliato oggetto.
-        """
-        controlla_comune(r, comune)
-        immagine = await foto.read()
-        if not immagine:
-            raise HTTPException(status_code=400, detail="la foto è vuota")
-        return flusso(lambda a: r.agente.analizza(immagine, comune, testo, avanzamento=a))
-
     @app.post(f"{PREFISSO}/continua", response_model=RispostaUscita, tags=["agente"])
     def continua(dati: Continuazione, r: Risorse = Depends(risorse_correnti)) -> RispostaUscita:
         """Risposta a un chiarimento: riparte dal riconoscimento già fatto, senza rileggere
@@ -149,15 +99,6 @@ def crea_app(risorse: Risorse | None = None, riscontri: Path = RISCONTRI) -> Fas
             raise HTTPException(status_code=400,
                                 detail="contesto non valido: rimanda quello ricevuto da /analizza")
         return RispostaUscita.da(r.agente.continua(dati.contesto, dati.risposta))
-
-    @app.post(f"{PREFISSO}/continua/flusso", tags=["agente"])
-    def continua_flusso(dati: Continuazione,
-                        r: Risorse = Depends(risorse_correnti)) -> StreamingResponse:
-        """Come `/continua`, con le fasi mandate mentre accadono."""
-        if "riconoscimento" not in dati.contesto or "comune" not in dati.contesto:
-            raise HTTPException(status_code=400,
-                                detail="contesto non valido: rimanda quello ricevuto da /analizza")
-        return flusso(lambda a: r.agente.continua(dati.contesto, dati.risposta, avanzamento=a))
 
     @app.post(f"{PREFISSO}/correggi", response_model=RispostaUscita, tags=["agente"])
     def correggi(dati: Correzione, r: Risorse = Depends(risorse_correnti)) -> RispostaUscita:
@@ -171,16 +112,6 @@ def crea_app(risorse: Risorse | None = None, riscontri: Path = RISCONTRI) -> Fas
                                 detail="contesto non valido: rimanda quello ricevuto da /analizza")
         controlla_comune(r, dati.contesto["comune"])
         return RispostaUscita.da(r.agente.correggi(dati.contesto, dati.oggetto))
-
-    @app.post(f"{PREFISSO}/correggi/flusso", tags=["agente"])
-    def correggi_flusso(dati: Correzione,
-                        r: Risorse = Depends(risorse_correnti)) -> StreamingResponse:
-        """Come `/correggi`, con le fasi mandate mentre accadono."""
-        if "comune" not in dati.contesto:
-            raise HTTPException(status_code=400,
-                                detail="contesto non valido: rimanda quello ricevuto da /analizza")
-        controlla_comune(r, dati.contesto["comune"])
-        return flusso(lambda a: r.agente.correggi(dati.contesto, dati.oggetto, avanzamento=a))
 
     # ------------------------------------------------------------------ ricerca
 

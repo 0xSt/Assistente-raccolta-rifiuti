@@ -6,7 +6,6 @@ di Gemma, che si misura con le sonde e con il set di valutazione.
 import pytest
 
 from ecoscan.agente.agente import Agente, domande
-from ecoscan.agente.avanzamento import Ascoltatore
 from ecoscan.agente.recupero import candidati, menzionata, scegli_variante
 from ecoscan.agente.tipi import Candidato, Riconoscimento, Scelta, Variante
 from tests.conftest import ModelloFinto, SceglieIlDocumento
@@ -293,79 +292,3 @@ def test_la_correzione_resta_nella_stessa_conversazione(ambiente):
     prima = agente.analizza(b"foto", "Torino")
     dopo = agente.correggi(prima.contesto, "giornali")
     assert dopo.contesto["id_conversazione"] == prima.contesto["id_conversazione"]
-
-
-class Registratore:
-    """Ascolta le fasi dell'agente e le conserva, come farebbe il frontend."""
-
-    def __init__(self):
-        self.eventi = []
-
-    def fase(self, nome, **dati):
-        self.eventi.append({"fase": nome, **dati})
-
-    @property
-    def nomi(self):
-        return [e["fase"] for e in self.eventi]
-
-
-def test_le_fasi_arrivano_nell_ordine_in_cui_accadono(ambiente):
-    """Su CPU l'attesa dura minuti: chi aspetta deve poter vedere a che punto è."""
-    modello = SceglieIlDocumento("bottiglia", Riconoscimento(
-        oggetto="bottiglia di plastica", confidenza=0.9))
-    ascolto = Registratore()
-    risposta = crea_agente(ambiente, modello).analizza(b"foto", "Torino", avanzamento=ascolto)
-
-    assert ascolto.nomi[:2] == ["riconoscimento", "riconosciuto"]
-    assert ascolto.nomi[2:5] == ["recupero", "recuperato", "scelta"]
-    assert risposta.destinazioni == ["imballaggi_plastica"]
-
-
-def test_il_riconoscimento_si_annuncia_prima_della_ricerca(ambiente):
-    """È il motivo della funzione: accorgersi dell'errore senza aspettare la fine."""
-    modello = SceglieIlDocumento("bottiglia", Riconoscimento(
-        oggetto="bottiglia di plastica", confidenza=0.9))
-    ascolto = Registratore()
-    crea_agente(ambiente, modello).analizza(b"foto", "Torino", avanzamento=ascolto)
-
-    visto = next(e for e in ascolto.eventi if e["fase"] == "riconosciuto")
-    assert visto["riconoscimento"]["oggetto"] == "bottiglia di plastica"
-    assert ascolto.nomi.index("riconosciuto") < ascolto.nomi.index("recupero")
-
-
-def test_la_cascata_al_livello_2_si_vede_nelle_fasi(ambiente):
-    """Se il livello 1 non dà nulla, chi aspetta deve capire perché ci mette di più."""
-    modello = SceglieIlDocumento("regola di categoria che non esiste",
-                                 Riconoscimento(oggetto="oggetto ignoto", confidenza=0.9))
-    ascolto = Registratore()
-    crea_agente(ambiente, modello).analizza(b"foto", "Torino", avanzamento=ascolto)
-    livelli = [e["livello"] for e in ascolto.eventi if e["fase"] == "recupero"]
-    assert livelli == [1, 2]
-
-
-def test_continua_e_correggi_annunciano_le_loro_fasi(ambiente):
-    modello = SceglieIlDocumento("cartone da pizza", Riconoscimento(
-        oggetto="cartone della pizza", confidenza=0.9))
-    agente = crea_agente(ambiente, modello)
-    prima = agente.analizza(b"foto", "Torino")
-
-    ascolto = Registratore()
-    agente.continua(prima.contesto, "sporco", avanzamento=ascolto)
-    assert "recupero" in ascolto.nomi and "riconoscimento" not in ascolto.nomi
-
-    ascolto_correzione = Registratore()
-    agente.correggi(prima.contesto, "giornali e riviste", avanzamento=ascolto_correzione)
-    assert "recupero" in ascolto_correzione.nomi
-
-
-def test_un_ascoltatore_rotto_non_fa_fallire_la_risposta(ambiente):
-    """L'avanzamento è un di più: se il client se ne va, la risposta si completa lo stesso."""
-    class Rotto:
-        def fase(self, nome, **dati):
-            raise RuntimeError("client sparito")
-
-    modello = SceglieIlDocumento("bottiglia", Riconoscimento(
-        oggetto="bottiglia di plastica", confidenza=0.9))
-    risposta = crea_agente(ambiente, modello).analizza(
-        b"foto", "Torino", avanzamento=Ascoltatore(lambda e: (_ for _ in ()).throw(OSError())))
-    assert risposta.destinazioni == ["imballaggi_plastica"]
