@@ -132,7 +132,7 @@ scopi diversi (è D172 portato alle sue conseguenze).
 | file | cosa contiene | quanti | come si legge |
 |---|---|---|---|
 | `regressioni.jsonl` | casi nati da errori osservati | 18 | **pass/fail**: 18 su 18 |
-| `campione.jsonl` | campione stratificato del dizionario | 48 | **percentuali**: è la stima |
+| `campione.jsonl` | campione stratificato del dizionario | 63 | **percentuali**: è la stima |
 | `assenti.jsonl` | oggetti che il comune non copre | 11 | le due **astensioni** |
 
 ### Perché il campione esiste
@@ -422,10 +422,10 @@ ed è la frase che rende otto numeri un discorso.
 
 ## 8. Limiti dichiarati
 
-- **il campione è piccolo** (48 casi). Un caso vale due punti: le percentuali si leggono
+- **il campione è piccolo** (63 casi). Un caso vale un punto e mezzo: le percentuali si leggono
   come indicatori di direzione, non come misure di precisione. Farlo crescere con
   `ecoscan-campiona` è il lavoro che rende più di ogni altro;
-- **il campione non è bilanciato fra i comuni** (29 Napoli, 19 Torino), perché una parte
+- **il campione non è bilanciato fra i comuni** (36 Napoli, 27 Torino), perché una parte
   viene dalle vecchie sonde, che erano napoletane. Le misure per comune vanno lette
   sapendolo;
 - **le attese le abbiamo decise noi**, anche quando vengono dal database: è il database a
@@ -438,10 +438,11 @@ ed è la frase che rende otto numeri un discorso.
   altro;
 - **non si misura la qualità della spiegazione**, solo la destinazione. Una risposta giusta
   con una motivazione confusa conta come corretta;
-- **non ci sono confronti con un'alternativa** (ricerca lessicale, altre formulazioni, `k`
-  diversi). Il `-k` si può già variare da riga di comando; le ablazioni vere sono state
-  valutate e rimandate, per non aggiungere parametri all'agente che esistono solo per la
-  valutazione.
+- **i confronti con un'alternativa sono due soli**: `-k` da riga di comando e
+  `ECOSCAN_ARRICCHIMENTO=no`, che riproduce l'indice della v0.43.0 e permette di misurare
+  quanto vale l'arricchimento dei documenti. Le altre ablazioni (ricerca lessicale,
+  formulazioni disattivate) sono state valutate e rimandate, per non aggiungere all'agente
+  parametri che esistono solo per la valutazione.
 
 ---
 

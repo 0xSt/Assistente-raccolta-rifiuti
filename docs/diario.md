@@ -29,7 +29,7 @@ Va aggiornato **a ogni cambiamento sostanziale**, non a ogni riga di codice. In 
 
 ---
 
-## Stato attuale (v0.43.0, 19/09/2026)
+## Stato attuale (v0.44.0, 19/09/2026)
 
 | Componente | Stato |
 |---|---|
@@ -48,7 +48,7 @@ Va aggiornato **a ogni cambiamento sostanziale**, non a ogni riga di codice. In 
 | Regole di categoria — Napoli | Completo per quanto la fonte pubblica: 38 ammessi, 11 esclusi (5 Vetro estratti + 6 Umido trascritti a mano), 2 assenze verificate |
 | Regole di categoria — Torino | Estratte: 10 schede, 30 ammessi, 27 esclusi |
 | Revisione manuale | **Completa**: 32 decisioni prese (16 per comune), 0 aperte, 0 voci da revisionare |
-| Valutazione | Fatto: 77 casi in tre insiemi, otto metriche, run su MLflow. Mancano le foto da scattare |
+| Valutazione | Fatto: 92 casi in tre insiemi, otto metriche, run su MLflow. Mancano le foto da scattare |
 | Backend, frontend, modello | Da fare |
 
 ---
@@ -255,6 +255,7 @@ Formato: decisione, motivazione, stato.
 | D180 | Il recupero dell'agente diventa **pubblico** (`recupera`), e le **sonde spariscono** | La valutazione chiamava `_recupera`, un metodo privato: una dipendenza che nessuno dichiara si rompe in silenzio al primo refactoring. Le sonde misuravano una versione più debole della stessa cosa (attesa come sottostringa, nessuna destinazione): le loro 28 domande, che erano il pezzo costoso, sono diventate casi del campione. Stessa logica di D111 | Accettata |
 | D181 | Le foto si valutano **due volte** — dal riconoscimento vero e dall'oggetto dichiarato — e i tempi si riportano come **p50/p90 col rango più vicino** | Un giro solo direbbe che la risposta è sbagliata, non da dove viene l'errore; il secondo giro costa `rispondi` e non `analizza`, cioè secondi contro minuti. Sui tempi la media di dieci foto veloci e una lenta descrive una situazione che non è capitata a nessuno, e il rango più vicino garantisce che il numero pubblicato sia un tempo davvero cronometrato | Accettata |
 | D182 | Ogni esecuzione della valutazione è anche una **run MLflow**, in un esperimento separato da quello delle conversazioni, e non è mai bloccante | I file JSON bastano per confrontare due esecuzioni, non per guardare la serie storica di dieci. L'esperimento separato perché le tracce sono osservazioni di ciò che è successo a un utente, le run sono misure ripetibili su un dataset fermo: insieme renderebbero illeggibili entrambe le liste. Non bloccante per D116: una misura non si perde perché manca un servizio di osservabilità | Accettata |
+| D183 | I documenti si arricchiscono con **dati della fonte** — il canale quando non è la raccolta ordinaria, i flussi di materiale che il testo non nomina già, e le regole di categoria che nominano l'oggetto — e **mai con descrizioni generate da un modello** | I documenti oggetto sono corti (57 caratteri di media) ed è il caso in cui l'espansione rende di più. Farla scrivere a un modello però sbaglierebbe due volte: direbbe che il bicchiere di vetro è riciclabile, che a Napoli è falso, mettendo nel testo indicizzato una frase che contraddice la fonte (contro D9); e renderebbe "Bicchiere di vetro" e "Bottiglia in vetro" **più simili fra loro**, mentre il difetto da combattere è proprio la confusione fra vicini. L'arricchimento dalla fonte fa l'opposto: al bicchiere aggancia "Nel contenitore Vetro NON va: Bicchieri", che è la frase per cui quella voce non sta nel vetro. Si spegne con `ECOSCAN_ARRICCHIMENTO=no`, perché una modifica al recupero che non si può confrontare con la propria assenza non si sa se ha funzionato | Accettata |
 
 ### Transform
 
@@ -283,7 +284,7 @@ Ordinate per priorità.
    - *Torino*: **fatto in v0.6.0**. 10 schede, 30 ammessi, 27 esclusi. Da fare: portare queste regole nel livello normalizzato e collegarle alle destinazioni.
 2. ~~Esclusioni mancanti per Umido, Plastica e Carta (Napoli)~~ **Chiuso**: Stef ha letto le tre immagini. Solo l'Umido ha una sezione di esclusioni (6 voci + un avviso generale), trascritte in `data/sorgenti/manuale/napoli_esclusioni.csv`. Plastica e Carta non pubblicano esclusioni: registrate come assenze verificate.
 3. **BM25 sparso in Qdrant** (FastEmbed, stemmer italiano): sostituirebbe il trucco della radice con uno stemming vero e permetterebbe la fusione RRF interamente lato Qdrant. FTS5 resta come termine di paragone nella valutazione.
-4. ~~**Valutazione**: set di foto etichettate e misura del retrieval~~ **Chiuso in v0.43.0**: recupero, scelta, astensione e tempi hanno i loro numeri, su tre insiemi di casi separati ([valutazione.md](valutazione.md)). Restano due cose, entrambe di lavoro e non di codice: **scattare le venti foto** le cui etichette sono già scritte, e far crescere il campione oltre i 48 casi con `ecoscan-campiona`.
+4. ~~**Valutazione**: set di foto etichettate e misura del retrieval~~ **Chiuso in v0.43.0**: recupero, scelta, astensione e tempi hanno i loro numeri, su tre insiemi di casi separati ([valutazione.md](valutazione.md)). Restano due cose, entrambe di lavoro e non di codice: **scattare le venti foto** le cui etichette sono già scritte, e far crescere il campione oltre i 63 casi con `ecoscan-campiona`.
 5. ~~**Procedure di smaltimento complesse.**~~ **Chiuso in v0.41.0**: procedura per canale in `data/sorgenti/manuale/procedure.csv`, presentazione a passi, alternative ordinate per sforzo, livello 3 che indica dove chiedere. Resta il contenuto: indirizzi, orari e recapiti mancano, e la colonna `da_verificare` li elenca — dipende dalla questione 6.
 6. **Dove andare, a Napoli.** Le isole ecologiche e gli ecopunti sono destinazioni con un indirizzo che il sistema oggi non conosce: la fonte ASIA li pubblica su pagine separate da quelle del dizionario. Serve un terzo estrattore e una tabella `luogo`. Vedi le note sotto.
 7. ~~Pagine "Non riciclabile" e "Altre raccolte" di Napoli~~ **Chiuso**: sono davvero prive di elenchi, hanno solo una frase di invito. Non è un difetto dell'estrattore.
@@ -337,6 +338,50 @@ Cose imparate che non sono decisioni, ma che conviene ricordare.
 ---
 
 ## Cronologia
+
+### v0.44.0 — 19/09/2026
+
+**Arricchimento dei documenti, dalla fonte** (D183). I documenti oggetto passano da 57 a
+101 caratteri di media e 650 su 875 guadagnano almeno una frase, tutta ricavata dai dati
+che c'erano già:
+
+- il **gesto**, quando non è il cassonetto sotto casa: "Si prenota il ritiro a domicilio",
+  "Si porta al centro di raccolta". Per la raccolta ordinaria non si dice, perché sarebbe
+  la stessa frase su metà del corpus (D167);
+- i **flussi di materiale**, ma solo le parole che il testo non ha già: è ciò che dà a
+  "Numero Verde Gratuito" la parola *ingombrante* e a "Ecoisole RAEE R4" le parole
+  *apparecchiatura elettrica*, che i loro nomi non contengono;
+- le **regole di categoria che nominano l'oggetto**, con un criterio stretto: tutte le
+  parole significative del nome devono comparire nella regola, contando anche il nome del
+  contenitore, e le voci dal nome di una parola sola non si agganciano mai (con un token
+  solo "Carta" prendeva sette regole, compresa una sui fondi di caffè). 48 voci su 902.
+
+La terza è quella che vale: al `Bicchiere di vetro` di Napoli aggancia *"Nel contenitore
+Vetro NON va: Bicchieri"*, mentre a `Bottiglia in vetro` aggancia *"Nel contenitore Vetro
+va: Bottiglie"*. Due voci che prima differivano per una parola ora divergono anche nella
+spiegazione — l'opposto di quello che avrebbe fatto una descrizione generata, che le
+avrebbe descritte entrambe come oggetti di vetro trasparente.
+
+**Scartata la versione generativa**, che era la proposta iniziale: una descrizione scritta
+da un modello direbbe che il vetro si ricicla, il che a Napoli è falso, e finirebbe nel
+testo che legge il modello di scelta. La regola arriva dai dati (D9) o non è una regola.
+
+**Da misurare.** `ECOSCAN_ARRICCHIMENTO=no` riproduce l'indice della v0.43.0. Il confronto
+si fa con `--senza-modello` in pochi secondi, e la soglia è decisa prima: `recall@8` deve
+salire di almeno 4 punti, `recall@1` non deve scendere, le 18 regressioni devono restare
+verdi e i casi assenti non devono iniziare a trovare candidati.
+
+**Campione a 63 casi** (+15): illuminazione, bioplastica, cristallo, medicinali, lenti a
+contatto e altri, scelti dove il campione era più sottile — contenitore dedicato, raccolta
+itinerante, voci con più destinazioni (ora 15 su 63).
+
+**Corretto.** La registrazione su MLflow falliva sempre: `recall@1` contiene una chiocciola
+e MLflow ammette nei nomi solo alfanumerici, `_ - . : /` e spazi. Rifiutando quel nome
+rifiutava **l'intera** scrittura — una chiamata sola, una transazione sola — quindi la run
+veniva creata e restava vuota. La conversione (`recall@8` → `recall_at_8`) avviene solo al
+confine con MLflow: dentro il progetto il nome resta quello che si legge in letteratura.
+
+**Numeri.** 92 casi (18 + 63 + 11), 519 test verdi.
 
 ### v0.43.0 — 19/09/2026
 

@@ -22,8 +22,11 @@ payload strutturato, mai dal testo.
 """
 from __future__ import annotations
 
+import re
 import sqlite3
 from dataclasses import asdict, dataclass, field
+
+from ecoscan import configurazione as conf
 
 TIPI = ("oggetto", "regola", "destinazione")
 
@@ -173,7 +176,8 @@ def unisci_varianti(varianti: list[Variante]) -> list[Variante]:
 
 
 def testo_oggetto(nome: str, varianti: list[Variante], alias: list[str],
-                  codici: list[str] | None = None, contraddizione: bool = False) -> str:
+                  codici: list[str] | None = None, contraddizione: bool = False,
+                  arricchimento: list[str] | None = None) -> str:
     righe = [f"{nome}."]
     if alias:
         righe.append(f"Chiamato anche: {', '.join(alias)}.")
@@ -186,7 +190,122 @@ def testo_oggetto(nome: str, varianti: list[Variante], alias: list[str],
                      "la fonte non è univoca.")
     avvertenze = [v.avvertenza for v in varianti if v.avvertenza]
     righe.extend(dict.fromkeys(avvertenze))
+    # L'arricchimento va in coda: il nome e la destinazione restano le prime parole del
+    # documento, che è ciò che l'embedding pesa di più.
+    righe.extend(arricchimento or [])
     return " ".join(r for r in righe if r)
+
+
+# --------------------------------------------------------- arricchimento dalla fonte
+
+"""Perché arricchire, e perché *non* con un modello.
+
+I documenti oggetto sono corti — 65 caratteri di media — e questo è il caso in cui
+l'espansione del documento aiuta di più: più parole, più modi di arrivarci. La tentazione è
+farle scrivere a un modello ("descrivi un bicchiere di vetro"), ed è una cattiva idea qui
+per due motivi.
+
+Il primo è di verità: a Napoli il bicchiere di vetro **non è riciclabile**, e qualunque
+modello, descrivendolo, direbbe il contrario — perché è vero quasi ovunque. Quella frase
+finirebbe nel testo indicizzato e nell'elenco che legge il modello di scelta, cioè
+esattamente dove il progetto ha deciso che la regola arriva solo dai dati (D9).
+
+Il secondo è di discriminazione: descritti da un modello, "Bicchiere di vetro" e "Bottiglia
+in vetro" diventano *più simili fra loro*, e vanno in contenitori diversi. Il difetto che
+questo sistema deve combattere non è la povertà semantica, è la confusione fra vicini.
+
+L'arricchimento dalla fonte fa lo stesso lavoro con dati che ci sono già:
+
+- il **canale**, quando non è la raccolta ordinaria: è il gesto che l'utente deve compiere,
+  e la ragione per cui "Numero Verde Gratuito" da solo non dice niente;
+- i **flussi di materiale** della destinazione, ma solo le parole che il testo non ha già:
+  è ciò che dà a "Numero Verde Gratuito" la parola "ingombranti";
+- le **regole di categoria che nominano l'oggetto**. È la parte che vale di più, perché
+  *allontana* i vicini invece di avvicinarli: al bicchiere di vetro di Napoli aggancia
+  "Nel contenitore Vetro NON va: Bicchieri", che è esattamente la frase per cui quella voce
+  non sta nel vetro.
+"""
+
+# Preposizioni e articoli: non dicono nulla sull'oggetto. Duplicano l'elenco di
+# `agente/recupero.py` invece di importarlo perché il livello dei dati non dipende da
+# quello del ragionamento (vedi le regole di dipendenza in docs/architettura.md).
+PAROLE_DI_SERVIZIO = {"di", "in", "da", "del", "della", "dei", "degli", "delle", "e", "o",
+                      "con", "per", "a", "al", "alla", "il", "lo", "la", "i", "gli", "le",
+                      "un", "uno", "una", "altri", "altre", "anche"}
+
+GESTI = {"centro_raccolta": "Si porta al centro di raccolta.",
+         "ritiro_domicilio": "Si prenota il ritiro a domicilio.",
+         "raccolta_itinerante": "Si porta a un punto di raccolta itinerante.",
+         "contenitore_dedicato": "Si conferisce in un contenitore dedicato."}
+
+# I codici di flusso sono chiavi ("raee"): nel testo vanno scritte come le direbbe una
+# persona, perché è su quelle parole che l'utente cerca.
+NOMI_FLUSSO = {"raee": "apparecchiatura elettrica o elettronica",
+               "tessili": "tessile o abbigliamento", "oli": "olio esausto",
+               "ingombranti": "ingombrante", "residuo": "residuo indifferenziato"}
+
+
+def _radice(parola: str) -> str:
+    """Toglie la vocale finale alle parole lunghe: la fonte scrive "Bicchieri" e la voce
+    "Bicchiere di vetro"."""
+    return parola[:-1] if len(parola) >= 5 and parola[-1] in "aeio" else parola
+
+
+def parole(testo: str) -> set[str]:
+    return {_radice(p) for p in re.findall(r"[a-zà-ù0-9]+", (testo or "").lower())
+            if p not in PAROLE_DI_SERVIZIO}
+
+
+def regole_che_nominano(nome: str, regole: list[tuple[str, str, str]],
+                        massimo: int = 2) -> list[tuple[str, str, str]]:
+    """Le regole di categoria che parlano proprio di questo oggetto.
+
+    Il criterio è stretto: **tutte** le parole significative del nome devono comparire nella
+    regola, contando anche il nome del contenitore, perché la regola si legge come "Nel
+    contenitore Vetro NON va: Bicchieri" e il materiale sta lì. È lo stesso principio di
+    D159 — precisione prima di copertura — e la ragione è la stessa: un arricchimento che
+    aggancia la regola sbagliata peggiora il recupero invece di migliorarlo.
+
+    Le voci dal nome di una parola sola ("Carta", "Abito") non si agganciano mai: con un
+    token solo il criterio non discrimina più niente e "Carta" prenderebbe sette regole,
+    compresa una sui fondi di caffè.
+
+    Le esclusioni vengono prima: sono quelle che spiegano perché un oggetto *non* sta dove
+    ci si aspetterebbe, cioè l'informazione che il nome da solo non porta.
+    """
+    cercate = parole(nome)
+    if len(cercate) < 2:
+        return []
+    trovate = [r for r in regole if cercate <= parole(f"{r[2]} {r[0].replace('_', ' ')}")]
+    return sorted(trovate, key=lambda r: r[1] != "escluso")[:massimo]
+
+
+def arricchimento_da_fonte(nome: str, varianti: list[Variante], canali: dict[str, str],
+                           flussi: dict[str, list[str]],
+                           regole: list[tuple[str, str, str]], testo_base: str) -> list[str]:
+    """Le frasi in più da aggiungere al documento, tutte ricavate dai dati."""
+    destinazioni = list(dict.fromkeys(d for v in varianti for d in v.destinazioni))
+    righe = []
+
+    # il gesto, solo quando non è il cassonetto sotto casa: dirlo per la raccolta ordinaria
+    # aggiungerebbe la stessa frase a metà del corpus, che è rumore identico per tutti (D167)
+    gesti = dict.fromkeys(GESTI[canali[d]] for d in destinazioni
+                          if canali.get(d) in GESTI)
+    righe.extend(gesti)
+
+    # i flussi, ma solo le parole che il testo non ha già: "Plastica e Metalli" non ha
+    # bisogno che gli si dica che riguarda plastica e metalli
+    presenti = parole(testo_base + " " + " ".join(righe))
+    nuovi = dict.fromkeys(
+        NOMI_FLUSSO.get(f, f) for d in destinazioni for f in flussi.get(d, [])
+        if not parole(NOMI_FLUSSO.get(f, f)) <= presenti)
+    if nuovi:
+        righe.append(f"Tipo di rifiuto: {', '.join(nuovi)}.")
+
+    # le regole che nominano l'oggetto: la parte che separa i vicini invece di avvicinarli
+    righe.extend(testo_regola(destinazione, polarita, testo, None)
+                 for destinazione, polarita, testo in regole_che_nominano(nome, regole))
+    return righe
 
 
 def testo_regola(destinazione: str, polarita: str, testo: str, dettaglio: str | None) -> str:
@@ -261,9 +380,38 @@ def _chiave(comune: str, nome: str) -> str:
     return f"oggetto:{comune}:{piatto}"
 
 
-def documenti_oggetto(db: sqlite3.Connection) -> list[Documento]:
+def _canali_e_flussi(db: sqlite3.Connection) -> tuple[dict, dict]:
+    """Canale e flussi di materiale di ogni destinazione, per comune."""
+    canali, flussi = {}, {}
+    for comune, nome, canale in db.execute(
+            "SELECT c.nome, d.nome, d.canale FROM destinazione d "
+            "JOIN comune c ON c.id = d.comune_id"):
+        canali[(comune, nome)] = canale
+    for comune, nome, flusso in db.execute(
+            "SELECT c.nome, d.nome, f.flusso_codice FROM destinazione_flusso f "
+            "JOIN destinazione d ON d.id = f.destinazione_id "
+            "JOIN comune c ON c.id = d.comune_id ORDER BY f.flusso_codice"):
+        flussi.setdefault((comune, nome), []).append(flusso)
+    return canali, flussi
+
+
+def _regole_per_comune(db: sqlite3.Connection) -> dict[str, list[tuple[str, str, str]]]:
+    per_comune: dict[str, list[tuple[str, str, str]]] = {}
+    for comune, destinazione, polarita, testo in db.execute("""
+            SELECT c.nome, d.nome, r.polarita, r.testo FROM regola r
+              JOIN destinazione d ON d.id = r.destinazione_id
+              JOIN comune c ON c.id = d.comune_id
+             WHERE r.polarita IN ('ammesso', 'escluso') ORDER BY r.id"""):
+        per_comune.setdefault(comune, []).append((destinazione, polarita, testo))
+    return per_comune
+
+
+def documenti_oggetto(db: sqlite3.Connection, arricchisci: bool | None = None) -> list[Documento]:
+    arricchisci = conf.ARRICCHIMENTO if arricchisci is None else arricchisci
     alias_per_voce = _alias_per_voce(db)
     provenienza = _provenienza(db)
+    canali, flussi = _canali_e_flussi(db)
+    regole_comune = _regole_per_comune(db)
     documenti = []
     for (comune, nome), tutte in _varianti_per_oggetto(db).items():
         alias = list(dict.fromkeys(a for v in tutte for a in alias_per_voce.get(v.voce_id, [])))
@@ -282,9 +430,16 @@ def documenti_oggetto(db: sqlite3.Connection) -> list[Documento]:
             (p for v in tutte if any(p := provenienza.get(v.voce_id, (None, None)))),
             (None, None))
 
+        base = testo_oggetto(nome, varianti, alias, codici, contraddizione)
+        arricchimento = arricchimento_da_fonte(
+            nome, varianti,
+            {d: canali.get((comune, d), "") for v in varianti for d in v.destinazioni},
+            {d: flussi.get((comune, d), []) for v in varianti for d in v.destinazioni},
+            regole_comune.get(comune, []), base) if arricchisci else []
+
         documenti.append(Documento(
             id=_chiave(comune, nome), comune=comune, tipo="oggetto", livello=1, nome=nome,
-            testo=testo_oggetto(nome, varianti, alias, codici, contraddizione),
+            testo=testo_oggetto(nome, varianti, alias, codici, contraddizione, arricchimento),
             varianti=varianti, alias=alias, codice_materiale=", ".join(codici) or None,
             fonte=fonte, riferimento=riferimento, contraddizione=contraddizione))
     return documenti

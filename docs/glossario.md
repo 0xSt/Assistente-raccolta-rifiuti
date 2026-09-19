@@ -214,6 +214,15 @@ regola finale sempre da SQL e mai dal modello.
 **Output strutturato** — Risposta del modello vincolata a uno schema JSON, così il backend
 può usarla senza interpretarne il testo.
 
+**Espansione del documento** — Aggiungere testo a un documento per renderlo raggiungibile
+da più formulazioni. Alza il recupero e abbassa la discriminazione: in un corpus di voci
+brevi e simili fra loro, è un compromesso da misurare e non da dare per buono.
+
+**Arricchimento dalla fonte** — L'espansione praticata qui: il testo aggiunto viene dai
+dati (canale, flussi, regole che nominano l'oggetto), mai da un modello. Una descrizione
+generata direbbe che il vetro si ricicla, che a Napoli è falso, e avvicinerebbe fra loro
+voci che vanno in contenitori diversi.
+
 ## Valutazione
 
 **Caso** — Un riconoscimento già avvenuto più la risposta attesa. Parte dal riconoscimento e

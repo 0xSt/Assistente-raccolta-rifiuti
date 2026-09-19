@@ -41,14 +41,25 @@ registro = logging.getLogger(__name__)
 ESPERIMENTO = "ecoscan-valutazione"
 
 
+def nome_valido(chiave: str) -> str:
+    """MLflow ammette nei nomi delle metriche solo alfanumerici, `_ - . : / ` e spazi.
+
+    `recall@8` faceva fallire l'intera chiamata a `log_metrics` — e con lei tutte le altre
+    metriche, perché la scrittura è una sola. La conversione avviene **solo qui**, al
+    confine con MLflow: dentro il progetto la metrica continua a chiamarsi `recall@8`, che
+    è il nome con cui la si legge in letteratura e nei nostri documenti.
+    """
+    return chiave.replace("@", "_at_")
+
+
 def _appiattisci(esecuzione: dict) -> dict[str, str]:
     """I parametri di una run sono coppie di stringhe: la configurazione annidata si
     appiattisce, i conteggi dei casi diventano `casi_campione`, `casi_regressioni`…"""
-    parametri = {chiave: str(valore) for chiave, valore in esecuzione.items()
+    parametri = {nome_valido(chiave): str(valore) for chiave, valore in esecuzione.items()
                  if chiave not in ("configurazione", "casi")}
-    parametri.update({chiave: str(valore)
+    parametri.update({nome_valido(chiave): str(valore)
                       for chiave, valore in esecuzione.get("configurazione", {}).items()})
-    parametri.update({f"casi_{insieme}": str(quanti)
+    parametri.update({nome_valido(f"casi_{insieme}"): str(quanti)
                       for insieme, quanti in esecuzione.get("casi", {}).items()})
     return parametri
 
@@ -72,7 +83,8 @@ def registra(esecuzione: dict, misure: dict, esito_completo: dict | None = None,
         mlflow.set_experiment(esperimento)
         with mlflow.start_run(run_name=f"valutazione {esecuzione.get('data', '')}"):
             mlflow.log_params(_appiattisci(esecuzione))
-            mlflow.log_metrics({chiave: float(valore) for chiave, valore in misure.items()
+            mlflow.log_metrics({nome_valido(chiave): float(valore)
+                                for chiave, valore in misure.items()
                                 if isinstance(valore, (int, float))})
             if esito_completo is not None:
                 with tempfile.TemporaryDirectory() as cartella:

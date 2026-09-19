@@ -51,6 +51,9 @@ LATO_MAX_IMMAGINE = _intero("ECOSCAN_LATO_MAX_IMMAGINE", 1024)
 # Ollama però li applicano già da sé: in quel caso i nostri li duplicherebbero, peggiorando
 # il recupero. L'interruttore serve a misurare quale delle due configurazioni funziona.
 PREFISSI_EMBEDDING = _testo("ECOSCAN_PREFISSI_EMBEDDING", "si").lower() not in ("no", "0", "false")
+# Arricchimento dei documenti con dati della fonte (canale, flussi, regole che nominano
+# l'oggetto). Si spegne per misurare quanto vale: `ECOSCAN_ARRICCHIMENTO=no` e si rivettorizza.
+ARRICCHIMENTO = _testo("ECOSCAN_ARRICCHIMENTO", "si").lower() not in ("no", "0", "false")
 # Dove il frontend trova il backend. In Docker diventa il nome del servizio.
 API = _testo("ECOSCAN_API", "http://localhost:8000/api/v1")
 # Tracciamento su MLflow. Non è mai bloccante: se il server non risponde, le risposte
@@ -80,7 +83,8 @@ def riepilogo() -> dict[str, str]:
     return {"qdrant": QDRANT, "ollama": OLLAMA, "modello": MODELLO_EMBEDDING,
             "modello_visione": MODELLO_VISIONE, "keep_alive": OLLAMA_KEEP_ALIVE,
             "lato_max_immagine": str(LATO_MAX_IMMAGINE),
-            "prefissi_embedding": "si" if PREFISSI_EMBEDDING else "no", "api": API,
+            "prefissi_embedding": "si" if PREFISSI_EMBEDDING else "no",
+            "arricchimento": "si" if ARRICCHIMENTO else "no", "api": API,
             "mlflow": (MLFLOW + (" (con foto)" if MLFLOW_FOTO else " (solo impronte)"))
             if MLFLOW_ATTIVO else "spento",
             "lotto": str(LOTTO_EMBEDDING),
