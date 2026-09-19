@@ -149,3 +149,99 @@ def test_il_documento_oggetto_porta_la_provenienza(db):
     giornali = per_id["oggetto:Torino:giornali-e-riviste"]
     assert giornali.fonte == "amiat_rifiutologo_2025"
     assert "pagina" in giornali.riferimento
+
+
+# ------------------------------------------------- arricchimento dalla fonte (D183)
+
+from ecoscan.db.documenti import (  # noqa: E402
+    arricchimento_da_fonte, regole_che_nominano,
+)
+
+REGOLE_NAPOLI = [
+    ("Vetro", "escluso", "Bicchieri"),
+    ("Vetro", "ammesso", "Bottiglie"),
+    ("Organico", "ammesso", "Cartoni di pizza con residui di cibo"),
+    ("Plastica e Metalli", "ammesso", "Bottiglie e flaconi in plastica"),
+]
+
+
+def test_una_regola_si_aggancia_solo_se_nomina_davvero_l_oggetto():
+    """Il criterio stretto: tutte le parole significative del nome devono comparire nella
+    regola, compreso il contenitore. È ciò che distingue il bicchiere dalla bottiglia."""
+    assert regole_che_nominano("Bicchiere di vetro", REGOLE_NAPOLI) == [
+        ("Vetro", "escluso", "Bicchieri")]
+    assert regole_che_nominano("Bottiglia in vetro", REGOLE_NAPOLI) == [
+        ("Vetro", "ammesso", "Bottiglie")]
+    # nessuna regola nomina il tostapane: non si aggancia niente pur di agganciare
+    assert regole_che_nominano("Tostapane elettrico", REGOLE_NAPOLI) == []
+
+
+def test_un_nome_di_una_parola_sola_non_aggancia_mai():
+    """"Carta" prenderebbe sette regole, compresa una sui fondi di caffè: con un token solo
+    il criterio non discrimina più niente."""
+    assert regole_che_nominano("Bicchieri", REGOLE_NAPOLI) == []
+    assert regole_che_nominano("Carta", REGOLE_NAPOLI) == []
+
+
+def test_le_esclusioni_vengono_prima():
+    """Sono quelle che spiegano perché un oggetto NON sta dove ci si aspetterebbe: è
+    l'informazione che il nome da solo non porta."""
+    regole = [("Vetro", "ammesso", "Vetro dei bicchieri"), ("Vetro", "escluso", "Bicchieri")]
+    assert regole_che_nominano("Bicchiere di vetro", regole)[0][1] == "escluso"
+
+
+def test_l_arricchimento_separa_due_vicini():
+    """Il motivo per cui si arricchisce dalla fonte e non con un modello: una descrizione
+    generata avvicinerebbe bicchiere e bottiglia, che vanno in contenitori diversi."""
+    bicchiere = arricchimento_da_fonte(
+        "Bicchiere di vetro", [Variante([], ["Non Riciclabile"])],
+        {"Non Riciclabile": "raccolta_ordinaria"}, {"Non Riciclabile": ["residuo"]},
+        REGOLE_NAPOLI, "Bicchiere di vetro. Va in Non Riciclabile.")
+    bottiglia = arricchimento_da_fonte(
+        "Bottiglia in vetro", [Variante([], ["Vetro"])],
+        {"Vetro": "raccolta_ordinaria"}, {"Vetro": ["vetro"]},
+        REGOLE_NAPOLI, "Bottiglia in vetro. Va in Vetro.")
+    assert any("NON va: Bicchieri" in r for r in bicchiere)
+    assert any("va: Bottiglie" in r for r in bottiglia)
+    assert not any("Bicchieri" in r for r in bottiglia)
+
+
+def test_il_gesto_si_dice_solo_quando_non_e_il_cassonetto():
+    """Dirlo per la raccolta ordinaria aggiungerebbe la stessa frase a metà del corpus:
+    rumore identico per tutti, che non aiuta a distinguere niente (D167)."""
+    ordinaria = arricchimento_da_fonte(
+        "Giornale", [Variante([], ["Carta e Cartoncino"])],
+        {"Carta e Cartoncino": "raccolta_ordinaria"}, {}, [], "Giornale.")
+    ingombrante = arricchimento_da_fonte(
+        "Divano", [Variante([], ["Numero Verde Gratuito"])],
+        {"Numero Verde Gratuito": "ritiro_domicilio"},
+        {"Numero Verde Gratuito": ["ingombranti"]}, [], "Divano.")
+    assert not any("Si porta" in r or "Si prenota" in r for r in ordinaria)
+    assert any("Si prenota il ritiro a domicilio" in r for r in ingombrante)
+
+
+def test_i_flussi_aggiungono_solo_parole_che_mancano():
+    """"Plastica e Metalli" non ha bisogno che gli si dica che riguarda plastica e metalli;
+    "Numero Verde Gratuito", invece, non contiene la parola "ingombrante"."""
+    ovvio = arricchimento_da_fonte(
+        "Bottiglia in plastica", [Variante([], ["Plastica e Metalli"])],
+        {"Plastica e Metalli": "raccolta_ordinaria"},
+        {"Plastica e Metalli": ["plastica", "metalli"]}, [],
+        "Bottiglia in plastica. Va in Plastica e Metalli.")
+    utile = arricchimento_da_fonte(
+        "Divano", [Variante([], ["Numero Verde Gratuito"])],
+        {"Numero Verde Gratuito": "ritiro_domicilio"},
+        {"Numero Verde Gratuito": ["ingombranti"]}, [], "Divano. Va in Numero Verde Gratuito.")
+    assert not any("Tipo di rifiuto" in r for r in ovvio)
+    assert any("ingombrante" in r for r in utile)
+
+
+def test_si_puo_spegnere_per_misurare_quanto_vale(db):
+    """L'arricchimento è una modifica del recupero: deve essere confrontabile con la sua
+    assenza, altrimenti non si sa se ha funzionato."""
+    from ecoscan.db.documenti import documenti_oggetto
+    con = {d.id: d.testo for d in documenti_oggetto(db, arricchisci=True)}
+    senza = {d.id: d.testo for d in documenti_oggetto(db, arricchisci=False)}
+    assert set(con) == set(senza)
+    assert all(con[i].startswith(senza[i].split(".")[0]) for i in con), (
+        "il nome deve restare la prima cosa del documento")

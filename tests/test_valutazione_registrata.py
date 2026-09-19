@@ -42,3 +42,18 @@ def test_solo_i_numeri_diventano_metriche():
                                    "livello_atteso": None}.items()
                  if isinstance(v, (int, float))}
     assert numeriche == {"recupero": 88.0, "casi": 70}
+
+
+def test_i_nomi_delle_metriche_passano_il_vaglio_di_mlflow():
+    """MLflow rifiuta la chiocciola, e rifiutando `recall@8` faceva fallire **tutta** la
+    scrittura: una sola chiamata, una sola transazione, zero metriche registrate.
+
+    La conversione sta solo al confine: dentro il progetto la metrica si chiama ancora
+    `recall@8`, che è il nome con cui si legge in letteratura.
+    """
+    assert vr.nome_valido("recall@8") == "recall_at_8"
+    assert vr.nome_valido("contenitore_corretto") == "contenitore_corretto"
+    ammessi = set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-.: /")
+    for chiave in ("recall@1", "recall@4", "recall@8", "copertura", "astensione_corretta",
+                   "riconoscimento_p50", "casi_regressioni"):
+        assert set(vr.nome_valido(chiave)) <= ammessi, chiave

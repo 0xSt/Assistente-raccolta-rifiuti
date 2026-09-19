@@ -4,7 +4,7 @@ Come è fatto il sistema, come sono legati i file, e perché. È il documento da
 orientarsi; il **[diario](diario.md)** racconta *quando* e *perché* le cose sono cambiate,
 questo dice *com'è adesso*.
 
-Aggiornato alla **v0.43.0**.
+Aggiornato alla **v0.44.0**.
 
 ---
 
@@ -158,7 +158,7 @@ all'interfaccia:
 | `etl/qualita_nomi.py` | I nomi rimasti sgrammaticati dopo la normalizzazione diventano motivi di revisione |
 | `db/schema.sql` | Lo schema relazionale: 12 tabelle |
 | `db/carica.py` | Costruisce il database, una funzione per tabella |
-| `db/documenti.py` | Costruisce i documenti da indicizzare: oggetto, regola, destinazione |
+| `db/documenti.py` | Costruisce i documenti da indicizzare (oggetto, regola, destinazione) e li arricchisce con dati della fonte: canale, flussi, regole che nominano l'oggetto |
 | `db/vettorizza.py` | Indicizza su Qdrant e cerca; parla con Ollama per gli embedding |
 
 ### Ragionamento
@@ -271,7 +271,7 @@ traccia "analizza"                       ← input, output, foto allegata, tag
 
 ## 9. Test
 
-525 test, tutti veloci: i modelli sono finti, Qdrant gira in memoria, nessuna rete.
+519 test, tutti veloci: i modelli sono finti, Qdrant gira in memoria, nessuna rete.
 
 | Gruppo | Cosa presidia |
 |---|---|

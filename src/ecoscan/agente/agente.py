@@ -95,6 +95,7 @@ class Agente:
             "confidenza_minima": str(CONFIDENZA_MINIMA),
             "lato_max_immagine": str(getattr(self.modello, "lato_max", conf.LATO_MAX_IMMAGINE)),
             "prefissi_embedding": "si" if conf.PREFISSI_EMBEDDING else "no",
+            "arricchimento": "si" if conf.ARRICCHIMENTO else "no",
             "keep_alive": conf.OLLAMA_KEEP_ALIVE,
             **{f"prompt_{n}": prompt_.carica(n).etichetta for n in ("riconoscimento", "scelta")},
         }

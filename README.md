@@ -4,7 +4,7 @@ Assistente per la raccolta differenziata che gira interamente in locale. L'utent
 
 Progetto universitario. Comuni del prototipo: **Napoli** (ASIA) e **Torino** (AMIAT).
 
-## Stato attuale (v0.43.0)
+## Stato attuale (v0.44.0)
 
 Il quadro completo è in [docs/diario.md](docs/diario.md).
 
@@ -17,13 +17,13 @@ Il quadro completo è in [docs/diario.md](docs/diario.md).
 | Regole di categoria | 110 normalizzate e collegate alle destinazioni |
 | Revisione manuale | 37 decisioni prese (4% delle voci), nessuna aperta |
 | Load relazionale | Fatto: comuni, destinazioni, voci, condizioni, alias, regole, decisioni |
-| Serving — documenti su Qdrant | Fatto: 996 documenti, ricerca semantica, aggancio esatto dei codici |
+| Serving — documenti su Qdrant | Fatto: 996 documenti arricchiti dalla fonte, ricerca semantica, aggancio esatto dei codici |
 | Agente (riconoscimento, cascata, scelta, risposta) | Fatto: usabile senza HTTP |
 | API FastAPI | Fatto: otto rotte, backend senza stato e di sola lettura |
 | Frontend a chat (Streamlit) | Fatto: allegato immagine, chiarimenti a pulsante, riconoscimento visibile e correggibile, citazione della fonte |
 | Tracciamento e prompt su MLflow | Fatto: una traccia per turno con foto e retrieval, sessioni, versione dell'app e prompt collegati |
 | Docker completo | Fatto: cinque servizi, Ollama sull'host in sviluppo |
-| Valutazione | Fatto: 77 casi in tre insiemi (regressioni, campione, assenti), otto metriche, confronto fra esecuzioni, run su MLflow |
+| Valutazione | Fatto: 92 casi in tre insiemi (regressioni, campione, assenti), otto metriche, confronto fra esecuzioni, run su MLflow |
 | Valutazione sulle foto | Pronta: 20 etichette scritte, le foto sono da scattare |
 | Backend, frontend, modello | Da fare |
 
