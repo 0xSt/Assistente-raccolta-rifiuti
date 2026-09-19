@@ -27,12 +27,9 @@ def test_con_mlflow_spento_la_valutazione_non_si_ferma(monkeypatch, capsys):
     registrata = vr.registra({"data": "x", "k": 8}, {"recupero": 88.0},
                              indirizzo="http://127.0.0.1:1")   # porta chiusa
     assert registrata is False
-    assert "non registrata" in capsys.readouterr().out
+    assert "non raggiungibile" in capsys.readouterr().out
 
 
-def test_si_puo_spegnere_del_tutto(monkeypatch):
-    monkeypatch.setattr(vr.conf, "MLFLOW_ATTIVO", False)
-    assert vr.registra({}, {"recupero": 88.0}) is False
 
 
 def test_solo_i_numeri_diventano_metriche():
@@ -57,3 +54,18 @@ def test_i_nomi_delle_metriche_passano_il_vaglio_di_mlflow():
     for chiave in ("recall@1", "recall@4", "recall@8", "copertura", "astensione_corretta",
                    "riconoscimento_p50", "casi_regressioni"):
         assert set(vr.nome_valido(chiave)) <= ammessi, chiave
+
+
+def test_mlflow_spento_lo_dice(monkeypatch, capsys):
+    """Una registrazione che non avviene **e non lo dice** è peggio di un errore: si
+    continua a cercare la run in una lista dove non è mai arrivata."""
+    monkeypatch.setattr(vr.conf, "MLFLOW_ATTIVO", False)
+    assert vr.registra({}, {"recupero": 88.0}) is False
+    assert "spento" in capsys.readouterr().out
+
+
+def test_un_server_irraggiungibile_dice_anche_come_accenderlo(monkeypatch, capsys):
+    monkeypatch.setattr(vr.conf, "MLFLOW_ATTESA", 1)
+    vr.registra({"data": "x"}, {"recupero": 88.0}, indirizzo="http://127.0.0.1:1")
+    uscita = capsys.readouterr().out
+    assert "non raggiungibile" in uscita and "docker compose up -d mlflow" in uscita

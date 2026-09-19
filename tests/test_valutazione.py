@@ -365,3 +365,37 @@ def test_i_casi_assenti_dichiarano_il_livello_tre_e_una_verifica():
     assert len(assenti) >= 8
     assert all(c.negativo and c.livello_atteso == 3 for c in assenti)
     assert all(c.nota for c in assenti), "un'assenza senza verifica scritta non è un dato"
+
+
+# --------------------------------------------------------- l'avanzamento a schermo
+
+def test_l_avanzamento_dice_a_che_punto_siamo(capsys):
+    """Anche `--senza-modello` calcola un embedding per ogni formulazione di ogni caso:
+    su CPU sono minuti, e senza avanzamento sembra bloccato."""
+    avanzamento = val.Avanzamento(totale=3, interattivo=False)
+    esito = val.Esito(caso=caso_dei_giornali(), recuperato=True, posizione=1,
+                      destinazioni=["carta_e_cartone"])
+    for numero in (1, 2, 3):
+        avanzamento(numero, 3, esito.caso, esito)
+    uscita = capsys.readouterr().out
+    assert "[  3/3]" in uscita and "ok" in uscita
+    assert "s/caso" in uscita
+
+
+def test_l_avanzamento_segnala_i_casi_falliti_mentre_passano(capsys):
+    """Un errore visto al centesimo caso si guarda subito, non dopo il riepilogo."""
+    avanzamento = val.Avanzamento(totale=1, interattivo=False)
+    fallito = val.Esito(caso=caso_dei_giornali(), recuperato=True, destinazioni=["organico"])
+    avanzamento(1, 1, fallito.caso, fallito)
+    assert "NO" in capsys.readouterr().out
+
+
+def test_l_esecuzione_chiama_l_avanzamento_dopo_ogni_caso(ambiente):
+    """Dopo, non prima: così la riga può dire com'è andato invece di annunciare cosa sta
+    per fare."""
+    from ecoscan.valutazione.esegui import _ModelloAssente
+    visti = []
+    agente = Agente(ambiente.recupero, _ModelloAssente(), k=8)
+    val.esegui(agente, [caso_dei_giornali()], con_modello=False,
+               avanzamento=lambda n, t, c, e: visti.append((n, t, c.id, e.recuperato)))
+    assert visti == [(1, 1, "Torino · giornale", True)]
