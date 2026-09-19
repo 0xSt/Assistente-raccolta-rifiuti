@@ -1,0 +1,20 @@
+{"file": "bottiglia-plastica.jpg", "comune": "Napoli", "oggetto": "bottiglia di plastica", "destinazioni_attese": ["Plastica e Metalli"], "nota": "controllo facile: se fallisce questo e' rotto qualcosa di grosso"}
+{"file": "lattina.jpg", "comune": "Napoli", "oggetto": "lattina in alluminio", "destinazioni_attese": ["Plastica e Metalli"], "nota": "oggetto piccolo e lucido: il riflesso e' una difficolta' vera per la visione"}
+{"file": "cartone-pizza.jpg", "comune": "Napoli", "oggetto": "cartone della pizza", "testo_utente": "e' unto", "destinazioni_attese": ["Organico"], "nota": "il caso che ha guidato il progetto: la condizione la dichiara l'utente, non la foto"}
+{"file": "cartone-pizza-pulito.jpg", "comune": "Napoli", "oggetto": "cartone della pizza", "destinazioni_attese": ["Carta e Cartoncino", "Organico"], "nota": "la stessa foto senza testo: qui l'agente deve chiedere, non indovinare"}
+{"file": "giornale.jpg", "comune": "Napoli", "oggetto": "giornale", "destinazioni_attese": ["Carta e Cartoncino"], "nota": "controllo facile"}
+{"file": "bicchiere-vetro.jpg", "comune": "Napoli", "oggetto": "bicchiere di vetro", "destinazioni_attese": ["Non Riciclabile"], "nota": "la divergenza fra i due comuni: a Torino lo stesso oggetto va nel vetro"}
+{"file": "scatoletta-tonno.jpg", "comune": "Napoli", "oggetto": "scatoletta del tonno", "destinazioni_attese": ["Plastica e Metalli"], "nota": "parafrasi d'uso comune rispetto al nome della fonte"}
+{"file": "vasetto-yogurt.jpg", "comune": "Napoli", "oggetto": "vasetto dello yogurt", "destinazioni_attese": ["Plastica e Metalli"], "nota": "oggetto piccolo, spesso fotografato da vicino"}
+{"file": "flacone-detersivo.jpg", "comune": "Napoli", "oggetto": "flacone del detersivo", "destinazioni_attese": ["Plastica e Metalli"], "nota": "l'etichetta puo' confondere il riconoscimento"}
+{"file": "cartone-latte.jpg", "comune": "Napoli", "oggetto": "cartone del latte", "destinazioni_attese": ["Carta e Cartoncino"], "nota": "materiale composito: il modello spesso dice plastica"}
+{"file": "pile.jpg", "comune": "Napoli", "oggetto": "pile stilo", "destinazioni_attese": ["Contenitore Pile", "Ecopunto Elettrodomestici", "Isola Ecologica Estesa", "Isola Ecologica Ridotta"], "nota": "quattro canali attesi: e' la foto che mette alla prova la copertura"}
+{"file": "lampadina.jpg", "comune": "Napoli", "oggetto": "lampadina", "destinazioni_attese": ["Ecoisole RAEE R4", "Ecopunto Elettrodomestici", "Isola Ecologica Estesa"], "nota": "tre canali, nessuno dei quali e' il cassonetto"}
+{"file": "spazzolino.jpg", "comune": "Napoli", "oggetto": "spazzolino da denti", "destinazioni_attese": ["Non Riciclabile"], "nota": "attenzione: esiste anche lo spazzolino elettrico, che va nei RAEE. La foto deve mostrare quello manuale"}
+{"file": "pentola-acciaio.jpg", "comune": "Napoli", "oggetto": "pentola in acciaio", "destinazioni_attese": ["Plastica e Metalli"], "nota": "il materiale decide: la pentola in materiale misto va all'isola ecologica"}
+{"file": "bottiglia-plastica-torino.jpg", "comune": "Torino", "oggetto": "bottiglia di plastica", "destinazioni_attese": ["imballaggi_plastica"], "nota": "controllo facile sull'altro comune"}
+{"file": "giornale-torino.jpg", "comune": "Torino", "oggetto": "giornale", "destinazioni_attese": ["carta_e_cartone"], "nota": "controllo facile"}
+{"file": "bicchiere-vetro-torino.jpg", "comune": "Torino", "oggetto": "bicchiere di vetro", "destinazioni_attese": ["vetro_e_imballaggi_metallo"], "nota": "stessa foto del caso napoletano, comune diverso: la risposta DEVE cambiare"}
+{"file": "tetrapak-torino.jpg", "comune": "Torino", "oggetto": "contenitore del latte in tetrapak", "destinazioni_attese": ["carta_e_cartone"], "nota": "a Torino il Tetra Pak sta nella carta"}
+{"file": "tovagliolo-torino.jpg", "comune": "Torino", "oggetto": "tovagliolo di carta usato", "destinazioni_attese": ["organico", "carta_e_cartone"], "nota": "due destinazioni: la copertura conta"}
+{"file": "cellulare-torino.jpg", "comune": "Torino", "oggetto": "vecchio cellulare", "destinazioni_attese": ["centro_di_raccolta"], "nota": "RAEE: la risposta deve spiegare il gesto, non solo il contenitore"}

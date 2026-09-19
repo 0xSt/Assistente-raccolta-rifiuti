@@ -4,7 +4,7 @@ Come è fatto il sistema, come sono legati i file, e perché. È il documento da
 orientarsi; il **[diario](diario.md)** racconta *quando* e *perché* le cose sono cambiate,
 questo dice *com'è adesso*.
 
-Aggiornato alla **v0.42.0**.
+Aggiornato alla **v0.43.0**.
 
 ---
 
@@ -203,9 +203,11 @@ Le rotte: `/salute`, `/comuni`, `/destinazioni`, `/analizza`, `/continua`, `/cor
 | `osservabilita/prompt_registrati.py` | Pubblica i prompt nel registro, senza creare doppioni |
 | `agente/prova.py` | `ecoscan-analizza`: prova l'agente su una foto vera, con i tempi |
 | `agente/diagnostica.py` | Verifica il canale immagine con un'immagine dal contenuto noto |
-| `db/sonda.py` | Misura dove finisce il documento atteso per domande note |
-| `valutazione/casi.py` | Cos'è un caso, dove vive, come si legge e si scrive |
-| `valutazione/esegui.py` | `ecoscan-valuta`: recall@k come tetto, diagnosi 2×2, confronto fra esecuzioni. Vedi [valutazione.md](valutazione.md) |
+| `osservabilita/valutazione_registrata.py` | Ogni esecuzione della valutazione come run MLflow, in un esperimento suo |
+| `valutazione/casi.py` | Cos'è un caso e i tre insiemi (regressioni, campione, assenti) |
+| `valutazione/campiona.py` | `ecoscan-campiona`: estrazione stratificata dal database, con seme fisso |
+| `valutazione/esegui.py` | `ecoscan-valuta`: recall@k come tetto, diagnosi, confronto fra esecuzioni. Vedi [valutazione.md](valutazione.md) |
+| `valutazione/foto.py` | `ecoscan-valuta-foto`: end-to-end dalla foto, costo della visione, tempi su CPU |
 
 ### Trasversali
 
@@ -269,12 +271,13 @@ traccia "analizza"                       ← input, output, foto allegata, tag
 
 ## 9. Test
 
-481 test, tutti veloci: i modelli sono finti, Qdrant gira in memoria, nessuna rete.
+525 test, tutti veloci: i modelli sono finti, Qdrant gira in memoria, nessuna rete.
 
 | Gruppo | Cosa presidia |
 |---|---|
 | ETL (`test_transform*`, `test_napoli`, `test_torino*`, `test_revisioni`, `test_trascrizioni`) | che la normalizzazione non cambi in silenzio |
-| Dati (`test_carica`, `test_documenti`, `test_vettorizza`, `test_sonda`) | schema, documenti, indice |
+| Dati (`test_carica`, `test_documenti`, `test_vettorizza`) | schema, documenti, indice |
+| Valutazione (`test_valutazione`, `test_campiona`, `test_valutazione_foto`, `test_valutazione_registrata`) | che le metriche non dicano di sapere ciò che non hanno misurato, e che il dataset non diventi tautologico |
 | Agente (`test_agente`, `test_materiali`, `test_condizioni`, `test_prompt`) | i quattro passaggi e le politiche del codice |
 | Confine (`test_api`, `test_frontend`) | il contratto delle rotte e la leggibilità dei messaggi |
 | Sistema (`test_docker`, `test_configurazione`, `test_percorsi`) | che il compose dica ciò che intendiamo |

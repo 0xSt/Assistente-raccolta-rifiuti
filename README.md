@@ -4,7 +4,7 @@ Assistente per la raccolta differenziata che gira interamente in locale. L'utent
 
 Progetto universitario. Comuni del prototipo: **Napoli** (ASIA) e **Torino** (AMIAT).
 
-## Stato attuale (v0.42.0)
+## Stato attuale (v0.43.0)
 
 Il quadro completo è in [docs/diario.md](docs/diario.md).
 
@@ -23,7 +23,8 @@ Il quadro completo è in [docs/diario.md](docs/diario.md).
 | Frontend a chat (Streamlit) | Fatto: allegato immagine, chiarimenti a pulsante, riconoscimento visibile e correggibile, citazione della fonte |
 | Tracciamento e prompt su MLflow | Fatto: una traccia per turno con foto e retrieval, sessioni, versione dell'app e prompt collegati |
 | Docker completo | Fatto: cinque servizi, Ollama sull'host in sviluppo |
-| Valutazione (foto etichettate, metriche) | Da fare |
+| Valutazione | Fatto: 77 casi in tre insiemi (regressioni, campione, assenti), otto metriche, confronto fra esecuzioni, run su MLflow |
+| Valutazione sulle foto | Pronta: 20 etichette scritte, le foto sono da scattare |
 | Backend, frontend, modello | Da fare |
 
 ## Struttura
@@ -39,6 +40,7 @@ src/ecoscan/
   etl/               estrattori (grezzo), motore del Transform e profili per comune
   db/                schema.sql e script dimostrativo dello schema
 tests/               test di regressione e unitari
+data/valutazione/    i casi (tre insiemi) e le etichette delle foto
 data/revisioni/      decisioni manuali sulle voci incerte (versionate)
 data/riferimento/    destinazioni: canale, colore, flussi di materiale (versionati)
 data/grezzo/         output degli estrattori (versionati)
@@ -71,10 +73,11 @@ docker compose up -d qdrant mlflow   # solo i servizi di supporto, per sviluppar
                                 # MLflow:  http://localhost:5000
 uv run ecoscan-vettorizza       # indicizza i documenti su Qdrant
 uv run ecoscan-vettorizza --verifica   # controlla che l'indicizzazione sia corretta
-uv run ecoscan-sonda            # misura dove finisce il documento atteso per domande note
 uv run ecoscan-nomi             # elenca i nomi rimasti sgrammaticati dopo la normalizzazione
 uv run ecoscan-valuta --senza-modello  # il tetto: recall@k sui casi, senza Ollama (secondi)
 uv run ecoscan-valuta           # recupero + scelta; --salva / --confronta per due esecuzioni
+uv run ecoscan-campiona         # estrae voci dal database da cui scrivere nuovi casi
+uv run ecoscan-valuta-foto      # end-to-end dalle foto: costo della visione e tempi su CPU
 uv run ecoscan-prompt           # elenca i prompt con versione e impronta
 uv run ecoscan-prompt --pubblica   # registra su MLflow quelli nuovi o modificati
 
@@ -171,7 +174,11 @@ Qdrant sta in modalità `server` o `in-process`.
 | `db/carica.py` | Load: ricostruisce il database dai file normalizzati |
 | `db/vettorizza.py` | Indicizzazione dei documenti su Qdrant e ricerca semantica |
 | `db/documenti.py` | Costruzione dei documenti da indicizzare: oggetto, regola, destinazione |
-| `db/sonda.py` | Misura della qualità del recupero su domande note |
+| `valutazione/casi.py` | I tre insiemi di casi: cos'è un caso, come si legge e si scrive |
+| `valutazione/campiona.py` | Estrazione stratificata di voci dal database (`ecoscan-campiona`) |
+| `valutazione/esegui.py` | Recupero, scelta, diagnosi e confronto (`ecoscan-valuta`) |
+| `valutazione/foto.py` | Valutazione end-to-end sulle foto e tempi (`ecoscan-valuta-foto`) |
+| `osservabilita/valutazione_registrata.py` | Ogni esecuzione della valutazione come run di MLflow |
 
 ## Documentazione
 
@@ -180,6 +187,7 @@ Qdrant sta in modalità `server` o `in-process`.
 - [docs/glossario.md](docs/glossario.md): significato dei termini usati nel progetto, in particolare quelli dell'ETL
 - [docs/fonti.md](docs/fonti.md): link e documenti da cui provengono i dati
 - [docs/qualita_dati.md](docs/qualita_dati.md): catalogo dei difetti di ciascuna fonte
+- [docs/valutazione.md](docs/valutazione.md): cosa si misura, con quali metriche e su quali dati
 
 Diario e glossario si tengono aggiornati man mano: il diario a ogni modifica sostanziale o decisione, il glossario quando entra in gioco un termine nuovo.
 

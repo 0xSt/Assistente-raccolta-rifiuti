@@ -126,8 +126,13 @@ class Agente:
         scartati = [c.nome or c.id for c in trovati if c not in tenuti]
         return tenuti, scartati
 
-    def _recupera(self, richiesta: Richiesta, livello: int) -> list[Candidato]:
-        """La ricerca a un livello di evidenza, tracciata come span RETRIEVER."""
+    def recupera(self, richiesta: Richiesta, livello: int) -> list[Candidato]:
+        """La ricerca a un livello di evidenza, tracciata come span RETRIEVER.
+
+        È pubblico perché la valutazione lo chiama per misurare il tetto senza eseguire la
+        scelta: un metodo privato usato da fuori è una dipendenza che nessuno dichiara, e
+        al primo refactoring si rompe in silenzio.
+        """
         poste = richiesta.domande
         with self.tracciatore.span(f"recupero_livello{livello}", RETRIEVER,
                                    {"domande": poste, "comune": richiesta.comune,
@@ -164,7 +169,7 @@ class Agente:
 
     def _prova_livello(self, richiesta: Richiesta,
                        livello: int) -> tuple[list[Candidato], Scelta]:
-        trovati = self._recupera(richiesta, livello)
+        trovati = self.recupera(richiesta, livello)
         if not trovati:
             return [], Scelta(scheda_id=None, motivo=f"nessun candidato al livello {livello}")
         return trovati, self._scegli(richiesta, trovati, livello)

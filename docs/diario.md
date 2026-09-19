@@ -29,7 +29,7 @@ Va aggiornato **a ogni cambiamento sostanziale**, non a ogni riga di codice. In 
 
 ---
 
-## Stato attuale (v0.9.0, 12/09/2026)
+## Stato attuale (v0.43.0, 19/09/2026)
 
 | Componente | Stato |
 |---|---|
@@ -48,7 +48,7 @@ Va aggiornato **a ogni cambiamento sostanziale**, non a ogni riga di codice. In 
 | Regole di categoria — Napoli | Completo per quanto la fonte pubblica: 38 ammessi, 11 esclusi (5 Vetro estratti + 6 Umido trascritti a mano), 2 assenze verificate |
 | Regole di categoria — Torino | Estratte: 10 schede, 30 ammessi, 27 esclusi |
 | Revisione manuale | **Completa**: 32 decisioni prese (16 per comune), 0 aperte, 0 voci da revisionare |
-| Serving (FTS5, embedding, ricerca ibrida) | Da fare |
+| Valutazione | Fatto: 77 casi in tre insiemi, otto metriche, run su MLflow. Mancano le foto da scattare |
 | Backend, frontend, modello | Da fare |
 
 ---
@@ -241,6 +241,21 @@ Formato: decisione, motivazione, stato.
 | D40 | Una cella più lunga di 120 caratteri rivela un paragrafo, non una griglia: la scheda non produce ammessi | Farmaci, Oli esausti e Ingombranti sono schede descrittive senza elenco di oggetti | Accettata |
 | D33 | Un controllo segnala le frazioni con ammessi ma nessun escluso, distinguendo se esiste un'immagine informativa | Una fonte muta può essere un markup non gestito o un limite reale della fonte: vanno distinti | Accettata |
 
+### Valutazione
+
+| # | Decisione | Motivazione | Stato |
+|---|---|---|---|
+| D173 | I casi vivono in **tre insiemi separati** (`regressioni`, `campione`, `assenti`), un file per insieme, e ognuno ha le sue misure: le regressioni si leggono pass/fail, il campione in percentuale, gli assenti con le astensioni | Le regressioni sono, per costruzione, i punti in cui il sistema aveva già sbagliato: una percentuale calcolata lì misura la storia dei difetti, non il sistema. Fino alla v0.42.0 il numero pubblicato era esattamente quello. È D172 portato alle sue conseguenze: non si mescolano attese di autorità diverse, e nemmeno scopi diversi | Accettata |
+| D174 | Le attese del campione vengono dal **database**; a mano si scrive solo la **domanda**, e non può mai coincidere col nome della voce | Per una voce del dizionario la risposta giusta *e'* la fonte: riscriverla a mano aggiunge solo occasioni di sbagliare (il frullatore, D171). Ciò che una macchina non può inventare è come una persona chiama l'oggetto. La regola anti-tautologia ha un test, e alla prima compilazione ha preso tre casi su cinquantadue: erano le vecchie sonde "giornale", "bicchiere di vetro", "bicchieri di vetro" | Accettata |
+| D175 | Il campione è **stratificato** su comune, canale e numero di alternative, con **seme fisso** e quota minima di uno per strato | Il sistema non si comporta allo stesso modo ovunque: gli errori osservati sono tutti su canali diversi dalla raccolta ordinaria. Una proporzione pura cancellerebbe il ritiro a domicilio, che è una voce su ventisette ed è dove il sistema ha sbagliato due volte. Il seme fisso permette di dire, in una relazione, di quale campione si parla | Accettata |
+| D176 | La risposta si misura con due numeri: **`contenitore_corretto`** (nessuna destinazione fuori dalle attese) e **`copertura`** (quante delle attese sono state dette), al posto dell'uguaglianza esatta degli insiemi | Sono due errori che si riparano in punti diversi e pesano diversamente: mandare qualcuno nel cassonetto sbagliato è un danno, perdere il ritiro a domicilio è un disagio. Con l'uguaglianza esatta la risposta del microonde — vera ma incompleta — contava come "Organico", che è tutt'altra cosa | Accettata |
+| D177 | Il recall si legge come **curva** (`@1`, `@k/2`, `@k`) e la **posizione media è rimossa** | La media era calcolata sui soli casi trovati, quindi peggiorava quando una modifica faceva finalmente uscire un documento difficile in settima posizione: una metrica che punisce i miglioramenti. La curva usa lo stesso dato e dice la cosa utile, cioè se il problema è l'indice o l'ordinamento | Accettata |
+| D178 | Un caso può avere **attese vuote** se dichiara `livello_atteso: 3`, e le due astensioni si leggono **in coppia** | Il difetto classico di un RAG è rispondere comunque, e senza casi negativi non ha un numero. L'attesa vuota dev'essere una dichiarazione e non una riga scritta a metà, da cui il vincolo sul livello. La coppia serve perché l'astensione corretta, da sola, si massimizza tacendo sempre: un sistema muto non è prudente | Accettata |
+| D179 | Ogni esecuzione salvata porta la **configurazione che l'ha prodotta**, e `--confronta` avvisa se le due non coincidono | Senza, si confronta una run a `k=8` con una a `k=12` e si legge la differenza come merito della modifica. Si riusa `agente.configurazione()`, lo stesso oggetto che forma la versione dell'app nelle tracce: valutazione e osservabilità restano allineate per costruzione. L'avviso non blocca, perché a volte confrontare due configurazioni è proprio ciò che si vuole | Accettata |
+| D180 | Il recupero dell'agente diventa **pubblico** (`recupera`), e le **sonde spariscono** | La valutazione chiamava `_recupera`, un metodo privato: una dipendenza che nessuno dichiara si rompe in silenzio al primo refactoring. Le sonde misuravano una versione più debole della stessa cosa (attesa come sottostringa, nessuna destinazione): le loro 28 domande, che erano il pezzo costoso, sono diventate casi del campione. Stessa logica di D111 | Accettata |
+| D181 | Le foto si valutano **due volte** — dal riconoscimento vero e dall'oggetto dichiarato — e i tempi si riportano come **p50/p90 col rango più vicino** | Un giro solo direbbe che la risposta è sbagliata, non da dove viene l'errore; il secondo giro costa `rispondi` e non `analizza`, cioè secondi contro minuti. Sui tempi la media di dieci foto veloci e una lenta descrive una situazione che non è capitata a nessuno, e il rango più vicino garantisce che il numero pubblicato sia un tempo davvero cronometrato | Accettata |
+| D182 | Ogni esecuzione della valutazione è anche una **run MLflow**, in un esperimento separato da quello delle conversazioni, e non è mai bloccante | I file JSON bastano per confrontare due esecuzioni, non per guardare la serie storica di dieci. L'esperimento separato perché le tracce sono osservazioni di ciò che è successo a un utente, le run sono misure ripetibili su un dataset fermo: insieme renderebbero illeggibili entrambe le liste. Non bloccante per D116: una misura non si perde perché manca un servizio di osservabilità | Accettata |
+
 ### Transform
 
 | # | Decisione | Motivazione | Stato |
@@ -268,12 +283,11 @@ Ordinate per priorità.
    - *Torino*: **fatto in v0.6.0**. 10 schede, 30 ammessi, 27 esclusi. Da fare: portare queste regole nel livello normalizzato e collegarle alle destinazioni.
 2. ~~Esclusioni mancanti per Umido, Plastica e Carta (Napoli)~~ **Chiuso**: Stef ha letto le tre immagini. Solo l'Umido ha una sezione di esclusioni (6 voci + un avviso generale), trascritte in `data/sorgenti/manuale/napoli_esclusioni.csv`. Plastica e Carta non pubblicano esclusioni: registrate come assenze verificate.
 3. **BM25 sparso in Qdrant** (FastEmbed, stemmer italiano): sostituirebbe il trucco della radice con uno stemming vero e permetterebbe la fusione RRF interamente lato Qdrant. FTS5 resta come termine di paragone nella valutazione.
-4. ~~**Valutazione**: set di foto etichettate e misura del retrieval~~ **Aperto solo in parte**: dalla v0.40.0 recupero e scelta si misurano con `ecoscan-valuta` su un dataset di casi che parte dal riconoscimento ([valutazione.md](valutazione.md)). Restano fuori, deliberatamente, le foto: il riconoscimento si guarda nelle tracce. Da fare: far crescere il dataset, oggi 12 casi scritti a mano più quelli dai riscontri.
+4. ~~**Valutazione**: set di foto etichettate e misura del retrieval~~ **Chiuso in v0.43.0**: recupero, scelta, astensione e tempi hanno i loro numeri, su tre insiemi di casi separati ([valutazione.md](valutazione.md)). Restano due cose, entrambe di lavoro e non di codice: **scattare le venti foto** le cui etichette sono già scritte, e far crescere il campione oltre i 48 casi con `ecoscan-campiona`.
 5. ~~**Procedure di smaltimento complesse.**~~ **Chiuso in v0.41.0**: procedura per canale in `data/sorgenti/manuale/procedure.csv`, presentazione a passi, alternative ordinate per sforzo, livello 3 che indica dove chiedere. Resta il contenuto: indirizzi, orari e recapiti mancano, e la colonna `da_verificare` li elenca — dipende dalla questione 6.
 6. **Dove andare, a Napoli.** Le isole ecologiche e gli ecopunti sono destinazioni con un indirizzo che il sistema oggi non conosce: la fonte ASIA li pubblica su pagine separate da quelle del dizionario. Serve un terzo estrattore e una tabella `luogo`. Vedi le note sotto.
 7. ~~Pagine "Non riciclabile" e "Altre raccolte" di Napoli~~ **Chiuso**: sono davvero prive di elenchi, hanno solo una frase di invito. Non è un difetto dell'estrattore.
 8. **Serving**: indici FTS5 a trigrammi, embedding, ricerca ibrida con RRF.
-7. **Valutazione**: set di foto etichettate e metriche (riconoscimento, destinazione per comune, latenza su CPU). Mai iniziata, ed è ciò che distingue un prototipo da un lavoro difendibile.
 8. **Dove conferire**: 363 voci su 584 a Napoli rimandano a isole ecologiche o ecopunti. Prima o poi l'agente deve dire *dove* si trovano.
 9. **Opuscolo PDF di Napoli** (`Asia_Opuscolo_A5_new-1.pdf`): mai consultato, potrebbe contenere regole assenti dal sito.
 
@@ -323,6 +337,59 @@ Cose imparate che non sono decisioni, ma che conviene ricordare.
 ---
 
 ## Cronologia
+
+### v0.43.0 — 19/09/2026
+
+**La valutazione smette di misurare la propria storia** (D173–D175). Fino a ieri i numeri
+venivano da diciotto casi nati tutti da errori osservati: preziosi come rete di sicurezza,
+inutili come stima, perché per costruzione stanno dove il sistema aveva già sbagliato. Ora
+i casi sono in **tre insiemi separati**, con tre letture diverse: 18 regressioni (pass/fail),
+**48 casi di campione** estratti dal dizionario e stratificati per comune, canale e numero
+di alternative, **11 casi assenti** in cui la risposta giusta è non rispondere.
+
+Il campione nasce da `ecoscan-campiona`, che pesca dal database con un seme fisso e scrive
+una bozza con l'attesa **già compilata** e la domanda vuota: l'attesa la sa la fonte, la
+domanda la sa solo una persona. Delle 48 domande, 23 vengono dalle vecchie sonde (erano il
+pezzo costoso, già scritto a mano) e 25 sono nuove. Tre erano tautologie — la domanda
+coincideva col nome della voce — e le ha prese il test, non l'occhio.
+
+**Due errori diversi, due numeri diversi** (D176). `contenitore_corretto` dice se qualche
+destinazione proposta era fuori dalle attese; `copertura` dice quante delle attese sono
+state dette. Con l'uguaglianza esatta di prima, la risposta del microonde — "isola
+ecologica", vera ma senza il ritiro a domicilio — era sbagliata esattamente quanto
+"Organico". Non lo è: la prima fa fare più strada, la seconda manda nel cassonetto
+sbagliato.
+
+**Curva di recall al posto della posizione media** (D177). La media era calcolata sui soli
+casi trovati e peggiorava quando un documento difficile cominciava finalmente a uscire, in
+settima posizione. Ora si leggono `recall@1`, `recall@4` e `recall@8` — stesso dato, letto
+in modo che distingua "l'indice non ce l'ha" da "ce l'ha ma lo ordina male".
+
+**Casi negativi** (D178). `Caso.valido` accetta attese vuote se il caso dichiara
+`livello_atteso: 3`, e due nuove metriche misurano l'astensione nelle due direzioni.
+Scriverli ha richiesto di verificare ogni assenza sui dati: "pneumatico" sembrava assente e
+la voce si chiama `Pneumatici`; "violino" è assente a Torino ma non a Napoli, che ha
+`Strumento musicale`. Un caso negativo sbagliato è l'errore del frullatore al contrario.
+
+**Le condizioni della misura viaggiano con la misura** (D179). Ogni esecuzione salvata
+porta data, `k`, modalità, composizione del dataset e la configurazione dell'agente;
+`--confronta` avvisa in testa se le due esecuzioni non sono confrontabili.
+
+**Foto e tempi** (D181). `ecoscan-valuta-foto` esegue ogni foto due volte — dal
+riconoscimento vero e dall'oggetto dichiarato — e la differenza fra i due numeri è il costo
+del modello di visione, isolato. Riporta anche p50 e p90 di riconoscimento e risposta: è il
+numero che il README elencava dalla v0.29 e che non era mai stato preso. Le venti etichette
+sono già scritte, con le attese dal database: mancano le foto.
+
+**Una run per esecuzione** (D182). Esperimento `ecoscan-valutazione`, separato da
+`ecoscan-chat`, non bloccante: serve alla serie storica, che dieci file JSON non danno.
+
+**Rimosso.** Le sonde (`db/sonda.py`, `sonde.csv`, `ecoscan-sonda`): misuravano una
+versione più debole del recupero, con l'attesa come sottostringa e senza destinazioni. Il
+metodo `_recupera` dell'agente diventa `recupera`, perché la valutazione lo chiamava
+essendo privato (D180).
+
+**Numeri.** 77 casi in tutto (18 + 48 + 11), 20 foto etichettate, 511 test verdi.
 
 ### v0.42.0 — 18/09/2026
 
