@@ -20,14 +20,39 @@ def test_i_parametri_annidati_si_appiattiscono():
     assert "configurazione" not in parametri
 
 
-def test_con_mlflow_spento_la_valutazione_non_si_ferma(monkeypatch, capsys):
-    """D116 applicato alla valutazione: il tracciamento serve a capire come va il sistema,
-    non a farlo funzionare. Un server irraggiungibile costa una riga di avviso."""
+def test_un_server_spento_non_fa_perdere_la_misura(monkeypatch, capsys, tmp_path):
+    """La regola che distingue una misura dall'osservabilità: una traccia persa non fa
+    danno, una misura persa sì — costa minuti di CPU e non si ripete uguale."""
     monkeypatch.setattr(vr.conf, "MLFLOW_ATTESA", 1)
     registrata = vr.registra({"data": "x", "k": 8}, {"recupero": 88.0},
-                             indirizzo="http://127.0.0.1:1")   # porta chiusa
-    assert registrata is False
-    assert "non raggiungibile" in capsys.readouterr().out
+                             indirizzo="http://127.0.0.1:1",      # porta chiusa
+                             ripiego=tmp_path / "locale.db")
+    uscita = capsys.readouterr().out
+    assert registrata is True
+    assert "non raggiungibile" in uscita and "archivio locale" in uscita
+    assert (tmp_path / "locale.db").is_file(), "la run doveva finire qui"
+
+
+def test_l_interruttore_delle_conversazioni_non_spegne_le_misure(monkeypatch, capsys, tmp_path):
+    """`ECOSCAN_MLFLOW_ATTIVO` governa le tracce delle conversazioni. Una misura si prende
+    una volta sola: l'unico modo di non registrarla è chiederlo con `--senza-mlflow`."""
+    monkeypatch.setattr(vr.conf, "MLFLOW_ATTIVO", False)
+    monkeypatch.setattr(vr.conf, "MLFLOW_ATTESA", 1)
+    assert vr.registra({"data": "x"}, {"recupero": 88.0}, indirizzo="http://127.0.0.1:1",
+                       ripiego=tmp_path / "locale.db") is True
+
+
+def test_se_non_si_puo_scrivere_da_nessuna_parte_il_comando_si_ferma(monkeypatch, tmp_path):
+    """Tacere qui sarebbe la cosa peggiore: la misura è persa e chi l'ha lanciata non lo
+    saprebbe."""
+    import pytest
+    monkeypatch.setattr(vr.conf, "MLFLOW_ATTESA", 1)
+    # un file al posto di una cartella: la creazione dell'archivio non può riuscire
+    ostacolo = tmp_path / "non-e-una-cartella"
+    ostacolo.write_text("", encoding="utf-8")
+    with pytest.raises(SystemExit, match="NON è stata registrata"):
+        vr.registra({"data": "x"}, {"recupero": 88.0}, indirizzo="http://127.0.0.1:1",
+                    ripiego=ostacolo / "locale.db")
 
 
 
@@ -56,16 +81,10 @@ def test_i_nomi_delle_metriche_passano_il_vaglio_di_mlflow():
         assert set(vr.nome_valido(chiave)) <= ammessi, chiave
 
 
-def test_mlflow_spento_lo_dice(monkeypatch, capsys):
-    """Una registrazione che non avviene **e non lo dice** è peggio di un errore: si
-    continua a cercare la run in una lista dove non è mai arrivata."""
-    monkeypatch.setattr(vr.conf, "MLFLOW_ATTIVO", False)
-    assert vr.registra({}, {"recupero": 88.0}) is False
-    assert "spento" in capsys.readouterr().out
-
-
-def test_un_server_irraggiungibile_dice_anche_come_accenderlo(monkeypatch, capsys):
+def test_un_server_irraggiungibile_dice_anche_come_accenderlo(monkeypatch, capsys, tmp_path):
     monkeypatch.setattr(vr.conf, "MLFLOW_ATTESA", 1)
-    vr.registra({"data": "x"}, {"recupero": 88.0}, indirizzo="http://127.0.0.1:1")
+    vr.registra({"data": "x"}, {"recupero": 88.0}, indirizzo="http://127.0.0.1:1",
+                ripiego=tmp_path / "locale.db")
     uscita = capsys.readouterr().out
     assert "non raggiungibile" in uscita and "docker compose up -d mlflow" in uscita
+    assert "mlflow ui --backend-store-uri" in uscita

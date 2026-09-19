@@ -270,9 +270,13 @@ def main() -> None:
     esecuzione = {"data": datetime.now().isoformat(timespec="minutes"), "k": args.k,
                   "modalita": "foto", "casi": {"foto": len(foto)},
                   "configurazione": agente.configurazione()}
-    if args.salva:
-        args.salva.parent.mkdir(parents=True, exist_ok=True)
-        args.salva.write_text(json.dumps(
+    # come per `ecoscan-valuta`: l'esito si salva sempre, perché venti foto sono
+    # mezz'ora di CPU e non devono dipendere dall'essersi ricordati di un'opzione
+    from ecoscan.valutazione.esegui import ESECUZIONI
+    quando = esecuzione["data"].replace(":", "").replace("-", "")
+    for percorso in filter(None, [args.salva, ESECUZIONI / f"{quando}-foto.json"]):
+        percorso.parent.mkdir(parents=True, exist_ok=True)
+        percorso.write_text(json.dumps(
             {"esecuzione": esecuzione, "misure": misure_foto(esiti),
              "esiti": {e.foto.file: {"riconosciuto": e.riconosciuto,
                                      "destinazioni": e.reale.destinazioni,
@@ -280,7 +284,7 @@ def main() -> None:
                                      "colpa_della_visione": e.colpa_della_visione,
                                      "secondi": e.secondi_totali} for e in esiti}},
             ensure_ascii=False, indent=2), encoding="utf-8")
-        print(f"\nEsito salvato in {args.salva}")
+        print(f"Esito salvato in {percorso}")
 
     if not args.senza_mlflow:
         from ecoscan.osservabilita.valutazione_registrata import registra

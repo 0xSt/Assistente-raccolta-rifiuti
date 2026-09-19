@@ -27,3 +27,6 @@ data/valutazione/esecuzioni/
 data/valutazione/foto/immagini/
 # La bozza del campionatore e' un passaggio intermedio: si versionano i casi compilati
 data/valutazione/bozza.jsonl
+# Archivio MLflow di ripiego: si crea quando il server non risponde, e resta locale
+data/valutazione/mlflow-locale.db
+data/valutazione/mlflow-locale-artefatti/

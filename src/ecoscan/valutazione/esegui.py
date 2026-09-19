@@ -68,6 +68,7 @@ from pathlib import Path
 from ecoscan import configurazione as conf
 from ecoscan.agente.agente import Agente, Richiesta
 from ecoscan.agente.tipi import Candidato
+from ecoscan.percorsi import DATI
 from ecoscan.valutazione.casi import Caso, per_insieme, tutti
 
 # Le diagnosi possibili, nell'ordine in cui conviene leggerle
@@ -82,6 +83,9 @@ RECUPERATO = "documento recuperato (la risposta non è stata valutata)"
 # I casi negativi hanno una coppia di diagnosi tutta loro: il successo è il silenzio.
 ASTENUTO = "astensione corretta: nessuna regola del comune copre l'oggetto"
 NON_ASTENUTO = "ha risposto invece di astenersi"
+
+# Dove finiscono gli esiti salvati da sé: non versionati (vedi .gitignore)
+ESECUZIONI = DATI / "valutazione" / "esecuzioni"
 
 
 @dataclass
@@ -521,7 +525,14 @@ def main() -> None:
     ap.add_argument("-k", type=int, default=8, help="quanti candidati per livello")
     ap.add_argument("--senza-mlflow", action="store_true",
                     help="non registra l'esecuzione come run di MLflow")
+    ap.add_argument("--prova-mlflow", action="store_true",
+                    help="scrive una run minuscola e riferisce: serve a capire se il "
+                         "problema è il server o la valutazione")
     args = ap.parse_args()
+
+    if args.prova_mlflow:
+        from ecoscan.osservabilita.valutazione_registrata import prova
+        raise SystemExit(0 if prova() else 1)
 
     casi = [c for c in tutti()
             if (not args.comune or c.comune == args.comune)
@@ -566,16 +577,30 @@ def main() -> None:
         confronta(json.loads(args.confronta.read_text(encoding="utf-8")), esiti,
                   esecuzione, args.k)
 
-    if args.salva:
-        args.salva.parent.mkdir(parents=True, exist_ok=True)
-        args.salva.write_text(
-            json.dumps(come_json(esiti, esecuzione, args.k), ensure_ascii=False, indent=2),
-            encoding="utf-8")
-        print(f"\nEsito salvato in {args.salva}")
+    # L'esito si salva **sempre**, anche senza `--salva`: una misura costa minuti di CPU e
+    # non deve dipendere dall'essersi ricordati di un'opzione. `--salva` serve a darle un
+    # nome che si ricorda, per i confronti.
+    salvati = [_salva(esiti, esecuzione, args.k, args.salva)] if args.salva else []
+    salvati.append(_salva(esiti, esecuzione, args.k, _percorso_automatico(esecuzione)))
+    for percorso in salvati:
+        print(f"Esito salvato in {percorso}")
 
     if not args.senza_mlflow:
         from ecoscan.osservabilita.valutazione_registrata import registra
         registra(esecuzione, misure(esiti, args.k), come_json(esiti, esecuzione, args.k))
+
+
+def _percorso_automatico(esecuzione: dict) -> Path:
+    """Un nome che ordina da sé: data, ora e modalità."""
+    quando = str(esecuzione.get("data", "")).replace(":", "").replace("-", "")
+    return ESECUZIONI / f"{quando}-{esecuzione.get('modalita', 'valutazione')}.json"
+
+
+def _salva(esiti: list[Esito], esecuzione: dict, k: int, percorso: Path) -> Path:
+    percorso.parent.mkdir(parents=True, exist_ok=True)
+    percorso.write_text(json.dumps(come_json(esiti, esecuzione, k), ensure_ascii=False,
+                                   indent=2), encoding="utf-8")
+    return percorso
 
 
 class _ModelloAssente:
