@@ -1,6 +1,6 @@
 # La valutazione
 
-> Aggiornato alla **v0.44.1**.
+> Aggiornato alla **v0.45.0**.
 
 Questo documento spiega **cosa misura** il sistema di valutazione, **perché** misura quelle
 cose e non altre, **come** si usa e **come si leggono** i numeri che produce.
@@ -384,11 +384,23 @@ numeri. Come tutto il tracciamento del progetto non è mai bloccante (D116): con
 spento la valutazione stampa i suoi numeri, avvisa in una riga e finisce. Si spegne con
 `--senza-mlflow`.
 
-**Ogni esito viene detto**, perché una registrazione che non avviene e non lo dice è
-peggio di un errore: si continua a cercare la run in una lista dove non è mai arrivata.
-A registrazione riuscita l'uscita stampa il **link diretto**; se MLflow è spento o
-irraggiungibile lo dichiara con il motivo. I tre passaggi — parametri, metriche, allegato —
-sono protetti uno per uno, quindi un allegato che non passa non fa perdere le metriche.
+**La registrazione di una misura non è best-effort** (D184), a differenza del resto del
+tracciamento. Una traccia di conversazione persa non fa danno; una misura persa costa
+minuti di CPU e non si ripete uguale. Quindi:
+
+- `ECOSCAN_MLFLOW_ATTIVO` non vale qui: l'unico modo di non registrare è `--senza-mlflow`;
+- se il server non risponde, la run finisce nell'archivio locale
+  `data/valutazione/mlflow-locale.db`, che si apre con
+  `uv run mlflow ui --backend-store-uri sqlite:///…`;
+- se non riesce nemmeno quello, il comando **si ferma con errore**.
+
+In più l'esito si salva sempre in `data/valutazione/esecuzioni/`, anche senza `--salva`,
+e i tre passaggi — parametri, metriche, allegato — sono protetti uno per uno, quindi un
+allegato che non passa non fa perdere le metriche.
+
+Se la run non si trova, il primo controllo è `uv run ecoscan-valuta --prova-mlflow`: scrive
+una run minuscola in un esperimento a parte e dice se il problema è il server o la
+valutazione.
 
 ---
 

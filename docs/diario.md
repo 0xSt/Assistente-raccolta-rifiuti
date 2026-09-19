@@ -29,7 +29,7 @@ Va aggiornato **a ogni cambiamento sostanziale**, non a ogni riga di codice. In 
 
 ---
 
-## Stato attuale (v0.44.1, 19/09/2026)
+## Stato attuale (v0.45.0, 19/09/2026)
 
 | Componente | Stato |
 |---|---|
@@ -256,6 +256,7 @@ Formato: decisione, motivazione, stato.
 | D181 | Le foto si valutano **due volte** — dal riconoscimento vero e dall'oggetto dichiarato — e i tempi si riportano come **p50/p90 col rango più vicino** | Un giro solo direbbe che la risposta è sbagliata, non da dove viene l'errore; il secondo giro costa `rispondi` e non `analizza`, cioè secondi contro minuti. Sui tempi la media di dieci foto veloci e una lenta descrive una situazione che non è capitata a nessuno, e il rango più vicino garantisce che il numero pubblicato sia un tempo davvero cronometrato | Accettata |
 | D182 | Ogni esecuzione della valutazione è anche una **run MLflow**, in un esperimento separato da quello delle conversazioni, e non è mai bloccante | I file JSON bastano per confrontare due esecuzioni, non per guardare la serie storica di dieci. L'esperimento separato perché le tracce sono osservazioni di ciò che è successo a un utente, le run sono misure ripetibili su un dataset fermo: insieme renderebbero illeggibili entrambe le liste. Non bloccante per D116: una misura non si perde perché manca un servizio di osservabilità | Accettata |
 | D183 | I documenti si arricchiscono con **dati della fonte** — il canale quando non è la raccolta ordinaria, i flussi di materiale che il testo non nomina già, e le regole di categoria che nominano l'oggetto — e **mai con descrizioni generate da un modello** | I documenti oggetto sono corti (57 caratteri di media) ed è il caso in cui l'espansione rende di più. Farla scrivere a un modello però sbaglierebbe due volte: direbbe che il bicchiere di vetro è riciclabile, che a Napoli è falso, mettendo nel testo indicizzato una frase che contraddice la fonte (contro D9); e renderebbe "Bicchiere di vetro" e "Bottiglia in vetro" **più simili fra loro**, mentre il difetto da combattere è proprio la confusione fra vicini. L'arricchimento dalla fonte fa l'opposto: al bicchiere aggancia "Nel contenitore Vetro NON va: Bicchieri", che è la frase per cui quella voce non sta nel vetro. Si spegne con `ECOSCAN_ARRICCHIMENTO=no`, perché una modifica al recupero che non si può confrontare con la propria assenza non si sa se ha funzionato | Accettata |
+| D184 | La registrazione di una valutazione **non è best-effort**: ignora `ECOSCAN_MLFLOW_ATTIVO`, ripiega su un archivio locale se il server non risponde, e se non riesce nemmeno lì **ferma il comando con errore** | D116 dice che il tracciamento non deve mai bloccare, ed è giusto per le conversazioni: una traccia persa non fa danno, l'utente ha avuto la sua risposta. Una misura è un'altra cosa — si prende una volta, dopo minuti di CPU, e se non viene registrata è persa. Le tre regole seguono da lì. In più: l'esito si salva **sempre** anche su file, senza dover ricordare `--salva`, e `--prova-mlflow` scrive una run minuscola per rispondere in un secondo alla domanda "è il server o è il mio codice?" | Accettata |
 
 ### Transform
 
@@ -338,6 +339,37 @@ Cose imparate che non sono decisioni, ma che conviene ricordare.
 ---
 
 ## Cronologia
+
+### v0.45.0 — 19/09/2026
+
+**Una valutazione non si perde più.** Il problema era di principio, non di codice: la
+registrazione seguiva D116 — non bloccante, silenziosa in caso di guasto — che è la regola
+giusta per le *tracce delle conversazioni* e quella sbagliata per una *misura*. Una traccia
+persa non fa danno; una misura persa costa minuti di CPU e non si ripete uguale. Da qui
+D184, e tre comportamenti nuovi:
+
+1. **`ECOSCAN_MLFLOW_ATTIVO` non vale più qui.** Governa le conversazioni. L'unico modo di
+   non registrare una valutazione è chiederlo, con `--senza-mlflow`;
+2. **se il server non risponde, la run si scrive in locale**, in
+   `data/valutazione/mlflow-locale.db`, che è un archivio MLflow vero e si apre con
+   `mlflow ui --backend-store-uri sqlite:///…`. SQLite e non una cartella di file perché
+   dalla 3.x MLflow **rifiuta** il vecchio file store: verificato provando, il ripiego
+   scritto per primo non funzionava;
+3. **se non riesce nemmeno lì, il comando si ferma con errore.** Lasciar credere che la
+   misura sia al sicuro da qualche parte è il difetto peggiore dei tre.
+
+**L'esito si salva sempre su file**, in `data/valutazione/esecuzioni/<data>-<modalità>.json`,
+anche senza `--salva`: una misura non deve dipendere dall'essersi ricordati di un'opzione.
+`--salva` resta per darle un nome che si ricorda. Vale anche per `ecoscan-valuta-foto`.
+
+**`--prova-mlflow`** scrive una run minuscola in un esperimento a parte e riferisce: serve a
+rispondere in un secondo alla domanda "è il server o è la valutazione?", senza rieseguire
+novantadue casi per scoprirlo.
+
+**Verificato con un server vero**, non per ragionamento: la scrittura passa (parametri,
+metriche e allegato), il ripiego locale funziona, e il percorso "non si può scrivere da
+nessuna parte" si ferma con un messaggio invece che con una traccia grezza. È così che è
+saltato fuori il difetto del file store, che nessuna lettura del codice avrebbe mostrato.
 
 ### v0.44.1 — 19/09/2026
 
