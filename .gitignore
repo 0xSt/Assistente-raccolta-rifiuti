@@ -20,3 +20,10 @@ data/qdrant/
 
 # i casi sono versionati; le esecuzioni salvate con --salva no
 data/valutazione/esecuzioni/
+
+# Le foto della valutazione sono foto di casa: pesano e non servono a far girare il
+# sistema. Le etichette (foto.jsonl) invece sono versionate, perche' dicono cosa il
+# sistema deve saper fare
+data/valutazione/foto/immagini/
+# La bozza del campionatore e' un passaggio intermedio: si versionano i casi compilati
+data/valutazione/bozza.jsonl

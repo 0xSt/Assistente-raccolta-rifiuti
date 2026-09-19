@@ -12,17 +12,32 @@ Da qui la struttura della misura. Per ogni caso si guardano due cose:
    sia, perché il modello legge tutto l'elenco. Se manca, il caso è perso in partenza;
 2. **risposta** — la destinazione finale è quella attesa?
 
-Il confronto fra le due dice **dove** intervenire, e lo dice da solo:
+**Due errori diversi, due numeri diversi.** La risposta non è "giusta o sbagliata": può
+sbagliare in due modi che si riparano in punti diversi e che pesano diversamente per chi
+usa l'app.
+
+- **contenitore sbagliato** — fra le destinazioni proposte ce n'è una che non è fra le
+  attese. È il danno vero: manda una persona al cassonetto sbagliato;
+- **canale perso** — le destinazioni proposte sono tutte giuste, ma ne manca una. È
+  l'errore di microonde e divano: la risposta diceva "isola ecologica" ed era vera, ma
+  taceva il ritiro a domicilio, che era l'alternativa comoda.
+
+L'uguaglianza esatta degli insiemi, usata fino alla v0.42.0, li confondeva in un numero
+solo. Oggi sono `contenitore_corretto` (non mandare nessuno nel posto sbagliato) e
+`copertura` (non perdere un'alternativa).
+
+Il confronto fra recupero e risposta dice **dove** intervenire, e lo dice da solo:
 
 | recupero | risposta | diagnosi | dove si lavora |
 |---|---|---|---|
 | ✓ | ✓ | corretto | — |
+| ✓ | tutte giuste, ne manca una | canale perso | politiche del codice, presentazione |
 | ✓ | ✗ | il documento c'era e non è stato scelto | prompt di scelta, politiche del codice |
 | ✗ | ✗ | il documento non è mai arrivato | formulazioni, indice, ricerca |
 | ✗ | ✓ | corretto per un'altra strada | da guardare: spesso è il livello 2 |
 
-È esattamente la diagnosi che abbiamo fatto a mano sul caso della forchetta, prima leggendo
-`/cerca` e poi le tracce. Questo comando la fa su tutti i casi in una volta.
+**I casi negativi** (quelli senza attesa, livello 3) non entrano in questa tabella: lì la
+risposta giusta è *non rispondere*, e si misurano con le due astensioni.
 
 **Due modalità, perché costano diversamente.** Il recupero non usa modelli generativi: gira
 in secondi e si può lanciare a ogni modifica. La scelta chiama il modello una volta per
@@ -30,33 +45,40 @@ livello, quindi è lenta ma molto meno della visione. Con `--senza-modello` si m
 tetto; senza, si misura tutto.
 
 **Il confronto fra due esecuzioni** è ciò che rende la misura utile a decidere: un numero
-assoluto dice poco, "due casi guadagnati e uno perso" dice cosa ha fatto la modifica.
+assoluto dice poco, "due casi guadagnati e uno perso" dice cosa ha fatto la modifica. Ogni
+esecuzione salvata porta con sé la configurazione che l'ha prodotta, e il confronto avvisa
+se le due non sono confrontabili.
 
 Uso:
   uv run ecoscan-valuta                          # recupero e scelta
   uv run ecoscan-valuta --senza-modello          # solo recupero, in secondi
-  uv run ecoscan-valuta --salva esiti/v0.40.json
-  uv run ecoscan-valuta --confronta esiti/v0.39.json
+  uv run ecoscan-valuta --salva esiti/v0.43.json
+  uv run ecoscan-valuta --confronta esiti/v0.42.json
 """
 from __future__ import annotations
 
 import argparse
 import json
 from dataclasses import dataclass, field
+from datetime import datetime
 from pathlib import Path
 
 from ecoscan.agente.agente import Agente, Richiesta
 from ecoscan.agente.tipi import Candidato
-from ecoscan.valutazione.casi import Caso, tutti
+from ecoscan.valutazione.casi import Caso, per_insieme, tutti
 
 # Le diagnosi possibili, nell'ordine in cui conviene leggerle
 CORRETTO = "corretto"
+CANALE_PERSO = "contenitore giusto, manca un'alternativa"
 SCELTA_SBAGLIATA = "il documento c'era, non è stato scelto"
 RECUPERO_FALLITO = "il documento non è stato recuperato"
 ALTRA_STRADA = "corretto per un'altra strada"
 # Senza modello non si misura la risposta, solo il tetto: chiamarlo "corretto" farebbe
 # leggere come una risposta giusta ciò che è soltanto un documento trovato.
 RECUPERATO = "documento recuperato (la risposta non è stata valutata)"
+# I casi negativi hanno una coppia di diagnosi tutta loro: il successo è il silenzio.
+ASTENUTO = "astensione corretta: nessuna regola del comune copre l'oggetto"
+NON_ASTENUTO = "ha risposto invece di astenersi"
 
 
 @dataclass
@@ -73,8 +95,42 @@ class Esito:
     raggiungibili: list[str] = field(default_factory=list)   # dove portano i candidati trovati
 
     @property
-    def risposta_corretta(self) -> bool:
-        return bool(self.destinazioni) and set(self.destinazioni) == set(self.caso.destinazioni_attese)
+    def contenitore_corretto(self) -> bool | None:
+        """Nessuna destinazione proposta è fuori dalle attese, e qualcosa è stato proposto.
+
+        È la metrica che protegge l'utente: un contenitore sbagliato manda una persona a
+        buttare il vetro nell'organico, mentre un'alternativa mancante gli fa solo fare più
+        strada. `None` quando la scelta non è stata valutata.
+
+        Per un caso negativo il senso si rovescia: è corretto proprio il non rispondere.
+        """
+        if not self.valutata_la_scelta:
+            return None
+        if self.caso.negativo:
+            return not self.destinazioni
+        return bool(self.destinazioni) and set(self.destinazioni) <= set(self.caso.destinazioni_attese)
+
+    @property
+    def copertura(self) -> float | None:
+        """Quante delle destinazioni attese sono state dette, fra 0 e 1.
+
+        Distingue "va all'isola ecologica" da "va all'isola ecologica **oppure** chiami il
+        numero verde e te lo vengono a prendere". Non si applica ai casi negativi, che non
+        hanno attese.
+        """
+        if not self.valutata_la_scelta or self.caso.negativo:
+            return None
+        attese = set(self.caso.destinazioni_attese)
+        return len(set(self.destinazioni) & attese) / len(attese)
+
+    @property
+    def perfetta(self) -> bool:
+        """Contenitore giusto e nessuna alternativa persa: il vecchio `risposta_corretta`.
+
+        Serve al confronto fra esecuzioni, che deve avere una nozione binaria di "caso
+        vinto" per poter dire quanti se ne guadagnano e quanti se ne perdono.
+        """
+        return bool(self.contenitore_corretto) and (self.copertura is None or self.copertura == 1.0)
 
     @property
     def livello_corretto(self) -> bool | None:
@@ -91,11 +147,27 @@ class Esito:
 
     @property
     def diagnosi(self) -> str:
+        if self.caso.negativo:
+            if not self.valutata_la_scelta:
+                return RECUPERATO if self.recuperato else ASTENUTO
+            return ASTENUTO if self.contenitore_corretto else NON_ASTENUTO
         if not self.valutata_la_scelta:
             return RECUPERATO if self.recuperato else RECUPERO_FALLITO
-        if self.risposta_corretta:
+        if self.perfetta:
             return CORRETTO if self.recuperato else ALTRA_STRADA
+        if self.contenitore_corretto:
+            return CANALE_PERSO
         return SCELTA_SBAGLIATA if self.recuperato else RECUPERO_FALLITO
+
+    @property
+    def mancate(self) -> list[str]:
+        """Le destinazioni attese che la risposta non ha detto: il dettaglio del canale perso."""
+        return [d for d in self.caso.destinazioni_attese if d not in self.destinazioni]
+
+    @property
+    def di_troppo(self) -> list[str]:
+        """Le destinazioni proposte che non erano attese: il dettaglio del contenitore sbagliato."""
+        return [d for d in self.destinazioni if d not in self.caso.destinazioni_attese]
 
 
 def porta_alla_destinazione(candidato: Candidato, attese: list[str]) -> bool:
@@ -116,7 +188,7 @@ def valuta_caso(agente: Agente, caso: Caso, con_modello: bool = True) -> Esito:
     richiesta = Richiesta(caso.riconoscimento, caso.comune, caso.testo_utente)
     trovati: list[Candidato] = []
     for livello in (1, 2):
-        trovati.extend(agente._recupera(richiesta, livello))
+        trovati.extend(agente.recupera(richiesta, livello))
 
     posizione = next((i for i, c in enumerate(trovati, start=1)
                       if porta_alla_destinazione(c, caso.destinazioni_attese)), None)
@@ -150,75 +222,209 @@ def esegui(agente: Agente, casi: list[Caso], con_modello: bool = True,
 
 # --------------------------------------------------------------------------- riepilogo
 
-def misure(esiti: list[Esito]) -> dict[str, float | int]:
-    """I numeri che riassumono un'esecuzione."""
-    totale = len(esiti) or 1
-    con_scelta = [e for e in esiti if e.valutata_la_scelta]
+def soglie_recall(k: int) -> list[int]:
+    """I punti in cui si legge la curva del recall: il primo, la metà, il massimo.
+
+    Si derivano da `k` invece di essere fissi, altrimenti lanciare con `-k 20` produrrebbe
+    una curva che si ferma a 8 e non direbbe nulla su ciò che si sta provando.
+    """
+    return sorted({1, max(2, k // 2), k})
+
+
+def _percentuale(quanti: int, su: int) -> float | None:
+    return round(100 * quanti / su, 1) if su else None
+
+
+def misure(esiti: list[Esito], k: int = 8) -> dict[str, float | int | None]:
+    """I numeri che riassumono un'esecuzione.
+
+    Ogni numero ha il **suo** denominatore, e vale `None` quando non è stato misurato:
+    le percentuali della scelta si calcolano sui casi in cui la scelta è stata eseguita, le
+    astensioni sui soli casi negativi, il recall sui soli casi con un'attesa. Un numero che
+    manca si nota; un numero calcolato su un denominatore sbagliato no.
+    """
+    positivi = [e for e in esiti if not e.caso.negativo]
+    negativi = [e for e in esiti if e.caso.negativo]
+    con_scelta = [e for e in positivi if e.valutata_la_scelta]
+    coperture = [e.copertura for e in con_scelta if e.copertura is not None]
     livelli = [e for e in esiti if e.livello_corretto is not None]
-    return {
-        "casi": len(esiti),
-        "recupero": round(100 * sum(e.recuperato for e in esiti) / totale, 1),
-        "risposte_corrette": round(
-            100 * sum(e.risposta_corretta for e in con_scelta) / (len(con_scelta) or 1), 1)
-        if con_scelta else None,
-        "livello_atteso": round(
-            100 * sum(bool(e.livello_corretto) for e in livelli) / (len(livelli) or 1), 1)
-        if livelli else None,
-        "posizione_media": round(
-            sum(e.posizione for e in esiti if e.posizione) / max(
-                sum(1 for e in esiti if e.posizione), 1), 1),
-    }
+
+    valori: dict[str, float | int | None] = {"casi": len(esiti)}
+
+    # A) la curva del recall: dove arriva il tetto, e se allargare k servirebbe
+    for n in soglie_recall(k):
+        valori[f"recall@{n}"] = _percentuale(
+            sum(1 for e in positivi if e.posizione and e.posizione <= n), len(positivi))
+    # `recupero` resta la percentuale di casi in cui il documento c'era, comunque sia
+    # ordinato: coincide con l'ultimo punto della curva, ma non dipende da `posizione`
+    valori["recupero"] = _percentuale(sum(1 for e in positivi if e.recuperato),
+                                      len(positivi))
+
+    # B) i due errori della risposta, separati
+    valori["contenitore_corretto"] = _percentuale(
+        sum(1 for e in con_scelta if e.contenitore_corretto), len(con_scelta))
+    valori["copertura"] = round(100 * sum(coperture) / len(coperture), 1) if coperture else None
+    valori["risposte_perfette"] = _percentuale(
+        sum(1 for e in con_scelta if e.perfetta), len(con_scelta))
+    valori["livello_atteso"] = _percentuale(
+        sum(1 for e in livelli if e.livello_corretto), len(livelli))
+
+    # D) le due astensioni, da leggere in coppia: tacere sempre non è prudenza, è mutismo
+    valori["astensione_corretta"] = _percentuale(
+        sum(1 for e in negativi if e.contenitore_corretto),
+        len([e for e in negativi if e.valutata_la_scelta]))
+    valori["astensione_a_sproposito"] = _percentuale(
+        sum(1 for e in con_scelta if not e.destinazioni), len(con_scelta))
+    return valori
 
 
-def riepiloga(esiti: list[Esito]) -> None:
+ETICHETTE = {
+    "recupero": "recupero (il documento giusto è fra i candidati)",
+    "contenitore_corretto": "contenitore corretto (nessuna destinazione sbagliata)",
+    "copertura": "copertura delle alternative attese",
+    "risposte_perfette": "risposte perfette (contenitore giusto e nulla di perso)",
+    "livello_atteso": "livello di evidenza atteso",
+    "astensione_corretta": "astensione corretta (sui casi non coperti)",
+    "astensione_a_sproposito": "astensione a sproposito (sui casi coperti)",
+}
+
+
+def _riga_caso(e: Esito, buone: tuple[str, ...]) -> None:
+    segno = "OK" if e.diagnosi in buone else "  "
+    posizione = str(e.posizione) if e.posizione else "-"
+    print(f"{segno:4} {e.caso.id[:44]:44} {posizione:>5}  {e.diagnosi}")
+    if e.diagnosi in buone:
+        return
+    if e.caso.destinazioni_attese:
+        print(f"     atteso:   {', '.join(e.caso.destinazioni_attese)}")
+    if e.destinazioni:
+        print(f"     ottenuto: {', '.join(e.destinazioni)}")
+    # i due errori si leggono senza doverli dedurre confrontando due elenchi
+    if e.di_troppo:
+        print(f"     di troppo (contenitore sbagliato): {', '.join(e.di_troppo)}")
+    elif e.mancate and e.destinazioni:
+        print(f"     mancano (canale perso): {', '.join(e.mancate)}")
+    # Prima di dare la colpa al recupero, si guarda dove portavano i documenti trovati:
+    # se l'attesa non compare da nessuna parte, spesso è l'attesa a essere sbagliata
+    if e.raggiungibili and not e.destinazioni:
+        print(f"     i documenti trovati portano a: {', '.join(e.raggiungibili[:8])}")
+        print("     (se l'attesa non è qui dentro, controlla il caso prima del recupero)")
+
+
+def _per_strato(esiti: list[Esito], nome: str, chiave) -> None:
+    """Il recupero spezzato per comune o per canale.
+
+    La media nasconde che gli ingombranti vanno peggio della raccolta ordinaria: è la
+    media a dire "88%", ed è lo strato a dire dove scrivere le prossime formulazioni.
+    """
+    strati: dict[str, list[Esito]] = {}
+    for e in esiti:
+        if (valore := chiave(e)):
+            strati.setdefault(valore, []).append(e)
+    if len(strati) < 2:
+        return
+    print(f"\n## Recupero per {nome}")
+    for valore, gruppo in sorted(strati.items()):
+        trovati = sum(1 for e in gruppo if e.recuperato)
+        print(f"  {valore:28} {trovati:3}/{len(gruppo):<3} {_percentuale(trovati, len(gruppo))}%")
+
+
+def riepiloga(esiti: list[Esito], k: int = 8) -> None:
     print(f"\n{'esito':4} {'caso':44} {'pos.':>5}  diagnosi")
     print("-" * 100)
-    buone = (CORRETTO, RECUPERATO)
+    buone = (CORRETTO, RECUPERATO, ASTENUTO)
     for e in sorted(esiti, key=lambda e: (e.diagnosi in buone, e.caso.id)):
-        segno = "OK" if e.diagnosi in buone else "  "
-        posizione = str(e.posizione) if e.posizione else "-"
-        print(f"{segno:4} {e.caso.id[:44]:44} {posizione:>5}  {e.diagnosi}")
-        if e.diagnosi in buone:
-            continue
-        print(f"     atteso:   {', '.join(e.caso.destinazioni_attese)}")
-        if e.destinazioni:
-            print(f"     ottenuto: {', '.join(e.destinazioni)}")
-        # Prima di dare la colpa al recupero, si guarda dove portavano i documenti trovati:
-        # se l'attesa non compare da nessuna parte, spesso è l'attesa a essere sbagliata
-        if e.raggiungibili:
-            print(f"     i documenti trovati portano a: {', '.join(e.raggiungibili[:8])}")
-            print("     (se l'attesa non è qui dentro, controlla il caso prima del recupero)")
+        _riga_caso(e, buone)
 
-    m = misure(esiti)
-    print(f"\n## Misure su {m['casi']} casi")
-    print(f"  recupero (il documento giusto è fra i candidati): {m['recupero']}%")
-    if m["risposte_corrette"] is not None:
-        print(f"  risposte corrette:                               {m['risposte_corrette']}%")
-    if m["livello_atteso"] is not None:
-        print(f"  livello di evidenza atteso:                      {m['livello_atteso']}%")
-    print(f"  posizione media del documento giusto:            {m['posizione_media']}")
+    for insieme, gruppo in per_insieme(esiti, chiave=lambda e: e.caso.origine).items():
+        m = misure(gruppo, k)
+        # le regressioni si leggono come pass/fail: sono i casi che NON devono tornare
+        # indietro, e una percentuale su diciotto casi scelti apposta non stima niente
+        if insieme == "regressioni":
+            passati = sum(1 for e in gruppo if e.diagnosi in buone)
+            print(f"\n## Regressioni: {passati}/{len(gruppo)} superate")
+            continue
+        print(f"\n## Misure sull'insieme «{insieme}» ({m['casi']} casi)")
+        recall = "  ".join(f"@{n} {m[f'recall@{n}']}%" for n in soglie_recall(k)
+                           if m.get(f"recall@{n}") is not None)
+        if recall:
+            print(f"  recall:                                          {recall}")
+        for chiave, etichetta in ETICHETTE.items():
+            if chiave != "recupero" and m.get(chiave) is not None:
+                print(f"  {etichetta:48} {m[chiave]}%")
+
+    _per_strato([e for e in esiti if not e.caso.negativo], "comune", lambda e: e.caso.comune)
+    _per_strato([e for e in esiti if not e.caso.negativo], "canale",
+                lambda e: (e.caso.strato or {}).get("canale"))
 
     print("\n## Dove intervenire")
-    for diagnosi in (RECUPERO_FALLITO, SCELTA_SBAGLIATA, ALTRA_STRADA):
+    for diagnosi in (RECUPERO_FALLITO, SCELTA_SBAGLIATA, CANALE_PERSO, NON_ASTENUTO,
+                     ALTRA_STRADA):
         quanti = sum(1 for e in esiti if e.diagnosi == diagnosi)
         if quanti:
             print(f"  {quanti:3}  {diagnosi}")
 
 
-def come_json(esiti: list[Esito]) -> dict:
-    return {"misure": misure(esiti),
-            "esiti": {e.caso.id: {"recuperato": e.recuperato, "corretta": e.risposta_corretta,
+# --------------------------------------------------------------------------- persistenza
+
+def descrizione_esecuzione(agente: Agente, casi: list[Caso], k: int,
+                           con_modello: bool) -> dict:
+    """Le condizioni in cui la misura è stata presa.
+
+    Senza questo blocco si confrontano due esecuzioni fatte con `k` diversi, o con due
+    versioni del prompt di scelta, e si legge la differenza come merito della modifica.
+    `agente.configurazione()` è lo stesso oggetto che forma la versione dell'app nelle
+    tracce MLflow: valutazione e osservabilità restano allineate per costruzione.
+    """
+    conteggio: dict[str, int] = {}
+    for caso in casi:
+        conteggio[caso.origine] = conteggio.get(caso.origine, 0) + 1
+    return {"data": datetime.now().isoformat(timespec="minutes"),
+            "k": k,
+            "modalita": "completa" if con_modello else "senza_modello",
+            "casi": conteggio,
+            "configurazione": agente.configurazione()}
+
+
+def come_json(esiti: list[Esito], esecuzione: dict | None = None,
+              k: int = 8) -> dict:
+    return {"esecuzione": esecuzione or {},
+            "misure": misure(esiti, k),
+            "esiti": {e.caso.id: {"recuperato": e.recuperato,
+                                  "contenitore_corretto": e.contenitore_corretto,
+                                  "copertura": e.copertura,
                                   "destinazioni": e.destinazioni, "livello": e.livello,
                                   "posizione": e.posizione, "diagnosi": e.diagnosi}
                       for e in esiti}}
 
 
-def confronta(prima: dict, adesso: list[Esito]) -> None:
+def differenze_di_configurazione(prima: dict, adesso: dict) -> dict[str, tuple]:
+    """Cosa è cambiato fra le condizioni di due esecuzioni."""
+    vecchia = {**prima.get("configurazione", {}), "k": prima.get("k"),
+               "modalita": prima.get("modalita")}
+    nuova = {**adesso.get("configurazione", {}), "k": adesso.get("k"),
+             "modalita": adesso.get("modalita")}
+    return {c: (vecchia.get(c), nuova.get(c)) for c in sorted(set(vecchia) | set(nuova))
+            if vecchia.get(c) != nuova.get(c)}
+
+
+def confronta(prima: dict, adesso: list[Esito], esecuzione: dict | None = None,
+              k: int = 8) -> None:
     """Cosa è cambiato rispetto a un'esecuzione salvata.
 
     È la parte che serve a decidere: un numero assoluto dice poco, "due guadagnati e uno
     perso" dice cosa ha fatto davvero la modifica.
     """
+    print("\n## Confronto con l'esecuzione precedente")
+    if (differenze := differenze_di_configurazione(prima.get("esecuzione", {}),
+                                                   esecuzione or {})):
+        # non blocca: a volte confrontare due configurazioni è proprio ciò che si vuole.
+        # Deve solo essere detto, o la differenza si attribuisce alla modifica sbagliata.
+        print("  ATTENZIONE: le due esecuzioni non sono state fatte nelle stesse condizioni")
+        for campo, (vecchio, nuovo) in differenze.items():
+            print(f"    {campo}: {vecchio} -> {nuovo}")
+        print()
+
     vecchi = prima.get("esiti", {})
     guadagnati, persi, nuovi = [], [], []
     for e in adesso:
@@ -230,13 +436,12 @@ def confronta(prima: dict, adesso: list[Esito]) -> None:
         elif e.diagnosi != CORRETTO and vecchio["diagnosi"] == CORRETTO:
             persi.append((e, vecchio))
 
-    print("\n## Confronto con l'esecuzione precedente")
-    for etichetta, valore in misure(adesso).items():
+    for etichetta, valore in misure(adesso, k).items():
         precedente = prima.get("misure", {}).get(etichetta)
         if valore is None or precedente is None or etichetta == "casi":
             continue
         segno = "+" if valore > precedente else ""
-        print(f"  {etichetta:20} {precedente} -> {valore}  ({segno}{round(valore - precedente, 1)})")
+        print(f"  {etichetta:24} {precedente} -> {valore}  ({segno}{round(valore - precedente, 1)})")
 
     print(f"\n  guadagnati: {len(guadagnati)}")
     for e in guadagnati:
@@ -259,15 +464,20 @@ def main() -> None:
     ap.add_argument("--senza-modello", action="store_true",
                     help="misura solo il recupero: gira in secondi, non chiama Ollama")
     ap.add_argument("--comune", help="limita a un comune")
+    ap.add_argument("--insieme", help="limita a un insieme di casi (regressione, campione, assenti)")
     ap.add_argument("--salva", type=Path, help="scrive l'esito in JSON, per confronti futuri")
     ap.add_argument("--confronta", type=Path, help="confronta con un esito salvato")
     ap.add_argument("-k", type=int, default=8, help="quanti candidati per livello")
+    ap.add_argument("--senza-mlflow", action="store_true",
+                    help="non registra l'esecuzione come run di MLflow")
     args = ap.parse_args()
 
-    casi = [c for c in tutti() if not args.comune or c.comune == args.comune]
+    casi = [c for c in tutti()
+            if (not args.comune or c.comune == args.comune)
+            and (not args.insieme or c.origine == args.insieme)]
     if not casi:
-        raise SystemExit("Nessun caso in data/valutazione/casi.jsonl: scrivine a mano, "
-                         "una riga per caso.")
+        raise SystemExit("Nessun caso in data/valutazione/casi/: scrivine a mano, "
+                         "una riga per caso, oppure lancia `uv run ecoscan-campiona`.")
 
     from ecoscan.agente.modelli import ModelloOllama
     from ecoscan.agente.recupero import RecuperoQdrant
@@ -282,20 +492,28 @@ def main() -> None:
     def mostra(numero, totale, caso):
         print(f"  [{numero}/{totale}] {caso.id[:60]}", flush=True)
 
-    esiti = esegui(agente, casi, con_modello=not args.senza_modello,
-                   avanzamento=mostra if not args.senza_modello else None)
-    riepiloga(esiti)
+    con_modello = not args.senza_modello
+    esiti = esegui(agente, casi, con_modello=con_modello,
+                   avanzamento=mostra if con_modello else None)
+    esecuzione = descrizione_esecuzione(agente, casi, args.k, con_modello)
+    riepiloga(esiti, args.k)
 
     if args.confronta:
         if not args.confronta.is_file():
             raise SystemExit(f"Esito da confrontare non trovato: {args.confronta}")
-        confronta(json.loads(args.confronta.read_text(encoding="utf-8")), esiti)
+        confronta(json.loads(args.confronta.read_text(encoding="utf-8")), esiti,
+                  esecuzione, args.k)
 
     if args.salva:
         args.salva.parent.mkdir(parents=True, exist_ok=True)
-        args.salva.write_text(json.dumps(come_json(esiti), ensure_ascii=False, indent=2),
-                              encoding="utf-8")
+        args.salva.write_text(
+            json.dumps(come_json(esiti, esecuzione, args.k), ensure_ascii=False, indent=2),
+            encoding="utf-8")
         print(f"\nEsito salvato in {args.salva}")
+
+    if not args.senza_mlflow:
+        from ecoscan.osservabilita.valutazione_registrata import registra
+        registra(esecuzione, misure(esiti, args.k), come_json(esiti, esecuzione, args.k))
 
 
 class _ModelloAssente:

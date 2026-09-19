@@ -214,6 +214,41 @@ regola finale sempre da SQL e mai dal modello.
 **Output strutturato** — Risposta del modello vincolata a uno schema JSON, così il backend
 può usarla senza interpretarne il testo.
 
+## Valutazione
+
+**Caso** — Un riconoscimento già avvenuto più la risposta attesa. Parte dal riconoscimento e
+non dalla foto, così una differenza fra due esecuzioni non può venire dal modello di visione.
+
+**Insieme di casi** — I casi stanno in tre file separati con tre letture diverse:
+*regressioni* (errori già visti, si leggono pass/fail), *campione* (estratto dal dizionario,
+si legge in percentuale), *assenti* (la risposta giusta è non rispondere).
+
+**Recall@k** — La frazione di casi in cui un documento che porta alla destinazione attesa si
+trova fra i primi *k* candidati. È il **tetto** della correttezza finale: ciò che il recupero
+non passa, il modello non può sceglierlo.
+
+**Contenitore corretto** — Nessuna delle destinazioni proposte è fuori dalle attese. È la
+metrica che protegge l'utente dal cassonetto sbagliato.
+
+**Copertura** — Quante delle destinazioni attese sono state dette, fra 0 e 1. Distingue "va
+all'isola ecologica" da "va all'isola ecologica *oppure* te lo vengono a prendere".
+
+**Caso negativo** — Un caso con attese vuote e `livello_atteso: 3`: il comune non copre
+l'oggetto e la risposta giusta è ammetterlo.
+
+**Astensione** — Rispondere livello 3. Si misura nelle due direzioni: corretta sui casi non
+coperti, a sproposito su quelli coperti. Da sola, la prima si massimizza tacendo sempre.
+
+**Campione stratificato** — Estrazione che rispetta la composizione della popolazione su
+assi scelti (qui comune, canale, numero di alternative) invece di pescare a caso, così gli
+strati piccoli ma importanti non spariscono.
+
+**Tautologia (in un caso)** — Una domanda che coincide col nome della voce attesa: cercare
+"Cartone per pizze" e trovarlo non misura il recupero. Un test la impedisce.
+
+**p50 / p90** — Mediana e novantesimo percentile dei tempi. Si usano al posto della media
+perché i tempi hanno code lunghe.
+
 ## Strumenti
 
 **File `.env`** — File di testo alla radice del progetto con le impostazioni locali

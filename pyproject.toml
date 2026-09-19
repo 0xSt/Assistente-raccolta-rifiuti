@@ -1,6 +1,6 @@
 [project]
 name = "ecoscan-local"
-version = "0.42.0"
+version = "0.43.0"
 description = "Assistente locale per la raccolta differenziata: ETL da fonti comunali, schema dati e retrieval ibrido"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -29,13 +29,14 @@ ecoscan-regole = "ecoscan.etl.normalizza_regole:main"
 ecoscan-ispeziona = "ecoscan.etl.ispeziona_napoli:main"
 ecoscan-frontend = "ecoscan.frontend.app:main"
 ecoscan-api = "ecoscan.api.app:main"
-ecoscan-sonda = "ecoscan.db.sonda:main"
 ecoscan-analizza = "ecoscan.agente.prova:main"
 ecoscan-vettorizza = "ecoscan.db.vettorizza:main"
 ecoscan-prompt = "ecoscan.osservabilita.prompt_registrati:main"
 ecoscan-documenti = "ecoscan.db.documenti:main"
 ecoscan-carica = "ecoscan.db.carica:main"
 ecoscan-valuta = "ecoscan.valutazione.esegui:main"
+ecoscan-campiona = "ecoscan.valutazione.campiona:main"
+ecoscan-valuta-foto = "ecoscan.valutazione.foto:main"
 ecoscan-nomi = "ecoscan.etl.qualita_nomi:main"
 
 [dependency-groups]
