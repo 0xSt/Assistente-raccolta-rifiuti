@@ -29,7 +29,7 @@ Va aggiornato **a ogni cambiamento sostanziale**, non a ogni riga di codice. In 
 
 ---
 
-## Stato attuale (v0.44.0, 19/09/2026)
+## Stato attuale (v0.44.1, 19/09/2026)
 
 | Componente | Stato |
 |---|---|
@@ -338,6 +338,32 @@ Cose imparate che non sono decisioni, ma che conviene ricordare.
 ---
 
 ## Cronologia
+
+### v0.44.1 — 19/09/2026
+
+**L'avanzamento c'è anche senza modello.** Era attivo solo nella modalità completa, con la
+motivazione che l'altra "gira in secondi": falso. `--senza-modello` calcola un embedding per
+ogni formulazione di ogni caso — fino a sette domande per due livelli — e su CPU diventano
+minuti in cui non si vede niente. Ora ogni caso stampa contatore, esito, secondi per caso e
+tempo stimato alla fine; su un terminale vero la riga si riscrive, quando l'uscita è
+rediretta su file se ne stampa una ogni dieci. In testa ci sono anche le impostazioni in
+uso e la composizione del dataset, e in coda la durata totale.
+
+L'avanzamento viene chiamato **dopo** ciascun caso, non prima: così la riga dice com'è
+andato invece di annunciare cosa sta per fare, e un fallimento si vede passare invece di
+aspettare il riepilogo.
+
+**La registrazione su MLflow non fallisce più in blocco.** Parametri, metriche e allegato
+si scrivono in tre passaggi protetti uno per uno: se l'allegato non passa, le metriche
+restano comunque scritte e l'uscita dice cosa è andato e cosa no. Prima un errore su
+qualunque dei tre faceva dichiarare "esecuzione non registrata" anche quando due terzi
+erano stati salvati.
+
+E soprattutto: **ogni esito viene detto**. MLflow spento lo dichiara (prima restituiva
+`False` in silenzio), un server irraggiungibile stampa il motivo e come accenderlo, e a
+registrazione riuscita si stampa il **link diretto alla run**. L'esperimento
+`ecoscan-valutazione` è separato da `ecoscan-chat`, e senza link la prima domanda è sempre
+"ma dove è finita?".
 
 ### v0.44.0 — 19/09/2026
 

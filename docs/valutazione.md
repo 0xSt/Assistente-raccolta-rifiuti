@@ -1,6 +1,6 @@
 # La valutazione
 
-> Aggiornato alla **v0.43.0**.
+> Aggiornato alla **v0.44.1**.
 
 Questo documento spiega **cosa misura** il sistema di valutazione, **perché** misura quelle
 cose e non altre, **come** si usa e **come si leggono** i numeri che produce.
@@ -361,6 +361,19 @@ ATTENZIONE: le due esecuzioni non sono state fatte nelle stesse condizioni
 Non blocca — a volte confrontare due configurazioni è proprio ciò che si vuole — ma
 impedisce di attribuire alla modifica sbagliata una differenza che viene da `k`.
 
+### Cosa si vede mentre gira
+
+Ogni caso stampa una riga con contatore, esito, secondi per caso e tempo stimato alla
+fine, e in testa ci sono le impostazioni in uso e la composizione del dataset. Vale anche
+per `--senza-modello`: "gira in secondi" è vero solo con l'indice caldo, perché ogni caso
+calcola un embedding per ogni formulazione — fino a sette domande per due livelli.
+
+    Impostazioni: qdrant=http://localhost:6333 | modello=embeddinggemma | arricchimento=si …
+
+    92 casi (18 regressioni, 63 campione, 11 assenti) · k=8 · solo recupero, nessun modello
+    Preparo Qdrant e il vettorizzatore...
+      [ 47/92] ok  Napoli · monitor del pc         0.8 s/caso · ~36 s alla fine
+
 ### La serie storica su MLflow
 
 Ogni esecuzione diventa anche una **run** nell'esperimento `ecoscan-valutazione`, separato
@@ -370,6 +383,12 @@ non danno: la tabella di dieci esecuzioni fra due versioni, con i parametri acca
 numeri. Come tutto il tracciamento del progetto non è mai bloccante (D116): con MLflow
 spento la valutazione stampa i suoi numeri, avvisa in una riga e finisce. Si spegne con
 `--senza-mlflow`.
+
+**Ogni esito viene detto**, perché una registrazione che non avviene e non lo dice è
+peggio di un errore: si continua a cercare la run in una lista dove non è mai arrivata.
+A registrazione riuscita l'uscita stampa il **link diretto**; se MLflow è spento o
+irraggiungibile lo dichiara con il motivo. I tre passaggi — parametri, metriche, allegato —
+sono protetti uno per uno, quindi un allegato che non passa non fa perdere le metriche.
 
 ---
 

@@ -59,10 +59,13 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
+import time
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 
+from ecoscan import configurazione as conf
 from ecoscan.agente.agente import Agente, Richiesta
 from ecoscan.agente.tipi import Candidato
 from ecoscan.valutazione.casi import Caso, per_insieme, tutti
@@ -212,12 +215,60 @@ def valuta_caso(agente: Agente, caso: Caso, con_modello: bool = True) -> Esito:
 
 def esegui(agente: Agente, casi: list[Caso], con_modello: bool = True,
            avanzamento=None) -> list[Esito]:
+    """Esegue i casi. `avanzamento(numero, totale, caso, esito)` viene chiamato **dopo**
+    ciascuno, con l'esito già in mano: così la riga di avanzamento può dire com'è andato
+    invece di annunciare soltanto cosa sta per fare."""
     esiti = []
     for numero, caso in enumerate(casi, start=1):
+        esito = valuta_caso(agente, caso, con_modello)
+        esiti.append(esito)
         if avanzamento:
-            avanzamento(numero, len(casi), caso)
-        esiti.append(valuta_caso(agente, caso, con_modello))
+            avanzamento(numero, len(casi), caso, esito)
     return esiti
+
+
+class Avanzamento:
+    """La riga che dice a che punto siamo.
+
+    Serve più di quanto sembri: anche `--senza-modello`, che sulla carta "gira in secondi",
+    calcola un embedding per ogni formulazione di ogni caso — sette domande per due livelli
+    — e su CPU diventano minuti. Senza avanzamento sembra bloccato, e la reazione naturale
+    è interromperlo proprio mentre sta lavorando.
+
+    Su un terminale vero riscrive sempre la stessa riga; quando l'uscita è rediretta su file
+    stampa una riga ogni dieci casi, perché un file pieno di ritorni a capo non si legge.
+    """
+
+    def __init__(self, totale: int, interattivo: bool | None = None):
+        self.totale = totale
+        self.inizio = time.monotonic()
+        self.interattivo = sys.stdout.isatty() if interattivo is None else interattivo
+
+    def __call__(self, numero: int, totale: int, caso: Caso, esito: Esito) -> None:
+        trascorso = time.monotonic() - self.inizio
+        per_caso = trascorso / numero
+        mancano = per_caso * (totale - numero)
+        segno = "ok" if esito.diagnosi in (CORRETTO, RECUPERATO, ASTENUTO) else "NO"
+        riga = (f"  [{numero:3}/{totale}] {segno}  {caso.id[:46]:48} "
+                f"{per_caso:.1f} s/caso · {self._resta(mancano)}")
+        if self.interattivo:
+            print(f"\r{riga[:110]:110}", end="", flush=True)
+        elif numero % 10 == 0 or numero == totale:
+            print(riga, flush=True)
+
+    @staticmethod
+    def _resta(secondi: float) -> str:
+        if secondi < 1:
+            return "finito"
+        if secondi < 90:
+            return f"~{secondi:.0f} s alla fine"
+        return f"~{secondi / 60:.0f} min alla fine"
+
+    def fine(self) -> float:
+        trascorso = time.monotonic() - self.inizio
+        if self.interattivo:
+            print(f"\r{' ' * 110}\r", end="")
+        return trascorso
 
 
 # --------------------------------------------------------------------------- riepilogo
@@ -483,19 +534,30 @@ def main() -> None:
     from ecoscan.agente.recupero import RecuperoQdrant
     from ecoscan.db.vettorizza import VettorizzatoreOllama, apri_qdrant
 
+    # Le impostazioni in testa, come fanno gli altri comandi: è il modo più rapido per
+    # accorgersi che si sta misurando con un indice o un modello diversi da quelli creduti.
+    print("Impostazioni: " + " | ".join(f"{c}={v}" for c, v in conf.riepilogo().items()))
+
+    con_modello = not args.senza_modello
+    conteggio = ", ".join(f"{len(gruppo)} {insieme}" for insieme, gruppo
+                          in per_insieme(casi, chiave=lambda c: c.origine).items())
+    print(f"\n{len(casi)} casi ({conteggio}) · k={args.k} · "
+          + ("recupero e scelta" if con_modello else "solo recupero, nessun modello"))
+    print("Preparo Qdrant e il vettorizzatore...", flush=True)
+
     recupero = RecuperoQdrant(apri_qdrant(), VettorizzatoreOllama())
     modello = None if args.senza_modello else ModelloOllama()
     agente = Agente(recupero, modello or _ModelloAssente(), k=args.k)
+    if con_modello:
+        print("Su CPU la scelta richiede qualche secondo per caso.", flush=True)
 
-    print(f"{len(casi)} casi" + (" · solo recupero" if args.senza_modello else ""))
+    avanzamento = Avanzamento(len(casi))
+    esiti = esegui(agente, casi, con_modello=con_modello, avanzamento=avanzamento)
+    durata = avanzamento.fine()
 
-    def mostra(numero, totale, caso):
-        print(f"  [{numero}/{totale}] {caso.id[:60]}", flush=True)
-
-    con_modello = not args.senza_modello
-    esiti = esegui(agente, casi, con_modello=con_modello,
-                   avanzamento=mostra if con_modello else None)
     esecuzione = descrizione_esecuzione(agente, casi, args.k, con_modello)
+    print(f"Eseguiti {len(casi)} casi in {durata:.0f} s "
+          f"({durata / max(len(casi), 1):.1f} s per caso).")
     riepiloga(esiti, args.k)
 
     if args.confronta:
