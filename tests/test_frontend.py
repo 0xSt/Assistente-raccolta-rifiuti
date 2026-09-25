@@ -322,6 +322,28 @@ def test_la_contraddizione_della_fonte_viene_detta():
     assert "destinazioni diverse" in testo
 
 
+def test_nel_frontend_non_restano_espressioni_nude():
+    """La "magia" di Streamlit stampa il valore di ogni espressione lasciata da sola.
+
+    `riquadro(testo) if riquadro else st.markdown(testo)` è un'espressione, non
+    un'istruzione: il DeltaGenerator che restituisce finiva nella chat, con accanto tutta la
+    documentazione della classe. Il difetto non dà errore e i test sul testo non lo vedono —
+    solo l'occhio, o questo controllo. Le chiamate di funzione e le stringhe di
+    documentazione sono le uniche espressioni nude legittime.
+    """
+    import ast
+
+    from ecoscan.percorsi import RADICE
+
+    nude = []
+    for file in sorted((RADICE / "src/ecoscan/frontend").glob("*.py")):
+        albero = ast.parse(file.read_text(encoding="utf-8"))
+        nude += [f"{file.name}:{n.lineno}" for n in ast.walk(albero)
+                 if isinstance(n, ast.Expr)
+                 and not isinstance(n.value, (ast.Call, ast.Constant))]
+    assert not nude, f"espressioni nude, che Streamlit stamperebbe: {nude}"
+
+
 def test_il_frontend_non_importa_il_backend():
     """Il frontend deve parlare solo con le API: se importasse l'agente o il database,
     la valutazione misurerebbe qualcosa di diverso da ciò che usa l'utente."""
