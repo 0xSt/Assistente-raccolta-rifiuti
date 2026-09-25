@@ -29,7 +29,7 @@ Va aggiornato **a ogni cambiamento sostanziale**, non a ogni riga di codice. In 
 
 ---
 
-## Stato attuale (v0.48.0, 25/09/2026)
+## Stato attuale (v0.48.1, 25/09/2026)
 
 | Componente | Stato |
 |---|---|
@@ -263,6 +263,7 @@ Formato: decisione, motivazione, stato.
 | D188 | L'agente chiede anche **di che materiale è**, quando fra i candidati ci sono voci omonime di materiali diversi che portano in contenitori diversi e il riconoscimento non ha dichiarato il materiale | È D73 applicato al materiale invece che allo stato. Il chiarimento nasceva solo dalle **condizioni** di una voce, quindi "bicchiere" a Napoli — di vetro (Non Riciclabile) o di plastica (Plastica e Metalli) — non produceva nessuna domanda: il modello ne sceglieva uno e l'utente non sapeva che la risposta dipendeva da un'informazione che non aveva dato. Nei due dizionari le famiglie di omonimi distinte dal materiale sono **37**. Si chiede solo quando la domanda cambierebbe la risposta: due materiali almeno, con destinazioni diverse | Accettata |
 | D189 | Gli omonimi si riconoscono **dai documenti**, confrontando il loro nucleo — il nome senza materiali né parole di servizio — e non dalla domanda dell'utente | `nomina_l_oggetto` pretende che la domanda contenga tutte le parole del nome: è giusto per preferire il documento specifico (D-piu_specifico) e troppo stretto qui, perché "tagliere della cucina" non nomina "Tagliere in legno" e la domanda non nascerebbe. Il confronto fra nuclei è per **inclusione**, così "Vaschette in alluminio" e "Vaschette alimentari in plastica" restano la stessa cosa detta con una parola in più. La famiglia si ancora al documento **scelto**: senza, un candidato qualunque di un altro materiale farebbe nascere una domanda che non c'entra con la risposta | Accettata |
 | D190 | La risposta a una domanda sul materiale finisce nei **materiali** del riconoscimento, non nello stato; e una risposta accompagnata da una domanda dovuta è **provvisoria**, quindi non si misura come definitiva | `continua` metteva sempre la risposta nello stato: giusto finché si chiedevano solo le condizioni, inutile per un materiale — il filtro guarda `materiali` e le formulazioni cercano "oggetto + materiale" (D164), quindi la domanda avrebbe cambiato la risposta solo per caso. Sulla misura: l'agente che dice "probabilmente X, ma dimmi di che materiale è" ha fatto la cosa giusta, e pretendere che X sia già la risposta completa lo punirebbe per questo | Accettata |
+| D191 | La domanda si giudica **solo quando era in gioco**: se ha risposto una voce diversa da quella che il caso aveva in mente, `chiarimento_corretto` vale `None` e il caso esce dal denominatore | Prima esecuzione con il modello, 25/09: undici mancate domande, di cui **dieci** erano risposte arrivate da un'altra voce — «Barattolo in vetro» per i contenitori di crema, «Tende in stoffa» per le pantofole, «Barattolo in latta» per un piatto. Quelle voci avevano una variante sola e niente da chiedere: contarle come domande mancate dava la colpa al chiarimento di un difetto della **scelta**. Con l'attribuzione corretta `domanda_dovuta` passa da 54,2% a **92,9%**, e il difetto vero — la scelta che prende il documento sbagliato — compare nel suo blocco | Accettata |
 
 ### Transform
 
@@ -345,6 +346,41 @@ Cose imparate che non sono decisioni, ma che conviene ricordare.
 ---
 
 ## Cronologia
+
+### v0.48.1 — 25/09/2026
+
+**Prima esecuzione della domanda sul materiale, e tre difetti da correggere.** Quarantanove
+casi, 34 secondi l'uno. Il meccanismo funziona — tredici domande su quattordici dove era in
+gioco — ma il numero grezzo diceva 54,2%, e la colonna `scelto`, aggiunta il giorno prima,
+ha spiegato perché.
+
+**1. L'attribuzione era sbagliata** (D191). Delle undici mancate domande, **dieci** erano
+risposte arrivate da un'altra voce: «Barattolo in vetro» invece di «Contenitori creme»,
+«Tende in stoffa» invece di «Pantofole di stoffa», «Barattolo in latta» per un piatto.
+Quelle voci hanno una variante sola: non c'era niente da chiedere. Il difetto è della
+**scelta**, e ora la misura lo dice — le risposte arrivate da un'altra voce hanno un blocco
+loro nell'uscita, e `domanda_dovuta` si calcola dove la domanda era giudicabile: **92,9%**.
+
+**2. La famiglia di omonimi era troppo larga.** Per dei gusci di polistirolo l'agente ha
+chiesto «carta oppure plastica?»: il confronto per inclusione faceva di «Polistirolo
+espanso: gusci e barre **da imballaggio**» un parente di «Cartone **da imballaggio**». Ora
+la **testa** del nome dev'essere la stessa — in italiano l'oggetto viene per primo e le
+qualificazioni seguono — e l'inclusione vale solo per il resto.
+
+**3. Il materiale nella domanda dell'utente non veniva letto.** A «capsule di plastica del
+caffè» l'agente chiedeva «metallo oppure plastica?», perché guardava solo i `materiali` del
+riconoscimento e non le parole scritte. Ora guarda anche quelle.
+
+**4. L'accordo di genere**, il contratto lasciato in rosso ieri: «è tutta unta» non
+corrispondeva a «unto». Le condizioni ora si confrontano con una radice più corta (quattro
+lettere invece di cinque), che è quanto basta per genere e numero senza far collidere parole
+diverse. Funziona anche con «untissimo», e la negazione resta negazione: «non è unto» non
+vale «unto».
+
+**Cosa resta, ed è la cosa grossa**: in dieci casi su quarantanove la scelta ha preso un
+documento sbagliato pur avendo quello giusto fra i candidati (`recall@1` 89,8%). Non è un
+difetto del chiarimento: è il prompt di scelta, o le politiche del codice. È la prossima
+decisione, e ora ha un numero.
 
 ### v0.48.0 — 25/09/2026
 

@@ -238,7 +238,11 @@ class Agente:
         il riconoscimento il materiale l'ha già dichiarato, non c'è niente da chiedere: a
         quel punto tocca al filtro dei materiali togliere i documenti incompatibili.
         """
-        if richiesta.riconoscimento.materiali:
+        # il materiale può essere noto anche senza essere fra i `materiali`: chi scrive
+        # "capsule di plastica del caffè" l'ha già detto, e chiederglielo è farglielo
+        # ripetere. Osservato il 25/09
+        detto = f"{richiesta.riconoscimento.oggetto or ''} {richiesta.testo_utente or ''}"
+        if richiesta.riconoscimento.materiali or materiali_.famiglie_nel_testo(detto):
             return []
         # la famiglia si ancora al documento **scelto**: senza, un candidato qualunque di un
         # altro materiale farebbe nascere una domanda che non c'entra con la risposta

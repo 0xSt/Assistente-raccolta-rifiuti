@@ -615,3 +615,37 @@ def test_la_risposta_su_una_condizione_finisce_ancora_nello_stato():
     dopo = Agente._con_la_risposta({"oggetto": "cartone", "materiali": [], "confidenza": 1.0},
                                    "unto")
     assert dopo.stato == "unto" and dopo.materiali == []
+
+
+def test_non_chiede_il_materiale_se_l_utente_lo_ha_gia_scritto():
+    """Chi scrive "capsule di plastica del caffè" il materiale l'ha già detto: chiederglielo
+    è farglielo ripetere. Osservato il 25/09."""
+    candidati = [candidato_omonimo("Capsule del caffè in plastica", ["imballaggi_plastica"]),
+                 candidato_omonimo("Capsule di caffè in alluminio",
+                                   ["vetro_e_imballaggi_metallo"])]
+    assert Agente._materiali_da_chiarire(
+        candidati[0], candidati, richiesta_di("capsule di plastica del caffè")) == []
+    # senza il materiale nella domanda, invece, si chiede
+    assert Agente._materiali_da_chiarire(
+        candidati[0], candidati, richiesta_di("capsule del caffè")) == ["metallo", "plastica"]
+
+
+def test_la_testa_del_nome_delimita_la_famiglia():
+    """Senza, bastava una parola in comune in coda: "Polistirolo espanso: gusci e barre da
+    imballaggio" diventava parente di "Cartone da imballaggio", e nasceva la domanda
+    "carta oppure plastica?" su un polistirolo."""
+    candidati = [candidato_omonimo("Polistirolo espanso: gusci e barre da imballaggio",
+                                   ["Plastica e Metalli"]),
+                 candidato_omonimo("Cartone da imballaggio", ["Carta e Cartoncino"])]
+    assert Agente._materiali_da_chiarire(
+        candidati[0], candidati, richiesta_di("gusci di polistirolo")) == []
+
+
+def test_la_condizione_regge_l_accordo_di_genere():
+    """La fonte scrive "unto", l'utente "è tutta unta": la stessa cosa al femminile. Il
+    confronto letterale la mandava a vuoto, e l'agente chiedeva una condizione già
+    dichiarata."""
+    from ecoscan.agente.recupero import menzionata
+    assert menzionata("unto", "è tutta unta") is True
+    assert menzionata("unto", "è untissimo") is True
+    assert menzionata("unto", "non è unto") is False, "la negazione resta negazione"
