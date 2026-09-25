@@ -29,7 +29,7 @@ Va aggiornato **a ogni cambiamento sostanziale**, non a ogni riga di codice. In 
 
 ---
 
-## Stato attuale (v0.46.0, 25/09/2026)
+## Stato attuale (v0.46.1, 25/09/2026)
 
 | Componente | Stato |
 |---|---|
@@ -258,6 +258,7 @@ Formato: decisione, motivazione, stato.
 | D183 | I documenti si arricchiscono con **dati della fonte** — il canale quando non è la raccolta ordinaria, i flussi di materiale che il testo non nomina già, e le regole di categoria che nominano l'oggetto — e **mai con descrizioni generate da un modello** | I documenti oggetto sono corti (57 caratteri di media) ed è il caso in cui l'espansione rende di più. Farla scrivere a un modello però sbaglierebbe due volte: direbbe che il bicchiere di vetro è riciclabile, che a Napoli è falso, mettendo nel testo indicizzato una frase che contraddice la fonte (contro D9); e renderebbe "Bicchiere di vetro" e "Bottiglia in vetro" **più simili fra loro**, mentre il difetto da combattere è proprio la confusione fra vicini. L'arricchimento dalla fonte fa l'opposto: al bicchiere aggancia "Nel contenitore Vetro NON va: Bicchieri", che è la frase per cui quella voce non sta nel vetro. Si spegne con `ECOSCAN_ARRICCHIMENTO=no`, perché una modifica al recupero che non si può confrontare con la propria assenza non si sa se ha funzionato | Accettata |
 | D184 | La registrazione di una valutazione **non è best-effort**: ignora `ECOSCAN_MLFLOW_ATTIVO`, ripiega su un archivio locale se il server non risponde, e se non riesce nemmeno lì **ferma il comando con errore** | D116 dice che il tracciamento non deve mai bloccare, ed è giusto per le conversazioni: una traccia persa non fa danno, l'utente ha avuto la sua risposta. Una misura è un'altra cosa — si prende una volta, dopo minuti di CPU, e se non viene registrata è persa. Le tre regole seguono da lì. In più: l'esito si salva **sempre** anche su file, senza dover ricordare `--salva`, e `--prova-mlflow` scrive una run minuscola per rispondere in un secondo alla domanda "è il server o è il mio codice?" | Accettata |
 | D185 | Ogni caso di valutazione lascia una **traccia** su MLflow, agganciata alla run della misura, con i tag su cui si filtra (caso, insieme, comune, diagnosi, posizione) | Le percentuali dicono *quanti* casi vanno male; la traccia dice *perché quel caso* è andato male — quali domande sono state poste all'indice, quali documenti sono usciti e in che ordine, cosa ha scelto il modello e cosa ha scartato la politica dei materiali. È la stessa traccia di una conversazione vera, quindi si legge con gli stessi occhi. La run si apre **prima** dei casi perché una traccia creata dentro una run le resta agganciata (`mlflow.sourceRun`, verificato su un server vero): registrando alla fine, le tracce resterebbero nell'esperimento senza legame con la misura che le ha prodotte | Accettata |
+| D186 | Una procedura può **specializzarsi sulla destinazione**: la riga con la destinazione vince, quella senza resta come ripiego | D166 attacca la procedura al canale, ed è giusto per quasi tutto: nove coppie invece di 902 voci. Ma `contenitore_dedicato` raccoglie farmaci, pile, abiti e olio esausto, che si conferiscono in quattro modi diversi: la procedura generica li elencava tutti e quattro, e per una cintura di pelle diceva anche che l'olio va portato in una bottiglia chiusa. Informazione non richiesta in una risposta non è generosità, è rumore che toglie credito a quella richiesta. Specializzando solo dove serve — sette righe in più — l'economia di D166 resta | Accettata |
 
 ### Transform
 
@@ -340,6 +341,32 @@ Cose imparate che non sono decisioni, ma che conviene ricordare.
 ---
 
 ## Cronologia
+
+### v0.46.1 — 25/09/2026
+
+**Corretto: per una cintura di pelle la risposta parlava di olio esausto.** Segnalato da
+Stef provando `cintura di pelle` a Torino. La destinazione era giusta (contenitore abiti), i
+passi no: spiegavano *tutti* i contenitori dedicati — «farmaci in farmacia, pile dal
+tabaccaio, abiti nei cassonetti, olio esausto nei punti attrezzati» — e si portavano dietro
+la nota dell'olio.
+
+La causa è nei dati e non nel modello: la procedura è attaccata al **canale** (D166), e sotto
+`contenitore_dedicato` stanno quattro contenitori che si usano in quattro modi diversi. Ora
+una procedura può dichiarare una destinazione e specializzarsi (D186): sette righe nuove —
+abiti, farmaci e pile per Napoli, più olio esausto per Torino — e la riga generica resta come
+ripiego per i contenitori che non hanno istruzioni proprie. Dove non c'è specializzazione,
+la generica ha smesso di elencare: dice "cerca il contenitore dedicato a questo tipo di
+rifiuto", che è vero per tutti.
+
+Tre test nuovi: la procedura degli abiti non può nominare olio, farmaci, pile o tabaccai;
+la riga generica deve restare come ripiego; e ogni contenitore dedicato presente nei dati
+deve avere la sua procedura, così un contenitore nuovo non eredita in silenzio quella
+generica.
+
+**Nota sul caso stesso**: la risposta è arrivata dal livello 1, non dal livello 2 come mi
+aspettavo. Torino ha una voce `Abiti` (contenitore abiti oppure centro di raccolta) e il
+modello ha scelto quella dichiarando `categoria`, che è corretto — la cintura è coperta anche
+dalla regola "Scarpe e cinture", ma la voce è una risposta altrettanto vera e più completa.
 
 ### v0.46.0 — 25/09/2026
 

@@ -130,3 +130,49 @@ def test_le_procedure_fuori_casa_dichiarano_cosa_manca():
     for procedura in proc.tutte():
         if not procedura.da_casa:
             assert procedura.da_verificare, f"{procedura.comune}/{procedura.canale}"
+
+
+# ------------------------------------------- una procedura per contenitore, non per canale
+
+def test_un_contenitore_dedicato_spiega_solo_se_stesso():
+    """Il difetto del 25/09: per una cintura di pelle a Torino la risposta spiegava anche
+    farmaci, pile e olio esausto, e portava la nota "l'olio va in una bottiglia chiusa".
+
+    Stavano tutti nello stesso canale (`contenitore_dedicato`) e la procedura era una sola.
+    Informazione non richiesta in una risposta non è generosità: è rumore che toglie credito
+    a quella richiesta.
+    """
+    abiti = proc.per("Torino", "contenitore_dedicato", "abiti")
+    testo = " ".join([abiti.titolo, *abiti.passi, abiti.nota]).lower()
+    assert "abiti" in testo or "indumenti" in testo
+    for estraneo in ("olio", "farmac", "pile", "tabaccaio"):
+        assert estraneo not in testo, f"la procedura degli abiti parla di {estraneo}"
+
+
+def test_la_riga_generica_resta_come_ripiego():
+    """Si specializza dove serve, non ovunque: l'economia di D166 — nove coppie invece di
+    902 voci — non va persa per un caso particolare."""
+    generica = proc.per("Torino", "contenitore_dedicato")
+    assert generica is not None and not generica.destinazione
+    ignota = proc.per("Torino", "contenitore_dedicato", "contenitore_che_non_esiste")
+    assert ignota is generica
+
+
+def test_ogni_contenitore_dedicato_dei_dati_ha_la_sua_procedura():
+    """Se domani nasce un contenitore dedicato nuovo, questo test lo scopre: senza riga
+    propria erediterebbe quella generica, che non dice dove andare."""
+    import sqlite3
+    from ecoscan.percorsi import DATI
+    percorso = DATI / "ecoscan.db"
+    if not percorso.is_file():
+        import pytest
+        pytest.skip("database non costruito")
+    db = sqlite3.connect(f"file:{percorso}?mode=ro", uri=True)
+    senza = []
+    for comune, destinazione in db.execute(
+            "SELECT c.nome, d.nome FROM destinazione d JOIN comune c ON c.id = d.comune_id "
+            "WHERE d.canale = 'contenitore_dedicato'"):
+        trovata = proc.per(comune, "contenitore_dedicato", destinazione)
+        if trovata is None or not trovata.destinazione:
+            senza.append(f"{comune}/{destinazione}")
+    assert not senza, f"contenitori dedicati senza procedura propria: {senza}"

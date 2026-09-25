@@ -86,9 +86,16 @@ class Risorse:
         return {d["nome"]: d["canale"] for d in self.destinazioni(comune)}
 
     def procedure(self, comune: str, destinazioni: list[str]) -> list[procedure_.Procedura]:
-        """Come si conferisce alle destinazioni di una risposta, dalla più comoda in giù."""
+        """Come si conferisce alle destinazioni di una risposta, dalla più comoda in giù.
+
+        Si passa la coppia (canale, destinazione) e non il solo canale: un canale può
+        raccogliere contenitori che si usano in modi diversi — farmaci, pile, abiti e olio
+        stanno tutti in `contenitore_dedicato` — e senza la destinazione la procedura
+        finisce per spiegarli tutti insieme.
+        """
         canali = self.canali(comune)
-        return procedure_.per_canali(comune, [canali[d] for d in destinazioni if d in canali])
+        return procedure_.per_canali(
+            comune, [(canali[d], d) for d in destinazioni if d in canali])
 
     def salute(self) -> dict:
         dettagli: dict[str, str] = {}
