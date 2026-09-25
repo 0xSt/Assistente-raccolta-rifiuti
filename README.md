@@ -4,7 +4,7 @@ Assistente per la raccolta differenziata che gira interamente in locale. L'utent
 
 Progetto universitario. Comuni del prototipo: **Napoli** (ASIA) e **Torino** (AMIAT).
 
-## Stato attuale (v0.45.0)
+## Stato attuale (v0.46.0)
 
 Il quadro completo è in [docs/diario.md](docs/diario.md).
 
@@ -76,6 +76,7 @@ uv run ecoscan-vettorizza --verifica   # controlla che l'indicizzazione sia corr
 uv run ecoscan-nomi             # elenca i nomi rimasti sgrammaticati dopo la normalizzazione
 uv run ecoscan-valuta --senza-modello  # il tetto: recall@k sui casi, senza Ollama (secondi)
 uv run ecoscan-valuta           # recupero + scelta; --salva / --confronta per due esecuzioni
+                                # ogni caso lascia una traccia su MLflow (--senza-tracce la salta)
 uv run ecoscan-campiona         # estrae voci dal database da cui scrivere nuovi casi
 uv run ecoscan-valuta-foto      # end-to-end dalle foto: costo della visione e tempi su CPU
 uv run ecoscan-valuta --prova-mlflow   # MLflow accetta le scritture? (un secondo)

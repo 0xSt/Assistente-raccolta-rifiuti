@@ -208,6 +208,9 @@ class TracciatoreNullo:
     def chiudi_turno(self, span, risposta) -> None:
         pass
 
+    def etichetta(self, span, **tag: str) -> None:  # noqa: ARG002
+        pass
+
 
 class Tracciatore(TracciatoreNullo):
     """Invia le tracce a MLflow. Si può spegnere, e se MLflow non risponde non disturba."""
@@ -423,3 +426,17 @@ class Tracciatore(TracciatoreNullo):
             import mlflow
 
             self._prova(mlflow.update_current_trace, tags=etichette_risposta(risposta))
+
+    def etichetta(self, span, **tag: str) -> None:
+        """Tag sulla traccia in corso, non attributi dello span.
+
+        La differenza conta nell'interfaccia: sui tag si filtra (`tags.diagnosi = ...`),
+        sugli attributi no. È ciò che permette, dopo una valutazione, di aprire le sole
+        tracce dei casi falliti invece di scorrerle tutte.
+        """
+        if not span.trace_id:
+            return
+        import mlflow
+
+        self._prova(mlflow.update_current_trace,
+                    tags={c: str(v) for c, v in tag.items() if v is not None})

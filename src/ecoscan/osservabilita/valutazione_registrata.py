@@ -45,6 +45,8 @@ from __future__ import annotations
 import json
 import logging
 import tempfile
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
 
 from ecoscan import configurazione as conf
@@ -112,20 +114,13 @@ def _allega(mlflow, esito_completo: dict | None) -> None:
         mlflow.log_artifact(str(percorso))
 
 
-def registra(esecuzione: dict, misure: dict, esito_completo: dict | None = None,
-             indirizzo: str | None = None, esperimento: str = ESPERIMENTO,
-             ripiego: Path | None = None) -> bool:
-    """Scrive l'esecuzione su MLflow, sul server o — se non risponde — in locale.
-
-    Restituisce True se è andato tutto; False se la run è stata creata ma qualche pezzo
-    non è passato. Se non è stato possibile scrivere **da nessuna parte**, solleva
-    `SystemExit`: a quel punto tacere sarebbe la cosa peggiore, perché la misura è persa e
-    chi l'ha lanciata non lo saprebbe.
-    """
-    indirizzo = indirizzo or conf.MLFLOW
-    ripiego = ripiego or RIPIEGO
+def _collega(indirizzo: str, esperimento: str, ripiego: Path) -> tuple:
+    """Il server, e se non risponde l'archivio locale. Solleva `SystemExit` se nessuno dei
+    due funziona: tacere lì sarebbe la cosa peggiore, perché la misura è persa e chi l'ha
+    lanciata non lo saprebbe."""
     try:
         info, mlflow = _apri(indirizzo, esperimento)
+        return info, mlflow, indirizzo
     except Exception as errore:                      # server spento, permessi, versione
         registro.info("MLflow non raggiungibile (%s): %s", indirizzo, errore)
         print(f"\nMLflow non raggiungibile su {indirizzo}: {errore}")
@@ -141,37 +136,80 @@ def registra(esecuzione: dict, misure: dict, esito_completo: dict | None = None,
                 f"  e nemmeno l'archivio locale ha funzionato: {secondo}\n"
                 "La misura NON è stata registrata da nessuna parte: controlla il server "
                 f"o i permessi su {ripiego}, e rilancia.") from secondo
-        indirizzo = locale
         print(f"  registrata invece nell'archivio locale: {ripiego}")
         print(f"  per guardarla: uv run mlflow ui --backend-store-uri {locale}")
+        return info, mlflow, locale
 
-    scritti, falliti = [], []
-    with mlflow.start_run(run_name=f"valutazione {esecuzione.get('data', '')}") as run:
-        for nome, scrivi in (
-                ("parametri", lambda: mlflow.log_params(_appiattisci(esecuzione))),
-                ("metriche", lambda: mlflow.log_metrics(
-                    {nome_valido(c): float(v) for c, v in misure.items()
-                     if isinstance(v, (int, float))})),
-                ("esito completo", lambda: _allega(mlflow, esito_completo))):
-            try:
-                scrivi()
-                scritti.append(nome)
-            except Exception as errore:
-                registro.info("MLflow, %s non registrati: %s", nome, errore)
-                falliti.append((nome, errore))
-        identificativo = run.info.run_id
 
-    print(f"\nEsecuzione registrata su MLflow ({', '.join(scritti)}), "
-          f"esperimento «{esperimento}»")
-    # il link si stampa solo se è un link: per l'archivio locale un URL http inventato
-    # manderebbe su una pagina che non esiste
-    if indirizzo.startswith(("http://", "https://")):
-        print(f"  {indirizzo}/#/experiments/{info.experiment_id}/runs/{identificativo}")
-    else:
-        print(f"  run {identificativo}, esperimento {info.experiment_id}")
-    for nome, errore in falliti:
-        print(f"  ATTENZIONE: {nome} non registrati — {errore}")
-    return not falliti
+class Registrazione:
+    """Una run aperta, dentro cui si esegue la valutazione.
+
+    Serve che la run sia **aperta prima** dei casi: una traccia creata mentre una run è in
+    corso le resta agganciata (`mlflow.sourceRun`), e nell'interfaccia si aprono dalla run
+    stessa. Se invece si registrasse alla fine, le tracce dei casi finirebbero
+    nell'esperimento senza legame con la misura che le ha prodotte, e collegarle
+    richiederebbe di andare a memoria sull'orario.
+    """
+
+    def __init__(self, info, mlflow, indirizzo: str, esperimento: str, identificativo: str):
+        self.info, self.mlflow, self.indirizzo = info, mlflow, indirizzo
+        self.esperimento, self.identificativo = esperimento, identificativo
+        self.scritti: list[str] = []
+        self.falliti: list[tuple] = []
+
+    def _passaggio(self, nome: str, scrivi) -> None:
+        try:
+            scrivi()
+            self.scritti.append(nome)
+        except Exception as errore:
+            registro.info("MLflow, %s non registrati: %s", nome, errore)
+            self.falliti.append((nome, errore))
+
+    def scrivi(self, esecuzione: dict, misure: dict, esito_completo: dict | None) -> None:
+        """I tre passaggi, protetti uno per uno: se l'allegato non passa, le metriche
+        restano comunque scritte."""
+        self._passaggio("parametri",
+                        lambda: self.mlflow.log_params(_appiattisci(esecuzione)))
+        self._passaggio("metriche", lambda: self.mlflow.log_metrics(
+            {nome_valido(c): float(v) for c, v in misure.items()
+             if isinstance(v, (int, float))}))
+        self._passaggio("esito completo", lambda: _allega(self.mlflow, esito_completo))
+
+    def riferisci(self, tracce: int = 0) -> bool:
+        print(f"\nEsecuzione registrata su MLflow ({', '.join(self.scritti)}"
+              + (f", {tracce} tracce" if tracce else "") + f"), esperimento «{self.esperimento}»")
+        # il link si stampa solo se è un link: per l'archivio locale un URL http inventato
+        # manderebbe su una pagina che non esiste
+        if self.indirizzo.startswith(("http://", "https://")):
+            print(f"  {self.indirizzo}/#/experiments/{self.info.experiment_id}"
+                  f"/runs/{self.identificativo}")
+        else:
+            print(f"  run {self.identificativo}, esperimento {self.info.experiment_id}")
+        for nome, errore in self.falliti:
+            print(f"  ATTENZIONE: {nome} non registrati — {errore}")
+        return not self.falliti
+
+
+@contextmanager
+def registrazione(nome: str, indirizzo: str | None = None, esperimento: str = ESPERIMENTO,
+                  ripiego: Path | None = None) -> Iterator[Registrazione]:
+    """Apre la run e la tiene aperta per tutta l'esecuzione."""
+    info, mlflow, dove = _collega(indirizzo or conf.MLFLOW, esperimento, ripiego or RIPIEGO)
+    with mlflow.start_run(run_name=nome) as run:
+        yield Registrazione(info, mlflow, dove, esperimento, run.info.run_id)
+
+
+def registra(esecuzione: dict, misure: dict, esito_completo: dict | None = None,
+             indirizzo: str | None = None, esperimento: str = ESPERIMENTO,
+             ripiego: Path | None = None) -> bool:
+    """Scrive l'esecuzione su MLflow in una volta sola, senza tracce da agganciare.
+
+    È la forma breve, per chi non ha bisogno di tenere la run aperta (le foto, la prova).
+    """
+    with registrazione(f"valutazione {esecuzione.get('data', '')}", indirizzo,
+                       esperimento, ripiego) as apertura:
+        apertura.scrivi(esecuzione, misure, esito_completo)
+        return apertura.riferisci()
 
 
 def prova(indirizzo: str | None = None) -> bool:

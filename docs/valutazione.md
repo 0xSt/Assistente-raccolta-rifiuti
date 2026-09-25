@@ -1,6 +1,6 @@
 # La valutazione
 
-> Aggiornato alla **v0.45.0**.
+> Aggiornato alla **v0.46.0**.
 
 Questo documento spiega **cosa misura** il sistema di valutazione, **perché** misura quelle
 cose e non altre, **come** si usa e **come si leggono** i numeri che produce.
@@ -373,6 +373,33 @@ calcola un embedding per ogni formulazione — fino a sette domande per due live
     92 casi (18 regressioni, 63 campione, 11 assenti) · k=8 · solo recupero, nessun modello
     Preparo Qdrant e il vettorizzatore...
       [ 47/92] ok  Napoli · monitor del pc         0.8 s/caso · ~36 s alla fine
+
+### Una traccia per ogni caso
+
+Oltre alle metriche, ogni caso lascia su MLflow una **traccia** con dentro tutto il suo
+percorso: le domande poste all'indice, i documenti usciti nel loro ordine, quelli scartati
+dal filtro sui materiali, la scelta del modello con il motivo. È la stessa traccia che si
+registra per una conversazione vera, quindi si legge con gli stessi occhi.
+
+Le tracce sono agganciate alla run della misura (`mlflow.sourceRun`), quindi si aprono dalla
+run stessa. I tag permettono di filtrare senza scorrerle tutte:
+
+| tag | a cosa serve |
+|---|---|
+| `diagnosi` | `tags.diagnosi = 'il documento non è stato recuperato'` apre i soli recuperi falliti |
+| `insieme` | separa regressioni, campione e assenti |
+| `caso`, `comune` | il singolo caso, o un comune per volta |
+| `recuperato`, `posizione`, `livello` | il tetto e da dove è arrivata la risposta |
+| `atteso` | le destinazioni attese, `(nessuna: deve astenersi)` per i casi negativi |
+
+Il flusso che conviene: si guarda il riepilogo a terminale per sapere **quanti** casi vanno
+male e di che tipo, poi si apre la run su MLflow e si filtra per `diagnosi` per vedere
+**perché**. Con `--senza-tracce` si registra solo la misura.
+
+Una cosa da sapere leggendole: nella modalità completa il recupero compare **due volte** per
+caso — una per misurare il tetto su entrambi i livelli, una eseguita dalla cascata vera, che
+si ferma al livello 1 se trova. È il prezzo di misurare il recupero indipendentemente dalla
+risposta.
 
 ### La serie storica su MLflow
 
