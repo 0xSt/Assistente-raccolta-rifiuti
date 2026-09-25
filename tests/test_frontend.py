@@ -100,6 +100,36 @@ def test_attesa_scaduta_spiega_perche(cliente, monkeypatch):
 ETICHETTE = {"imballaggi_plastica": "Imballaggi in plastica", "organico": "Organico",
              "carta_e_cartone": "Carta e cartone"}
 
+# La forma ricca, quella che passa l'interfaccia da quando mostra anche il colore
+CONTENITORI = {
+    "carta_e_cartone": {"etichetta": "Carta e cartone", "colore": "giallo",
+                        "canale": "raccolta_ordinaria"},
+    "organico": {"etichetta": "Organico", "colore": "marrone",
+                 "canale": "raccolta_ordinaria"},
+    "abiti": {"etichetta": "Contenitore abiti", "colore": None,
+              "canale": "contenitore_dedicato"},
+}
+
+
+def test_il_colore_del_contenitore_si_vede():
+    """È un dato del comune, non una decorazione: è così che si cerca il bidone per strada,
+    e fra Napoli e Torino i colori non coincidono."""
+    assert presentazione.etichette_di(["carta_e_cartone"], CONTENITORI) == \
+        ["🟡 Carta e cartone"]
+    assert presentazione.etichette_di(["organico"], CONTENITORI) == ["🟤 Organico"]
+
+
+def test_senza_colore_si_mostra_il_gesto():
+    """I contenitori dedicati e i centri non hanno un colore: lì la cosa da sapere a colpo
+    d'occhio è se si fa da casa o serve la macchina."""
+    assert presentazione.etichette_di(["abiti"], CONTENITORI) == ["📦 Contenitore abiti"]
+
+
+def test_l_elenco_semplice_continua_a_funzionare():
+    """La forma storica `{nome: "Etichetta"}` resta valida: senza colore, nessun pallino."""
+    assert presentazione.etichette_di(["organico"], ETICHETTE) == ["Organico"]
+    assert presentazione.etichetta("carta_e_cartone", CONTENITORI) == "Carta e cartone"
+
 
 def test_una_regola_di_esclusione_non_viene_ribaltata():
     """Presentata male, una regola di esclusione dice l'opposto del vero."""
@@ -264,6 +294,28 @@ def test_la_ripresa_non_ripete_il_nome_del_contenitore():
         "Bicchiere: va in **Vetro**."
 
 
+def test_la_categoria_dice_quale():
+    """"Ma la categoria a cui appartiene" senza dire quale è un'affermazione che l'utente
+    non può controllare — ed è il punto in cui la scelta sbaglia più spesso."""
+    testo = presentazione.corpo({"livello_evidenza": 1, "tipo_corrispondenza": "categoria",
+                                 "scelto_id": "c1",
+                                 "candidati": [{"id": "c1", "nome": "Giocattolo"}]})
+    assert "la regola è quella di «Giocattolo»." in testo
+
+
+def test_il_tono_dice_quanto_fidarsi_senza_leggere():
+    """Il livello di evidenza smette di essere una frase e diventa il colore del riquadro."""
+    assert presentazione.tono({"livello_evidenza": 1,
+                               "tipo_corrispondenza": "stesso_oggetto"}) == presentazione.NORMALE
+    assert presentazione.tono({"livello_evidenza": 1,
+                               "tipo_corrispondenza": "categoria"}) == presentazione.INCERTO
+    assert presentazione.tono({"livello_evidenza": 3}) == presentazione.INCERTO
+    assert presentazione.tono({"livello_evidenza": 1, "contraddizione": True}) == \
+        presentazione.ATTENZIONE
+    assert presentazione.tono({"livello_evidenza": 3, "chiarimento": "È vuota?"}) == \
+        presentazione.NORMALE, "una domanda non è una risposta di cui diffidare"
+
+
 def test_la_contraddizione_della_fonte_viene_detta():
     """Quando il comune dà destinazioni diverse per lo stesso caso, l'utente deve saperlo."""
     testo = presentazione.corpo({"livello_evidenza": 1, "contraddizione": True})
@@ -312,8 +364,11 @@ def test_le_etichette_si_ricavano_dall_elenco_dei_contenitori(monkeypatch):
 
     monkeypatch.setattr(interfaccia, "elenco_destinazioni",
                         lambda base, comune: [{"nome": "organico", "etichetta": "Organico",
+                                               "colore": "marrone",
                                                "canale": "raccolta_ordinaria"}])
-    assert interfaccia.etichette_destinazioni("x", "Torino") == {"organico": "Organico"}
+    assert interfaccia.etichette_destinazioni("x", "Torino") == {
+        "organico": {"etichetta": "Organico", "colore": "marrone",
+                     "canale": "raccolta_ordinaria"}}
 
 
 # ------------------------------------------------------- il come, non solo il dove

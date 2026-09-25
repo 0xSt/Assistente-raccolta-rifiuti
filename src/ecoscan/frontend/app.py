@@ -17,10 +17,21 @@ from ecoscan.frontend.cliente import ClienteAPI, ErroreBackend
 
 BENVENUTO = (
     "Ciao! Dimmi un oggetto da buttare e ti dico dove va, secondo le regole del tuo comune.\n\n"
-    "Puoi **fotografarlo** con la graffetta qui sotto, oppure **scriverne il nome**: "
-    "\"cartone della pizza\", \"barattolo di vetro\". Se vuoi, aggiungi un dettaglio: "
-    "\"è vuota\", \"è unto\"."
+    "Puoi **fotografarlo** con la graffetta qui sotto, oppure **scriverne il nome**. "
+    "Se vuoi, aggiungi un dettaglio: \"è vuota\", \"è unto\"."
 )
+
+# Quattro esempi da cui partire, scelti perché portano a **quattro comportamenti diversi**:
+# uno schermo vuoto non dice cosa si può chiedere, e quattro pulsanti lo dimostrano in
+# quattro clic (D202). Valgono in entrambi i comuni, e il secondo è il caso che rende visibile la
+# ragione per cui l'app esiste — la stessa cosa, due comuni, due contenitori (D7).
+ESEMPI = (
+    ("cartone della pizza", "ti fa una domanda"),
+    ("bicchiere di vetro", "cambia col comune"),
+    ("lavatrice", "non basta il dove"),
+    ("tavola da surf", "ammette di non saperlo"),
+)
+
 
 def prepara_stato() -> None:
     st.session_state.setdefault("messaggi", [{"ruolo": "assistente", "testo": BENVENUTO}])
@@ -45,9 +56,16 @@ def elenco_destinazioni(base: str, comune: str) -> list[dict]:
         return []
 
 
-def etichette_destinazioni(base: str, comune: str) -> dict[str, str]:
-    """Nome interno -> nome leggibile, per tradurre le risposte."""
-    return {d["nome"]: d["etichetta"] for d in elenco_destinazioni(base, comune)}
+def etichette_destinazioni(base: str, comune: str) -> dict[str, dict]:
+    """Nome interno -> come si mostra: etichetta, colore, canale.
+
+    Il **colore** è un dato del comune che finora si buttava via: sta nella tabella
+    `destinazione`, `/destinazioni` lo espone, e nessuno lo mostrava. È l'informazione con
+    cui una persona cerca il bidone per strada.
+    """
+    return {d["nome"]: {"etichetta": d["etichetta"], "colore": d.get("colore"),
+                        "canale": d.get("canale")}
+            for d in elenco_destinazioni(base, comune)}
 
 
 def legenda(base: str, comune: str) -> None:
@@ -73,7 +91,8 @@ def legenda(base: str, comune: str) -> None:
         for canale, gruppo in canali.items():
             st.markdown(f"**{canale.replace('_', ' ').capitalize()}**")
             for d in gruppo:
-                riga = f"- {d['etichetta']}"
+                pallino = presentazione.segno(d["nome"], {d["nome"]: d})
+                riga = f"- {pallino} {d['etichetta']}".replace("-  ", "- ")
                 if nota := d.get("note"):
                     riga += f" — {nota}"
                 st.markdown(riga)
@@ -81,7 +100,7 @@ def legenda(base: str, comune: str) -> None:
 
 def barra_laterale(cliente: ClienteAPI) -> str | None:
     with st.sidebar:
-        st.markdown("### EcoScan")
+        st.markdown("### ♻️ EcoScan")
         st.caption("Assistente per la raccolta differenziata. Funziona in locale.")
         try:
             comuni = elenco_comuni(cliente.base)
@@ -89,10 +108,12 @@ def barra_laterale(cliente: ClienteAPI) -> str | None:
             st.error(str(errore))
             return None
 
+        # due comuni in un menù a tendina sono due clic per una scelta che si vede tutta:
+        # il controllo a segmenti li mostra entrambi e ne basta uno
         nomi = [c["nome"] for c in comuni]
-        comune = st.selectbox("Comune", nomi, index=0,
-                              help="Le regole cambiano da comune a comune: "
-                                   "la risposta vale solo per quello scelto.")
+        comune = st.segmented_control("Comune", nomi, default=nomi[0],
+                                      help="Le regole cambiano da comune a comune: "
+                                           "la risposta vale solo per quello scelto.") or nomi[0]
         scelto = next(c for c in comuni if c["nome"] == comune)
         st.caption(f"{scelto['gestore']} · {scelto['voci']} voci · {scelto['regole']} regole")
 
@@ -105,6 +126,8 @@ def barra_laterale(cliente: ClienteAPI) -> str | None:
             st.session_state.pop("ultima", None)
             st.rerun()
 
+        # in fondo e chiuso: è un pannello per chi sviluppa, non per chi butta la spazzatura
+        st.divider()
         with st.expander("Stato dei servizi"):
             try:
                 salute = cliente.salute()
@@ -117,6 +140,11 @@ def barra_laterale(cliente: ClienteAPI) -> str | None:
     return comune
 
 
+# Il livello di evidenza smette di essere una frase in fondo e diventa il riquadro in cui
+# la risposta sta: quanto fidarsi si vede prima di leggere (D200).
+RIQUADRO = {presentazione.INCERTO: st.info, presentazione.ATTENZIONE: st.warning}
+
+
 def mostra_messaggio(messaggio: dict) -> None:
     with st.chat_message("user" if messaggio["ruolo"] == "utente" else "assistant"):
         if immagine := messaggio.get("immagine"):
@@ -125,19 +153,21 @@ def mostra_messaggio(messaggio: dict) -> None:
         # deve poter smentire, e dopo la risposta non lo leggerebbe più
         if visto := messaggio.get("riconoscimento"):
             st.caption(visto)
-        if messaggio.get("testo"):
-            st.markdown(messaggio["testo"])
+        if testo := messaggio.get("testo"):
+            riquadro = RIQUADRO.get(messaggio.get("tono") or "")
+            riquadro(testo) if riquadro else st.markdown(testo)
         if nota := messaggio.get("nota"):
             st.caption(nota)
 
 
-def aggiungi_risposta(risposta: dict, etichette: dict[str, str],
+def aggiungi_risposta(risposta: dict, etichette: dict[str, dict],
                       risposto: str | None = None) -> None:
     st.session_state.messaggi.append({
         "ruolo": "assistente",
         "riconoscimento": presentazione.frase_riconoscimento(risposta),
         "testo": presentazione.messaggio(risposta, etichette, risposto),
         "nota": presentazione.nota_fonte(risposta),
+        "tono": presentazione.tono(risposta),
     })
     # il contesto si conserva SEMPRE: serve al chiarimento, ma anche a correggere
     # l'oggetto riconosciuto dopo una risposta già data
@@ -146,21 +176,55 @@ def aggiungi_risposta(risposta: dict, etichette: dict[str, str],
     st.session_state.ultima = risposta
 
 
-def chiedi(etichette: dict[str, str], azione, *argomenti, risposto: str | None = None) -> None:
+FASI_FOTO = ("guardo la foto", "cerco nel dizionario del comune", "scelgo fra le voci trovate")
+FASI_TESTO = ("cerco nel dizionario del comune", "scelgo fra le voci trovate")
+
+
+def attendi(azione, argomenti: tuple, fasi: tuple[str, ...]) -> dict:
+    """Esegue la chiamata mostrando che il tempo passa, e cosa sta succedendo (D203).
+
+    Su CPU una foto sono minuti, e uno spinner con una scritta ferma non distingue "sta
+    lavorando" da "si è piantato": è l'unico punto dell'interfaccia in cui l'utente resta
+    solo abbastanza a lungo da chiederselo.
+
+    **Non si finge di sapere a che fase è arrivato.** Il backend risponde una volta sola, e
+    inventare un avanzamento a tempo sarebbe una barra di caricamento finta. Si dicono i
+    passaggi che farà — che sono tre, e spiegano da soli perché ci mette tanto — e si mostra
+    il cronometro, che è l'unica cosa vera che si sappia. La chiamata va in un thread perché
+    Streamlit disegna solo dal principale: il thread aspetta la rete, il principale aggiorna
+    l'etichetta.
+    """
+    import concurrent.futures
+    import time
+
+    elenco = " · ".join(fasi)
+    with st.status(f"Ci penso… {elenco}", expanded=False) as stato:
+        inizio = time.monotonic()
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+            lavoro = pool.submit(azione, *argomenti)
+            while not lavoro.done():
+                time.sleep(0.4)
+                stato.update(label=f"Ci penso da {int(time.monotonic() - inizio)}s… {elenco}")
+            risposta = lavoro.result()
+        stato.update(label=f"Fatto in {int(time.monotonic() - inizio)}s", state="complete")
+    return risposta
+
+
+def chiedi(etichette: dict[str, dict], azione, *argomenti, risposto: str | None = None,
+           fasi: tuple[str, ...] = FASI_TESTO) -> None:
     """Una chiamata al backend, con l'attesa e l'errore gestiti una volta sola.
 
     `risposto` si passa solo quando questo giro nasce da una **domanda** dell'assistente:
     è la parola che la risposta riprenderà in apertura ("Ok, unto: …").
     """
     try:
-        with st.spinner("Ci penso… su CPU può volerci qualche minuto"):
-            risposta = azione(*argomenti)
-        aggiungi_risposta(risposta, etichette, risposto)
+        aggiungi_risposta(attendi(azione, argomenti, fasi), etichette, risposto)
     except ErroreBackend as errore:
-        st.session_state.messaggi.append({"ruolo": "assistente", "testo": f"⚠️ {errore}"})
+        st.session_state.messaggi.append({"ruolo": "assistente", "testo": f"⚠️ {errore}",
+                                          "tono": presentazione.ATTENZIONE})
 
 
-def pulsanti_chiarimento(cliente: ClienteAPI, etichette: dict[str, str]) -> None:
+def pulsanti_chiarimento(cliente: ClienteAPI, etichette: dict[str, dict]) -> None:
     """Le opzioni del chiarimento come pulsanti.
 
     Le condizioni sono note (vengono dalle varianti del documento), quindi non c'è motivo
@@ -180,7 +244,26 @@ def pulsanti_chiarimento(cliente: ClienteAPI, etichette: dict[str, str]) -> None
             st.rerun()
 
 
-def correzione(cliente: ClienteAPI, etichette: dict[str, str]) -> None:
+def esempi(cliente: ClienteAPI, etichette: dict[str, dict]) -> None:
+    """Quattro oggetti da provare, finché la conversazione non è cominciata.
+
+    Uno schermo vuoto non dice che cosa si può chiedere, e la scritta di benvenuto lo spiega
+    a parole a chi la legge. I quattro pulsanti lo dimostrano in quattro clic, e sono scelti
+    perché portano a **comportamenti diversi**: una domanda, una risposta che cambia col
+    comune, una che non si esaurisce nel contenitore, una in cui l'assistente ammette di non
+    sapere. Spariscono al primo messaggio: servono a partire, non a restare.
+    """
+    if len(st.session_state.messaggi) > 1 or st.session_state.attende_risposta:
+        return
+    st.caption("Oppure prova con uno di questi:")
+    for colonna, (oggetto, cosa) in zip(st.columns(len(ESEMPI)), ESEMPI, strict=False):
+        if colonna.button(oggetto, key=f"esempio-{oggetto}", width="stretch", help=cosa):
+            st.session_state.messaggi.append({"ruolo": "utente", "testo": oggetto})
+            chiedi(etichette, cliente.domanda, st.session_state.comune, oggetto, None)
+            st.rerun()
+
+
+def correzione(cliente: ClienteAPI, etichette: dict[str, dict]) -> None:
     """Se il modello ha visto l'oggetto sbagliato, l'utente lo dice e si rifà solo la
     ricerca: la foto non viene riletta, e chi ha l'oggetto in mano ha ragione."""
     ultima = st.session_state.get("ultima")
@@ -198,16 +281,17 @@ def correzione(cliente: ClienteAPI, etichette: dict[str, str]) -> None:
             st.rerun()
 
 
-def mostra_conversazione(cliente: ClienteAPI, etichette: dict[str, str]) -> None:
+def mostra_conversazione(cliente: ClienteAPI, etichette: dict[str, dict]) -> None:
     """I messaggi e i comandi che accompagnano l'ultima risposta."""
     for messaggio in st.session_state.messaggi:
         mostra_messaggio(messaggio)
     pulsanti_chiarimento(cliente, etichette)
+    esempi(cliente, etichette)
     correzione(cliente, etichette)
 
 
 def gestisci_invio(cliente: ClienteAPI, inserito, comune: str,
-                   etichette: dict[str, str]) -> None:
+                   etichette: dict[str, dict]) -> None:
     """Cosa fare di ciò che l'utente ha appena mandato.
 
     Tre strade, in ordine di precedenza. La **foto** vince sempre: se c'è, è l'oggetto vero e
@@ -231,7 +315,8 @@ def gestisci_invio(cliente: ClienteAPI, inserito, comune: str,
         "immagine": foto.getvalue() if foto else None})
 
     if foto:
-        chiedi(etichette, cliente.analizza, foto.getvalue(), foto.name, comune, testo or None)
+        chiedi(etichette, cliente.analizza, foto.getvalue(), foto.name, comune, testo or None,
+               fasi=FASI_FOTO)
     elif contesto:
         chiedi(etichette, cliente.continua, contesto, testo, risposto=testo)
     else:
@@ -247,6 +332,8 @@ def principale() -> None:
     comune = barra_laterale(cliente)
     if not comune:
         st.stop()
+    # i pulsanti di esempio partono da un callback, dove `comune` non arriva come argomento
+    st.session_state.comune = comune
 
     etichette = etichette_destinazioni(cliente.base, comune)
     mostra_conversazione(cliente, etichette)
