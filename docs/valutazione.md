@@ -1,6 +1,6 @@
 # La valutazione
 
-> Aggiornato alla **v0.48.0**.
+> Aggiornato alla **v0.48.1**.
 
 Questo documento spiega **cosa misura** il sistema di valutazione, **perché** misura quelle
 cose e non altre, **come** si usa e **come si leggono** i numeri che produce.
@@ -303,6 +303,13 @@ giudica sulla domanda.
 
 Non si misurano con `--senza-modello`: la domanda nasce durante la scelta, e senza modello
 non viene nemmeno formulata. Valgono `None`, non zero.
+
+**Si giudicano solo quando la domanda era in gioco** (D191). Se ha risposto una voce diversa
+da quella che il caso aveva in mente — e lo dice la riga «ha risposto la voce X» — il caso
+esce dal denominatore: quella voce poteva avere una variante sola e niente da chiedere, e
+contarla come domanda mancata darebbe la colpa al chiarimento di un difetto della scelta.
+Le risposte arrivate da un'altra voce hanno un blocco loro nell'uscita, perché sono un
+difetto vero e vanno guardate.
 
 ### Livello — `livello_atteso`
 

@@ -43,14 +43,20 @@ PAROLE_DI_SERVIZIO = {"dell", "della", "del", "dei", "degli", "delle", "dal", "d
                       "uno", "gli", "che", "cui", "questo", "questa", "sono", "essere"}
 
 
-def radice(parola: str) -> str:
+def radice(parola: str, minimo: int = 5) -> str:
     """Toglie la vocale finale alle parole lunghe: l'utente scrive al plurale e la fonte
-    al singolare ("non utilizzabili" contro "non utilizzabile")."""
-    return parola[:-1] if len(parola) >= 5 and parola[-1] in "aeio" else parola
+    al singolare ("non utilizzabili" contro "non utilizzabile").
+
+    `minimo` è 5 di norma, perché troncare parole corte fa collidere cose diverse. Le
+    **condizioni** usano 4: sono aggettivi, e l'accordo di genere le manda a vuoto — la
+    fonte scrive "unto" e l'utente "è tutta unta", che è la stessa cosa detta al femminile.
+    """
+    return parola[:-1] if len(parola) >= minimo and parola[-1] in "aeio" else parola
 
 
-def _radicalizza(testo: str) -> str:
-    return " ".join(radice(p) for p in re.findall(r"[a-z0-9]+", (testo or "").lower()))
+def _radicalizza(testo: str, minimo: int = 5) -> str:
+    return " ".join(radice(p, minimo)
+                    for p in re.findall(r"[a-z0-9]+", (testo or "").lower()))
 
 
 def menzionata(condizione: str, noto: str) -> bool:
@@ -59,12 +65,13 @@ def menzionata(condizione: str, noto: str) -> bool:
     "unto" NON è menzionata in "non unto": senza questo controllo le due varianti di un
     oggetto sarebbero indistinguibili proprio quando l'utente è stato più preciso.
     """
-    testo = _radicalizza(noto)
+    # minimo 4: gli aggettivi cambiano genere e numero, e "unta" deve valere "unto"
+    testo = _radicalizza(noto, minimo=4)
     if not testo:
         return False
     base = (condizione or "").lower().strip()
     for variante in {base, *CONDIZIONI_EQUIVALENTI.get(base, set())}:
-        c = _radicalizza(variante)
+        c = _radicalizza(variante, minimo=4)
         if not c or c not in testo:
             continue
         if c.startswith("non ") or f"non {c}" not in testo:
@@ -149,7 +156,7 @@ def nomina_l_oggetto(candidato: Candidato, riconoscimento: Riconoscimento,
     return False
 
 
-def nucleo(nome: str) -> frozenset[str]:
+def nucleo(nome: str) -> tuple[str, ...]:
     """Le parole di un nome che dicono *cosa* è l'oggetto: né materiali né parole di servizio.
 
     "Bicchiere di vetro" e "Bicchiere in plastica" hanno lo stesso nucleo — `bicchier` — e
@@ -159,19 +166,29 @@ def nucleo(nome: str) -> frozenset[str]:
     stretto per accorgersi che due candidati parlano della stessa cosa.
     """
     parole = re.findall(r"[a-zà-ù0-9]+", (nome or "").lower())
-    return frozenset(radice(p) for p in parole
-                     if len(p) >= 3 and p not in PAROLE_DI_SERVIZIO
-                     and not materiali_.famiglia(p))
+    return tuple(radice(p) for p in parole
+                 if len(p) >= 3 and p not in PAROLE_DI_SERVIZIO
+                 and not materiali_.famiglia(p))
 
 
 def stessa_cosa(uno: str, altro: str) -> bool:
     """Due nomi parlano dello stesso oggetto, a meno del materiale e delle qualificazioni.
 
-    Il confronto è per inclusione e non per uguaglianza: "Vaschette in alluminio" e
-    "Vaschette alimentari in plastica" sono la stessa cosa detta con una parola in più.
+    Servono **due** condizioni, e la prima è quella che conta:
+
+    - la **testa** dev'essere la stessa. In italiano il nome dell'oggetto viene per primo e
+      le qualificazioni seguono: "Vaschette alimentari" è una vaschetta, "Cartone da
+      imballaggio" è un cartone. Senza questo vincolo bastava una parola in comune in coda,
+      e "Polistirolo espanso: gusci e barre **da imballaggio**" diventava parente di
+      "Cartone **da imballaggio**" — da cui la domanda "carta oppure plastica?" su un
+      polistirolo, osservata il 25/09;
+    - il resto per **inclusione**, così "Vaschette in alluminio" e "Vaschette alimentari in
+      plastica" restano la stessa cosa detta con una parola in più.
     """
     primo, secondo = nucleo(uno), nucleo(altro)
-    return bool(primo and secondo) and (primo <= secondo or secondo <= primo)
+    if not (primo and secondo) or primo[0] != secondo[0]:
+        return False
+    return set(primo) <= set(secondo) or set(secondo) <= set(primo)
 
 
 def scegli_variante(candidato: Candidato, testi: list[str | None]) -> tuple[Variante | None, list[str]]:

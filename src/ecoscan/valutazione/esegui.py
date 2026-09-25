@@ -143,14 +143,31 @@ class Esito:
         return bool(self.chiarimento)
 
     @property
+    def dalla_voce_attesa(self) -> bool | None:
+        """La risposta è arrivata dalla voce che il caso aveva in mente.
+
+        `None` quando non c'è modo di dirlo: un caso senza `voce_fonte`, o un esito senza
+        documento scelto.
+        """
+        if not (self.caso.voce_fonte and self.scelto):
+            return None
+        return self.scelto in self.caso.voce_fonte
+
+    @property
     def chiarimento_corretto(self) -> bool | None:
         """Ha chiesto quando doveva, e taciuto quando non serviva.
 
-        `None` quando il caso non lo verifica o la scelta non è stata eseguita: senza
-        modello la domanda non viene nemmeno formulata, e contarla come mancata direbbe il
-        falso su qualcosa che non è stato misurato.
+        `None` quando il caso non lo verifica, quando la scelta non è stata eseguita, o
+        quando **ha risposto un'altra voce**. L'ultimo caso è il difetto di attribuzione
+        scoperto il 25/09: su undici mancate domande, dieci erano risposte arrivate da una
+        voce diversa — «Barattolo in vetro» al posto di «Contenitori creme», «Tende in
+        stoffa» al posto di «Pantofole di stoffa». Lì la domanda non era nemmeno in gioco:
+        la voce scelta aveva una variante sola e nulla da chiedere. Contarle come domande
+        mancate dava la colpa al chiarimento di un difetto della **scelta**.
         """
         if self.caso.chiarimento_atteso is None or not self.valutata_la_scelta:
+            return None
+        if self.dalla_voce_attesa is False:
             return None
         return self.ha_chiesto == self.caso.chiarimento_atteso
 
@@ -407,8 +424,12 @@ def misure(esiti: list[Esito], k: int = 8) -> dict[str, float | int | None]:
 
     # C) le due domande, da leggere in coppia come le astensioni: chiedere sempre e non
     # chiedere mai sono due difetti opposti, e un numero solo li confonderebbe
-    dovute = [e for e in esiti if e.caso.chiarimento_atteso is True and e.valutata_la_scelta]
-    inutili = [e for e in esiti if e.caso.chiarimento_atteso is False and e.valutata_la_scelta]
+    # il denominatore sono i casi in cui la domanda era **giudicabile**: la scelta
+    # eseguita, e la risposta arrivata dalla voce che il caso aveva in mente
+    dovute = [e for e in esiti
+              if e.caso.chiarimento_atteso is True and e.chiarimento_corretto is not None]
+    inutili = [e for e in esiti
+               if e.caso.chiarimento_atteso is False and e.chiarimento_corretto is not None]
     valori["domanda_dovuta"] = _percentuale(sum(1 for e in dovute if e.ha_chiesto), len(dovute))
     valori["domanda_inutile"] = _percentuale(sum(1 for e in inutili if e.ha_chiesto),
                                              len(inutili))
@@ -506,6 +527,13 @@ def riepiloga(esiti: list[Esito], k: int = 8) -> None:
     _per_strato([e for e in esiti if not e.caso.negativo], "comune", lambda e: e.caso.comune)
     _per_strato([e for e in esiti if not e.caso.negativo], "canale",
                 lambda e: (e.caso.strato or {}).get("canale"))
+
+    altra_voce = [e for e in esiti if e.dalla_voce_attesa is False]
+    if altra_voce:
+        print(f"\n## Risposte arrivate da un'altra voce: {len(altra_voce)}")
+        print("  (la domanda non era in gioco: è la scelta ad aver preso un altro documento)")
+        for e in altra_voce[:10]:
+            print(f"  {e.caso.id[:44]:46} «{e.scelto}» invece di «{e.caso.voce_fonte[:36]}»")
 
     print("\n## Dove intervenire")
     for diagnosi in (RECUPERO_FALLITO, SCELTA_SBAGLIATA, CANALE_PERSO, NON_ASTENUTO,

@@ -594,3 +594,30 @@ def test_l_esito_dice_quale_voce_ha_risposto():
                       destinazioni=["Contenitore Farmaco"], scelto="Medicinale")
     assert esito.scelto == "Medicinale"
     assert val.come_json([esito])["esiti"][caso.id]["scelto"] == "Medicinale"
+
+
+def test_una_risposta_da_un_altra_voce_non_e_una_domanda_mancata():
+    """Il difetto di attribuzione del 25/09: su undici mancate domande, dieci erano
+    risposte arrivate da una voce diversa, che aveva una variante sola e nulla da chiedere.
+    Contarle come domande mancate dava la colpa al chiarimento di un difetto della scelta."""
+    caso = Caso(comune="Napoli", oggetto="ciabatte di stoffa da casa",
+                voce_fonte="Pantofole di stoffa", origine="chiarimenti",
+                chiarimento_atteso=True,
+                destinazioni_attese=["Contenitore Abiti Usati", "Isola Ecologica Estesa"])
+    altrove = val.Esito(caso=caso, recuperato=True, posizione=1,
+                        destinazioni=["Contenitore Abiti Usati"], scelto="Tende in stoffa")
+    assert altrove.dalla_voce_attesa is False
+    assert altrove.chiarimento_corretto is None, "la domanda non era in gioco"
+    assert altrove.diagnosi == val.CANALE_PERSO, "resta il difetto della risposta"
+    assert val.misure([altrove])["domanda_dovuta"] is None
+
+
+def test_la_domanda_si_giudica_quando_ha_risposto_la_voce_giusta():
+    caso = Caso(comune="Napoli", oggetto="scatola della pizza",
+                voce_fonte="Cartone per pizze", origine="chiarimenti",
+                chiarimento_atteso=True,
+                destinazioni_attese=["Carta e Cartoncino", "Organico"])
+    muto = val.Esito(caso=caso, recuperato=True, posizione=1, scelto="Cartone per pizze",
+                     destinazioni=["Carta e Cartoncino"])
+    assert muto.dalla_voce_attesa is True
+    assert muto.diagnosi == val.MANCATA_DOMANDA
