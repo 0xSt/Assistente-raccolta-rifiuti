@@ -154,8 +154,10 @@ def mostra_messaggio(messaggio: dict) -> None:
         if visto := messaggio.get("riconoscimento"):
             st.caption(visto)
         if testo := messaggio.get("testo"):
-            riquadro = RIQUADRO.get(messaggio.get("tono") or "")
-            riquadro(testo) if riquadro else st.markdown(testo)
+            # si sceglie la funzione e POI la si chiama: scritto come espressione
+            # condizionale, il valore restituito resta "nudo" nello script e la magia di
+            # Streamlit lo stampa — cioè stampa il DeltaGenerator con tutto il suo aiuto
+            RIQUADRO.get(messaggio.get("tono") or "", st.markdown)(testo)
         if nota := messaggio.get("nota"):
             st.caption(nota)
 

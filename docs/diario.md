@@ -29,7 +29,7 @@ Va aggiornato **a ogni cambiamento sostanziale**, non a ogni riga di codice. In 
 
 ---
 
-## Stato attuale (v0.50.0, 25/09/2026)
+## Stato attuale (v0.50.1, 25/09/2026)
 
 | Componente | Stato |
 |---|---|
@@ -87,6 +87,7 @@ Formato: decisione, motivazione, stato.
 | D200 | Il livello di evidenza diventa il **riquadro** in cui la risposta sta: azzurro quando non viene dalla voce dell'oggetto (livello 3, livello 2, livello 1 per categoria), giallo quando la fonte si contraddice | Era una frase in fondo al messaggio, cioè l'ultima cosa che si legge e la prima che si salta; ma "quanto fidarsi" è ciò che decide se andare a controllare, e va visto prima di leggere. Una domanda resta bianca: non è una risposta di cui diffidare | Accettata |
 | D201 | La risposta mostra il **colore del contenitore**, come pallino davanti al nome; dove colore non c'è, l'icona del canale | Il colore è un dato del comune che stava nel database e nessuno mostrava, ed è l'informazione con cui una persona cerca il bidone per strada. Fra i due comuni non coincide — carta blu a Napoli e gialla a Torino, giallo a Napoli è la plastica — quindi è anche la dimostrazione visiva di D7: chi si è trasferito sbaglia con sicurezza. L'icona del canale, dove il colore manca, dice il gesto: sotto casa o in macchina | Accettata |
 | D202 | Lo schermo iniziale offre **quattro oggetti da provare**, scelti perché portano a quattro comportamenti diversi: una domanda, una risposta che cambia col comune, una che non si esaurisce nel contenitore, una in cui l'assistente ammette di non sapere | Uno schermo vuoto non dice cosa si può chiedere, e la scritta di benvenuto lo spiega a chi la legge. Quattro pulsanti lo dimostrano in quattro clic, e insieme sono la dimostrazione del sistema: davanti a chi guarda l'app per la prima volta si mostra da sola invece di aspettare che qualcuno digiti | Accettata |
+| D204 | Nel frontend non restano **espressioni nude**: un'espressione lasciata da sola dev'essere una chiamata di funzione o una stringa di documentazione, e un test lo verifica sull'albero sintattico | Streamlit stampa il valore di ogni espressione lasciata da sola ("magia"). `riquadro(testo) if riquadro else st.markdown(testo)` è un'espressione: nella chat finiva il `DeltaGenerator` restituito, con accanto la documentazione della classe. Non dà errore, non lo vede nessun test sul testo, e il codice sembra giusto a leggerlo: è esattamente il tipo di difetto che vale la pena affidare a un controllo automatico invece che all'occhio | Accettata |
 | D203 | Durante l'attesa si mostrano il **cronometro** e i passaggi che il sistema farà, **senza fingere** di sapere a che punto è | Su CPU una foto sono minuti, e uno spinner con una scritta ferma non distingue "sta lavorando" da "si è piantato". Il backend però risponde una volta sola: inventare un avanzamento a tempo sarebbe una barra di caricamento finta, che è una bugia piccola ma della stessa famiglia di quelle che questo progetto evita altrove. Si dice cosa farà — tre passaggi, che spiegano da soli perché ci mette tanto — e si mostra il tempo, che è l'unica cosa vera che si sappia | Accettata |
 | D198 | La domanda **non** elenca prima i contenitori fra cui cambia la risposta: è una riga e i pulsanti. Le due strade si scrivono dopo, sotto la risposta | Decisione di Stef, dopo aver provato "scarpe vecchie". Sembrava che la posta in gioco spiegasse la domanda; in realtà la anticipava, e davanti a due pulsanti che portano le stesse parole della domanda non c'era niente da spiegare. Sotto la risposta le stesse due strade valgono di più, perché una è quella giusta per l'oggetto che si ha in mano: per questo cade anche la parte di D196 che le nascondeva al secondo turno | Accettata |
 | D197 | Il pannello "Come ci sono arrivato" — citazione del documento, motivo della scelta, voci scartate, tabella dei punteggi — si rimuove. La provenienza resta nella nota sotto la risposta, con il link alla fonte | Supera D133, per decisione di Stef. Serviva a chi sviluppa il sistema, e per quello ci sono le tracce su MLflow, che mostrano gli stessi dati per intero e senza limite di tre righe; sotto la risposta era un invito ad andare a controllare che spostava il lavoro sull'utente. La garanzia che la destinazione non sia inventata non la dava comunque la citazione — la dà il fatto che la scelta è vincolata ai candidati (D9) — e ciò che l'utente può verificare davvero è la fonte, che resta linkata | Accettata |
@@ -358,6 +359,20 @@ Cose imparate che non sono decisioni, ma che conviene ricordare.
 ---
 
 ## Cronologia
+
+### v0.50.1 — 25/09/2026
+
+**La magia di Streamlit stampava un DeltaGenerator nella chat** (D204). In
+`mostra_messaggio` la scelta del riquadro era scritta come espressione condizionale —
+`riquadro(testo) if riquadro else st.markdown(testo)` — e un'espressione lasciata da sola
+Streamlit la *stampa*: sotto la risposta comparivano l'oggetto interno e l'intera
+documentazione della classe `DeltaGenerator`. Ora si sceglie la funzione e poi la si chiama,
+con `st.markdown` come valore predefinito.
+
+Il difetto non dava errore e nessun test sul testo lo vedeva, perché il testo era giusto: a
+sbagliare era ciò che Streamlit aggiungeva intorno. Un controllo statico sull'albero
+sintattico dei file di `frontend/` ora rifiuta le espressioni nude che non siano chiamate o
+stringhe di documentazione.
 
 ### v0.50.0 — 25/09/2026
 
