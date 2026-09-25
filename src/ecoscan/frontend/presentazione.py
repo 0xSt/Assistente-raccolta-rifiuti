@@ -130,17 +130,16 @@ def titolo(risposta: dict, etichette: dict[str, str] | None = None,
     return f"{oggetto}: {verbo} **{nomi}**{coda}."
 
 
-def corpo(risposta: dict, etichette: dict[str, str] | None = None,
-          risposto: str | None = None) -> str:
+def corpo(risposta: dict, etichette: dict[str, str] | None = None) -> str:
     """Il resto del messaggio: l'altra strada, l'avvertenza, il come, il livello.
 
-    Dopo una domanda l'altra strada **non** si ripete: era già nel messaggio precedente,
-    che l'aveva mostrata proprio per far capire cosa c'era in gioco. La regola "una cosa si
-    dice una volta sola" vale anche fra due turni, non solo dentro un messaggio.
+    L'altra strada si scrive **anche** dopo una domanda (D198): è lì che si impara la regola,
+    perché una delle due è la risposta per l'oggetto che si ha in mano. La domanda, che ora è
+    solo una domanda, non l'ha anticipata.
     """
     righe: list[str] = []
 
-    if risposto is None and (alternative := altre_varianti(risposta, etichette)):
+    if alternative := altre_varianti(risposta, etichette):
         righe.append(alternative)
     if avvertenza := risposta.get("avvertenza"):
         righe.append(f"⚠️ {avvertenza}")
@@ -254,38 +253,24 @@ def altre_varianti(risposta: dict, etichette: dict[str, str] | None = None) -> s
     return "Le varianti di questo oggetto: " + " · ".join(pezzi) + "."
 
 
-def posta_in_gioco(risposta: dict, etichette: dict[str, str] | None = None) -> str:
-    """Perché sto chiedendo: i due contenitori fra cui cambia la risposta.
-
-    Una domanda senza il motivo è un modulo da compilare; con il motivo è una cosa che si
-    capisce, e l'utente sa anche **quanto** conta rispondere bene.
-    """
-    varianti = varianti_di(risposta)
-    if len(varianti) < 2:
-        return ""
-    pezzi = []
-    for variante in varianti:
-        condizione = variante.get("condizione")
-        premessa = condizioni_.premessa([condizione]) if condizione else "negli altri casi"
-        pezzi.append(f"{premessa} va in **{dove_va(variante, etichette)}**")
-    return "Il contenitore dipende: " + ", ".join(pezzi) + "."
-
-
-def domanda(risposta: dict, etichette: dict[str, str] | None = None) -> str:
-    """Il messaggio quando l'assistente chiede, che è **solo** la domanda (D194).
+def domanda(risposta: dict) -> str:
+    """Il messaggio quando l'assistente chiede, che è **solo** la domanda (D194, D198).
 
     Prima la domanda era l'ultima riga di una risposta completa: l'utente leggeva una
     destinazione, delle procedure e una fonte, e solo in fondo scopriva che non era una
     risposta. Chi si fermava prima portava via un contenitore che l'assistente non si sentiva
     di garantire — e la metrica `domanda_dovuta` lo contava come un successo.
 
-    Se chiede, chiede: la destinazione, il come e la fonte arrivano al turno dopo, quando
-    sono vere.
+    **Nemmeno la posta in gioco** (D198). Elencare prima i due contenitori fra cui cambia la
+    risposta sembrava spiegare la domanda; in realtà la anticipava, e davanti a due pulsanti
+    che portano le stesse parole della domanda non c'è niente da spiegare. Le due strade si
+    imparano meglio **dopo**, sotto la risposta, dove una è quella giusta per l'oggetto che
+    si ha in mano.
+
+    Se chiede, chiede: una riga e i pulsanti.
     """
     testo = risposta.get("chiarimento")
-    if not testo:
-        return ""
-    return "\n\n".join(p for p in (posta_in_gioco(risposta, etichette), f"**{testo}**") if p)
+    return f"**{testo}**" if testo else ""
 
 
 def frase_riconoscimento(risposta: dict) -> str:
@@ -352,7 +337,7 @@ def messaggio(risposta: dict, etichette: dict[str, str] | None = None,
     `risposto` è ciò che l'utente ha appena detto a una domanda, e serve solo a riprenderlo
     nel titolo: fuori dal chiarimento resta `None`.
     """
-    if chiede := domanda(risposta, etichette):
+    if chiede := domanda(risposta):
         return chiede
     return "\n\n".join(p for p in (titolo(risposta, etichette, risposto),
-                                   corpo(risposta, etichette, risposto)) if p)
+                                   corpo(risposta, etichette)) if p)
