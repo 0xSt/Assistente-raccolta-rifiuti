@@ -255,16 +255,6 @@ def test_la_risposta_riprende_cio_che_l_utente_ha_appena_detto():
     assert presentazione.titolo(risposta, ETICHETTE).startswith("Cartone della pizza:")
 
 
-def test_dopo_una_domanda_l_altra_strada_non_si_ripete():
-    """L'aveva già mostrata la domanda, per far capire cosa c'era in gioco."""
-    risposta = {"livello_evidenza": 1, "oggetto": "cartone della pizza",
-                "destinazioni": ["organico"], "condizioni": ["unto"],
-                "scelto_id": "c1", "candidati": [{"id": "c1", "varianti": [
-                    {"condizione": "pulito", "destinazioni": ["carta_e_cartone"]},
-                    {"condizione": "unto", "destinazioni": ["organico"]}]}]}
-    assert presentazione.messaggio(risposta, ETICHETTE, risposto="unto") == \
-        "Ok, unto: va in **Organico**."
-    assert "Se invece è pulito" in presentazione.messaggio(risposta, ETICHETTE)
 
 
 def test_la_ripresa_non_ripete_il_nome_del_contenitore():
@@ -418,17 +408,16 @@ def test_quando_chiede_il_messaggio_e_solo_la_domanda():
     assert presentazione.nota_fonte(DOMANDA) == "", "non c'è ancora una fonte da dichiarare"
 
 
-def test_la_domanda_dice_anche_perche_la_sto_facendo():
-    """Senza la posta in gioco è un modulo da compilare; con, si capisce quanto conta."""
-    testo = presentazione.messaggio(DOMANDA, ETICHETTE)
-    assert testo.startswith("Il contenitore dipende: se è pulito va in **Carta e cartone**, "
-                            "se è unto va in **Organico**.")
+def test_la_domanda_e_una_riga_sola():
+    """Elencare prima i contenitori fra cui cambia la risposta non spiegava la domanda: la
+    anticipava, e i pulsanti portano già le stesse parole."""
+    assert presentazione.messaggio(DOMANDA, ETICHETTE) == \
+        "**" + DOMANDA["chiarimento"] + "**"
+    assert "dipende" not in presentazione.messaggio(DOMANDA, ETICHETTE)
 
 
-def test_una_domanda_senza_varianti_resta_la_domanda_sola():
-    """La domanda sul materiale non nasce dalle varianti di una voce: non c'è posta in
-    gioco da mostrare, e inventarla sarebbe peggio che tacere."""
-    testo = presentazione.messaggio({"livello_evidenza": 1, "destinazioni": ["organico"],
-                                     "chiarimento": "Di che materiale è: vetro oppure plastica?"},
-                                    ETICHETTE)
-    assert testo == "**Di che materiale è: vetro oppure plastica?**"
+def test_le_due_strade_si_imparano_dopo_la_risposta():
+    """È lì che servono: una delle due è la risposta per l'oggetto che si ha in mano."""
+    risposto = dict(DOMANDA, chiarimento=None)
+    assert "Se invece è pulito: **Carta e cartone**." in \
+        presentazione.messaggio(risposto, ETICHETTE, risposto="unto")

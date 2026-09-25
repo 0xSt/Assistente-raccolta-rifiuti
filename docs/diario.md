@@ -29,7 +29,7 @@ Va aggiornato **a ogni cambiamento sostanziale**, non a ogni riga di codice. In 
 
 ---
 
-## Stato attuale (v0.49.0, 25/09/2026)
+## Stato attuale (v0.49.1, 25/09/2026)
 
 | Componente | Stato |
 |---|---|
@@ -41,8 +41,8 @@ Va aggiornato **a ogni cambiamento sostanziale**, non a ogni riga di codice. In 
 | Load relazionale | Fatto: `ecoscan-carica` ricostruisce `data/ecoscan.db` dai file normalizzati |
 | Serving | Documenti su Qdrant, sola ricerca semantica, aggancio esatto dei codici materiale |
 | Agente | Fatto: riconoscimento, cascata dei livelli, scelta vincolata, risposta. Indipendente da HTTP |
-| API FastAPI | Fatto: analizza, continua, correggi, cerca, comuni, destinazioni, salute, riscontro |
-| Frontend a chat | Fatto (v0.31.0): etichette leggibili, riconoscimento visibile e correggibile, chiarimenti a pulsante, fonte in nota. Messaggi asciugati in v0.49.0 (D192–D197) |
+| API FastAPI | Fatto: analizza, continua, correggi, domanda, cerca, comuni, destinazioni, salute |
+| Frontend a chat | Fatto (v0.31.0): etichette leggibili, riconoscimento visibile e correggibile, chiarimenti a pulsante, fonte in nota. Messaggi asciugati in v0.49.1 (D192–D198) |
 | Osservabilità | Fatto (v0.30.0): tracce MLflow per turno con foto, retrieval e sessione; versione dell'app e prompt collegati |
 | Docker | Fatto: qdrant, mlflow, backend, frontend; ollama sotto profilo |
 | Regole di categoria — Napoli | Completo per quanto la fonte pubblica: 38 ammessi, 11 esclusi (5 Vetro estratti + 6 Umido trascritti a mano), 2 assenze verificate |
@@ -80,9 +80,10 @@ Formato: decisione, motivazione, stato.
 | D10 | Ricerca a cascata: voci → regole di categoria → livello 3 | Il livello di evidenza diventa un risultato del flusso, non una stima del modello | Accettata |
 | D192 | **Una cosa si dice una volta sola.** La condizione applicata sta nel titolo ("va in Organico **se è unto**") e non più in una riga sua; con due varianti l'altra strada diventa una frase ("Se invece è pulito: Carta e cartone.") invece di una tabella | "unto" compariva tre volte nello stesso messaggio: nel riconoscimento, in un "Vale se è unto." tutto suo e nella riga delle varianti. Tre affermazioni che l'utente deve rimettere insieme da solo, mentre "va in Organico se è unto" è una frase e si legge una volta. La tabella resta da tre varianti in su, dove il confronto è davvero fra più righe | Accettata |
 | D193 | **Si parla quando c'è un'eccezione.** Il livello di evidenza si scrive solo per `categoria`, livello 2 e livello 3; la procedura della raccolta ordinaria, quando è l'unica, non si scrive | Una frase presente in ogni risposta non informa: diventa arredamento che l'occhio salta, e porta con sé quelle che invece contavano. "Il comune elenca proprio questo oggetto" era vera nella grande maggioranza dei casi, e la procedura ordinaria («Lo butti da casa» + due passi + una nota) è il canale della maggioranza delle voci: tre righe uguali sotto ogni oggetto. Restano dove dicono qualcosa | Accettata |
-| D194 | **Quando chiede, chiede e basta**: se c'è un chiarimento il messaggio è la domanda, preceduta dalla posta in gioco ("Il contenitore dipende: se è pulito va in Carta e cartone, se è unto va in Organico"). Destinazione, procedure e fonte arrivano al turno dopo | La domanda era l'ultima riga di una risposta completa: chi si fermava prima portava via un contenitore che l'assistente non si sentiva di garantire, e la fonte sotto dava alla domanda l'aria di una risposta. È anche il difetto che la metrica non vedeva: `domanda_dovuta` contava come successo una domanda che l'utente poteva ignorare senza accorgersene. La posta in gioco c'è perché una domanda senza il motivo è un modulo da compilare | Accettata |
+| D194 | **Quando chiede, chiede e basta**: se c'è un chiarimento il messaggio è la domanda e nient'altro (la posta in gioco che accompagnava la domanda è caduta con D198). Destinazione, procedure e fonte arrivano al turno dopo | La domanda era l'ultima riga di una risposta completa: chi si fermava prima portava via un contenitore che l'assistente non si sentiva di garantire, e la fonte sotto dava alla domanda l'aria di una risposta. È anche il difetto che la metrica non vedeva: `domanda_dovuta` contava come successo una domanda che l'utente poteva ignorare senza accorgersene. La posta in gioco c'è perché una domanda senza il motivo è un modulo da compilare | Accettata |
 | D195 | Del riconoscimento si mostrano **oggetto e stato**, e il materiale solo se ha deciso (cioè se è fra le condizioni applicate). Categoria, confidenza ed emoji spariscono | La riga serve a una cosa sola: farsi smentire. La categoria è una parola di tassonomia che nessuno userebbe per il proprio oggetto, e la confidenza è un giudizio che l'assistente dà su di sé, su cui l'utente non può fare niente — quando è troppo bassa il sistema chiede già di rifare la foto, che è la forma utile della stessa informazione. Il materiale conta negli omonimi ("bicchiere" di vetro contro di plastica), ed è lì che si mostra | Accettata |
-| D196 | La risposta a una domanda si apre **riprendendo ciò che l'utente ha appena detto**: "Ok, unto: va in Organico." Si riprende la condizione **applicata**, non le sue parole, e l'altra strada non si ripete | È la parola che fa di due messaggi affiancati uno scambio: senza, il secondo turno riparte da zero come se la domanda non fosse mai stata fatta. La condizione applicata viene dai dati del comune, quindi è sempre scritta bene anche quando l'utente aveva scritto "è tutta unta"; e l'altra strada l'aveva già mostrata la domanda, proprio per far capire cosa c'era in gioco (D192 vale anche fra due turni) | Accettata |
+| D196 | La risposta a una domanda si apre **riprendendo ciò che l'utente ha appena detto**: "Ok, unto: va in Organico." Si riprende la condizione **applicata**, non le sue parole | È la parola che fa di due messaggi affiancati uno scambio: senza, il secondo turno riparte da zero come se la domanda non fosse mai stata fatta. La condizione applicata viene dai dati del comune, quindi è sempre scritta bene anche quando l'utente aveva scritto "è tutta unta" | Accettata |
+| D198 | La domanda **non** elenca prima i contenitori fra cui cambia la risposta: è una riga e i pulsanti. Le due strade si scrivono dopo, sotto la risposta | Decisione di Stef, dopo aver provato "scarpe vecchie". Sembrava che la posta in gioco spiegasse la domanda; in realtà la anticipava, e davanti a due pulsanti che portano le stesse parole della domanda non c'era niente da spiegare. Sotto la risposta le stesse due strade valgono di più, perché una è quella giusta per l'oggetto che si ha in mano: per questo cade anche la parte di D196 che le nascondeva al secondo turno | Accettata |
 | D197 | Il pannello "Come ci sono arrivato" — citazione del documento, motivo della scelta, voci scartate, tabella dei punteggi — si rimuove. La provenienza resta nella nota sotto la risposta, con il link alla fonte | Supera D133, per decisione di Stef. Serviva a chi sviluppa il sistema, e per quello ci sono le tracce su MLflow, che mostrano gli stessi dati per intero e senza limite di tre righe; sotto la risposta era un invito ad andare a controllare che spostava il lavoro sull'utente. La garanzia che la destinazione non sia inventata non la dava comunque la citazione — la dà il fatto che la scelta è vincolata ai candidati (D9) — e ciò che l'utente può verificare davvero è la fonte, che resta linkata | Accettata |
 
 ### Schema dati
@@ -352,6 +353,20 @@ Cose imparate che non sono decisioni, ma che conviene ricordare.
 ---
 
 ## Cronologia
+
+### v0.49.1 — 25/09/2026
+
+**La domanda è una riga e i pulsanti** (D198). Provando "scarpe vecchie", la domanda
+arrivava così: «Il contenitore dipende: se è non utilizzabile va in Non Riciclabile, se è
+utilizzabile va in Contenitore Abiti Usati.» e sotto «Per rispondere con certezza devo
+sapere se l'oggetto è: non utilizzabile oppure utilizzabile?», con i due pulsanti. La prima
+riga sembrava spiegare la domanda; in realtà la anticipava, e i pulsanti portavano già le
+stesse parole. Ora resta la domanda sola.
+
+Cade con essa la parte di D196 che nascondeva l'altra strada al secondo turno: la nascondeva
+perché l'aveva già mostrata la domanda, e adesso la domanda non mostra più niente. Le due
+strade tornano dove valgono di più — sotto la risposta, dove una delle due è quella giusta
+per l'oggetto che si ha in mano.
 
 ### v0.49.0 — 25/09/2026
 
