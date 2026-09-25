@@ -83,6 +83,10 @@ RECUPERATO = "documento recuperato (la risposta non è stata valutata)"
 # I casi negativi hanno una coppia di diagnosi tutta loro: il successo è il silenzio.
 ASTENUTO = "astensione corretta: nessuna regola del comune copre l'oggetto"
 NON_ASTENUTO = "ha risposto invece di astenersi"
+# La domanda ha una coppia sua, per lo stesso motivo delle astensioni: chiedere sempre e
+# non chiedere mai sono due difetti opposti, e un numero solo li confonderebbe.
+MANCATA_DOMANDA = "doveva chiedere la condizione e ha risposto lo stesso"
+DOMANDA_INUTILE = "ha chiesto una condizione che l'utente aveva già dichiarato"
 
 # Dove finiscono gli esiti salvati da sé: non versionati (vedi .gitignore)
 ESECUZIONI = DATI / "valutazione" / "esecuzioni"
@@ -100,6 +104,8 @@ class Esito:
     posizione: int | None = None           # dove stava il primo documento giusto (1-based)
     valutata_la_scelta: bool = True
     raggiungibili: list[str] = field(default_factory=list)   # dove portano i candidati trovati
+    chiarimento: str | None = None         # la domanda fatta all'utente, se c'è stata
+    opzioni: list[str] = field(default_factory=list)         # le risposte possibili
 
     @property
     def contenitore_corretto(self) -> bool | None:
@@ -131,6 +137,22 @@ class Esito:
         return len(set(self.destinazioni) & attese) / len(attese)
 
     @property
+    def ha_chiesto(self) -> bool:
+        return bool(self.chiarimento)
+
+    @property
+    def chiarimento_corretto(self) -> bool | None:
+        """Ha chiesto quando doveva, e taciuto quando non serviva.
+
+        `None` quando il caso non lo verifica o la scelta non è stata eseguita: senza
+        modello la domanda non viene nemmeno formulata, e contarla come mancata direbbe il
+        falso su qualcosa che non è stato misurato.
+        """
+        if self.caso.chiarimento_atteso is None or not self.valutata_la_scelta:
+            return None
+        return self.ha_chiesto == self.caso.chiarimento_atteso
+
+    @property
     def perfetta(self) -> bool:
         """Contenitore giusto e nessuna alternativa persa: il vecchio `risposta_corretta`.
 
@@ -160,6 +182,8 @@ class Esito:
             return ASTENUTO if self.contenitore_corretto else NON_ASTENUTO
         if not self.valutata_la_scelta:
             return RECUPERATO if self.recuperato else RECUPERO_FALLITO
+        if self.chiarimento_corretto is False:
+            return MANCATA_DOMANDA if self.caso.chiarimento_atteso else DOMANDA_INUTILE
         if self.perfetta:
             return CORRETTO if self.recuperato else ALTRA_STRADA
         if self.contenitore_corretto:
@@ -206,6 +230,7 @@ def valuta_caso(agente: Agente, caso: Caso, con_modello: bool = True,
     with agente.tracciatore.turno("valutazione", sessione or caso.origine, ingressi) as radice:
         esito = _valuta(agente, caso, con_modello)
         radice.uscita({"destinazioni": esito.destinazioni, "livello": esito.livello,
+                       "chiarimento": esito.chiarimento, "opzioni": esito.opzioni,
                        "recuperato": esito.recuperato, "posizione": esito.posizione,
                        "candidati": esito.candidati, "diagnosi": esito.diagnosi,
                        "raggiungibili": esito.raggiungibili})
@@ -215,6 +240,8 @@ def valuta_caso(agente: Agente, caso: Caso, con_modello: bool = True,
             radice, caso=caso.id, insieme=caso.origine, comune=caso.comune,
             diagnosi=esito.diagnosi, recuperato="si" if esito.recuperato else "no",
             posizione=esito.posizione, livello=esito.livello,
+            chiede="si" if esito.ha_chiesto else "no",
+            chiarimento_atteso={True: "si", False: "no"}.get(caso.chiarimento_atteso),
             atteso=" · ".join(caso.destinazioni_attese) or "(nessuna: deve astenersi)")
     return esito
 
@@ -242,7 +269,8 @@ def _valuta(agente: Agente, caso: Caso, con_modello: bool) -> Esito:
     risposta = agente.rispondi(caso.riconoscimento, caso.comune, caso.testo_utente)
     return Esito(caso=caso, recuperato=posizione is not None, destinazioni=risposta.destinazioni,
                  livello=risposta.livello_evidenza, candidati=len(trovati), posizione=posizione,
-                 raggiungibili=raggiungibili)
+                 raggiungibili=raggiungibili, chiarimento=risposta.chiarimento,
+                 opzioni=list(risposta.opzioni))
 
 
 def esegui(agente: Agente, casi: list[Caso], con_modello: bool = True,
@@ -358,6 +386,14 @@ def misure(esiti: list[Esito], k: int = 8) -> dict[str, float | int | None]:
         len([e for e in negativi if e.valutata_la_scelta]))
     valori["astensione_a_sproposito"] = _percentuale(
         sum(1 for e in con_scelta if not e.destinazioni), len(con_scelta))
+
+    # C) le due domande, da leggere in coppia come le astensioni: chiedere sempre e non
+    # chiedere mai sono due difetti opposti, e un numero solo li confonderebbe
+    dovute = [e for e in esiti if e.caso.chiarimento_atteso is True and e.valutata_la_scelta]
+    inutili = [e for e in esiti if e.caso.chiarimento_atteso is False and e.valutata_la_scelta]
+    valori["domanda_dovuta"] = _percentuale(sum(1 for e in dovute if e.ha_chiesto), len(dovute))
+    valori["domanda_inutile"] = _percentuale(sum(1 for e in inutili if e.ha_chiesto),
+                                             len(inutili))
     return valori
 
 
@@ -369,6 +405,8 @@ ETICHETTE = {
     "livello_atteso": "livello di evidenza atteso",
     "astensione_corretta": "astensione corretta (sui casi non coperti)",
     "astensione_a_sproposito": "astensione a sproposito (sui casi coperti)",
+    "domanda_dovuta": "domanda fatta quando serviva (condizione non dichiarata)",
+    "domanda_inutile": "domanda fatta quando NON serviva (condizione dichiarata)",
 }
 
 
@@ -387,6 +425,12 @@ def _riga_caso(e: Esito, buone: tuple[str, ...]) -> None:
         print(f"     di troppo (contenitore sbagliato): {', '.join(e.di_troppo)}")
     elif e.mancate and e.destinazioni:
         print(f"     mancano (canale perso): {', '.join(e.mancate)}")
+    if e.caso.chiarimento_atteso is not None:
+        atteso = "doveva chiedere" if e.caso.chiarimento_atteso else "non doveva chiedere"
+        fatto = f"ha chiesto: «{e.chiarimento}»" if e.ha_chiesto else "non ha chiesto"
+        print(f"     {atteso}, {fatto}")
+        if e.opzioni:
+            print(f"     opzioni offerte: {', '.join(e.opzioni)}")
     # Prima di dare la colpa al recupero, si guarda dove portavano i documenti trovati:
     # se l'attesa non compare da nessuna parte, spesso è l'attesa a essere sbagliata
     if e.raggiungibili and not e.destinazioni:
@@ -442,7 +486,7 @@ def riepiloga(esiti: list[Esito], k: int = 8) -> None:
 
     print("\n## Dove intervenire")
     for diagnosi in (RECUPERO_FALLITO, SCELTA_SBAGLIATA, CANALE_PERSO, NON_ASTENUTO,
-                     ALTRA_STRADA):
+                     MANCATA_DOMANDA, DOMANDA_INUTILE, ALTRA_STRADA):
         quanti = sum(1 for e in esiti if e.diagnosi == diagnosi)
         if quanti:
             print(f"  {quanti:3}  {diagnosi}")
@@ -477,7 +521,8 @@ def come_json(esiti: list[Esito], esecuzione: dict | None = None,
                                   "contenitore_corretto": e.contenitore_corretto,
                                   "copertura": e.copertura,
                                   "destinazioni": e.destinazioni, "livello": e.livello,
-                                  "posizione": e.posizione, "diagnosi": e.diagnosi}
+                                  "posizione": e.posizione, "diagnosi": e.diagnosi,
+                                  "chiarimento": e.chiarimento}
                       for e in esiti}}
 
 

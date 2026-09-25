@@ -29,7 +29,7 @@ Va aggiornato **a ogni cambiamento sostanziale**, non a ogni riga di codice. In 
 
 ---
 
-## Stato attuale (v0.46.1, 25/09/2026)
+## Stato attuale (v0.47.0, 25/09/2026)
 
 | Componente | Stato |
 |---|---|
@@ -48,7 +48,7 @@ Va aggiornato **a ogni cambiamento sostanziale**, non a ogni riga di codice. In 
 | Regole di categoria — Napoli | Completo per quanto la fonte pubblica: 38 ammessi, 11 esclusi (5 Vetro estratti + 6 Umido trascritti a mano), 2 assenze verificate |
 | Regole di categoria — Torino | Estratte: 10 schede, 30 ammessi, 27 esclusi |
 | Revisione manuale | **Completa**: 32 decisioni prese (16 per comune), 0 aperte, 0 voci da revisionare |
-| Valutazione | Fatto: 92 casi in tre insiemi, otto metriche, run su MLflow. Mancano le foto da scattare |
+| Valutazione | Fatto: 121 casi in quattro insiemi, otto metriche, run su MLflow. Mancano le foto da scattare |
 | Backend, frontend, modello | Da fare |
 
 ---
@@ -259,6 +259,7 @@ Formato: decisione, motivazione, stato.
 | D184 | La registrazione di una valutazione **non è best-effort**: ignora `ECOSCAN_MLFLOW_ATTIVO`, ripiega su un archivio locale se il server non risponde, e se non riesce nemmeno lì **ferma il comando con errore** | D116 dice che il tracciamento non deve mai bloccare, ed è giusto per le conversazioni: una traccia persa non fa danno, l'utente ha avuto la sua risposta. Una misura è un'altra cosa — si prende una volta, dopo minuti di CPU, e se non viene registrata è persa. Le tre regole seguono da lì. In più: l'esito si salva **sempre** anche su file, senza dover ricordare `--salva`, e `--prova-mlflow` scrive una run minuscola per rispondere in un secondo alla domanda "è il server o è il mio codice?" | Accettata |
 | D185 | Ogni caso di valutazione lascia una **traccia** su MLflow, agganciata alla run della misura, con i tag su cui si filtra (caso, insieme, comune, diagnosi, posizione) | Le percentuali dicono *quanti* casi vanno male; la traccia dice *perché quel caso* è andato male — quali domande sono state poste all'indice, quali documenti sono usciti e in che ordine, cosa ha scelto il modello e cosa ha scartato la politica dei materiali. È la stessa traccia di una conversazione vera, quindi si legge con gli stessi occhi. La run si apre **prima** dei casi perché una traccia creata dentro una run le resta agganciata (`mlflow.sourceRun`, verificato su un server vero): registrando alla fine, le tracce resterebbero nell'esperimento senza legame con la misura che le ha prodotte | Accettata |
 | D186 | Una procedura può **specializzarsi sulla destinazione**: la riga con la destinazione vince, quella senza resta come ripiego | D166 attacca la procedura al canale, ed è giusto per quasi tutto: nove coppie invece di 902 voci. Ma `contenitore_dedicato` raccoglie farmaci, pile, abiti e olio esausto, che si conferiscono in quattro modi diversi: la procedura generica li elencava tutti e quattro, e per una cintura di pelle diceva anche che l'olio va portato in una bottiglia chiusa. Informazione non richiesta in una risposta non è generosità, è rumore che toglie credito a quella richiesta. Specializzando solo dove serve — sette righe in più — l'economia di D166 resta | Accettata |
+| D187 | Il **chiarimento si misura nelle due direzioni**, con un insieme fatto di coppie: lo stesso oggetto senza la condizione (deve chiedere) e con la condizione (non deve) | `domanda_dovuta` da sola si massimizza chiedendo sempre, che è il difetto opposto e altrettanto fastidioso — la stessa ragione per cui le astensioni si leggono in coppia (D178). Le coppie sono un vincolo del dataset, non una buona intenzione: un test fallisce se una voce compare in una direzione sola. Le due diagnosi restano separate perché si riparano in punti diversi: una domanda mancata è una condizione che il codice non ha visto fra le varianti, una di troppo è un testo dell'utente che non è stato letto | Accettata |
 
 ### Transform
 
@@ -341,6 +342,29 @@ Cose imparate che non sono decisioni, ma che conviene ricordare.
 ---
 
 ## Cronologia
+
+### v0.47.0 — 25/09/2026
+
+**Il chiarimento ha finalmente un numero** (D187). Era l'unica decisione di progetto
+caratteristica del sistema — chiedere invece di indovinare (D73) — senza una misura: si
+poteva solo dire che funzionava avendolo provato a mano.
+
+Ora è un insieme suo, `chiarimenti.jsonl`, **29 casi a coppie**: quattordici oggetti presi
+dalle voci che hanno due varianti in conflitto, ciascuno provato due volte — una senza
+dichiarare la condizione, dove l'agente deve chiedere, e una dichiarandola, dove deve
+rispondere e basta. Due metriche da leggere insieme, `domanda_dovuta` e `domanda_inutile`,
+e due diagnosi separate perché si riparano in punti diversi.
+
+**La metrica ha trovato un difetto prima ancora di girare col modello.** Scrivendo le attese
+ho verificato caso per caso cosa fa `scegli_variante`, e una non tornava: a «è tutta unta»
+l'agente chiede lo stesso, perché la condizione nella fonte si chiama `unto` e il confronto
+è letterale — l'accordo di genere lo manda a vuoto. Vale anche per «untissimo»; «è sporco»
+invece funziona, perché sta nella tabella delle equivalenze.
+
+Quel caso è rimasto nel dataset **come contratto, e oggi fallisce**: descrive cosa il
+sistema deve saper fare, non cosa sa fare. È lo stesso ruolo che avevano i casi nati dagli
+errori del 18/09, con la differenza che questo è stato trovato scrivendo il metro invece
+che sbattendoci contro in produzione.
 
 ### v0.46.1 — 25/09/2026
 

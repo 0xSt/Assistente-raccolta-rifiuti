@@ -465,3 +465,96 @@ def test_un_caso_negativo_dichiara_nel_tag_che_deve_tacere(ambiente):
     agente = Agente(ambiente.recupero, _ModelloAssente(), k=8, tracciatore=tracciatore)
     val.valuta_caso(agente, caso_assente(), con_modello=False)
     assert "deve astenersi" in tracciatore.etichette[0]["atteso"]
+
+
+# ------------------------------------------------- le due domande, da leggere in coppia
+
+def caso_ambiguo(**extra) -> Caso:
+    """Il cartone della pizza senza dire com'è: la condizione decide fra carta e organico,
+    e l'agente non può vederla."""
+    return Caso(comune="Napoli", oggetto="scatola della pizza",
+                destinazioni_attese=["Carta e Cartoncino", "Organico"],
+                origine="chiarimenti", chiarimento_atteso=True, **extra)
+
+
+def caso_dichiarato(**extra) -> Caso:
+    """Lo stesso oggetto, ma l'utente ha già detto com'è: chiedere sarebbe far perdere
+    tempo a chi ha già risposto."""
+    return Caso(comune="Napoli", oggetto="scatola della pizza", testo_utente="è unto",
+                destinazioni_attese=["Organico"], origine="chiarimenti",
+                chiarimento_atteso=False, **extra)
+
+
+def test_la_domanda_si_misura_nelle_due_direzioni():
+    """`domanda_dovuta` da sola si massimizza chiedendo sempre, che è il difetto opposto:
+    è la stessa ragione per cui le astensioni si leggono in coppia."""
+    chiesto = val.Esito(caso=caso_ambiguo(), recuperato=True, posizione=1,
+                        destinazioni=["Carta e Cartoncino", "Organico"],
+                        chiarimento="L'oggetto è: pulito oppure unto?", opzioni=["pulito", "unto"])
+    zitto = val.Esito(caso=caso_ambiguo(), recuperato=True, posizione=1,
+                      destinazioni=["Carta e Cartoncino", "Organico"])
+    assert chiesto.chiarimento_corretto is True and zitto.chiarimento_corretto is False
+    misure = val.misure([chiesto, zitto])
+    assert misure["domanda_dovuta"] == 50.0
+    assert misure["domanda_inutile"] is None, "nessun caso verifica l'altra direzione"
+
+
+def test_chiedere_quando_la_condizione_e_gia_dichiarata_e_un_difetto():
+    inutile = val.Esito(caso=caso_dichiarato(), recuperato=True, posizione=1,
+                        destinazioni=["Carta e Cartoncino", "Organico"],
+                        chiarimento="L'oggetto è: pulito oppure unto?")
+    assert inutile.chiarimento_corretto is False
+    assert inutile.diagnosi == val.DOMANDA_INUTILE
+    assert val.misure([inutile])["domanda_inutile"] == 100.0
+
+
+def test_non_chiedere_quando_serviva_ha_la_sua_diagnosi():
+    """Le due diagnosi sono separate perché si riparano in punti diversi: una domanda
+    mancata è una condizione che il codice non ha visto, una di troppo è un testo
+    dell'utente che non è stato letto."""
+    mancata = val.Esito(caso=caso_ambiguo(), recuperato=True, posizione=1,
+                        destinazioni=["Carta e Cartoncino", "Organico"])
+    assert mancata.diagnosi == val.MANCATA_DOMANDA
+
+
+def test_senza_modello_la_domanda_non_si_misura():
+    """La domanda nasce durante la scelta: senza modello non viene nemmeno formulata, e
+    contarla come mancata direbbe il falso su qualcosa che non è stato misurato."""
+    esito = val.Esito(caso=caso_ambiguo(), recuperato=True, posizione=1,
+                      valutata_la_scelta=False)
+    assert esito.chiarimento_corretto is None
+    assert val.misure([esito])["domanda_dovuta"] is None
+
+
+def test_i_casi_che_non_verificano_la_domanda_non_entrano_nel_conto():
+    """Un caso del campione può ricevere una domanda senza che sia un difetto: se non
+    dichiara un'attesa, non deve spostare il numero."""
+    normale = val.Esito(caso=caso_dei_giornali(), recuperato=True, posizione=1,
+                        destinazioni=["carta_e_cartone"], chiarimento="una domanda")
+    assert normale.chiarimento_corretto is None
+    misure = val.misure([normale])
+    assert misure["domanda_dovuta"] is None and misure["domanda_inutile"] is None
+
+
+# ---------------------------------------------------- il dataset dei chiarimenti sul disco
+
+def test_i_chiarimenti_vengono_a_coppie():
+    """Ogni oggetto compare due volte: una senza la condizione e una con. Un insieme fatto
+    di soli casi ambigui si supererebbe chiedendo sempre."""
+    from ecoscan.valutazione.casi import tutti
+    casi = [c for c in tutti() if c.origine == "chiarimenti"]
+    assert len(casi) >= 20
+    per_voce: dict[str, set] = {}
+    for caso in casi:
+        per_voce.setdefault(caso.voce_fonte, set()).add(caso.chiarimento_atteso)
+    spaiati = [voce for voce, attese in per_voce.items() if attese != {True, False}]
+    assert not spaiati, f"voci con una direzione sola: {spaiati}"
+
+
+def test_i_casi_ambigui_non_dichiarano_la_condizione():
+    """Se il testo dell'utente contenesse la condizione, il caso non misurerebbe la domanda:
+    misurerebbe che il codice sa leggere."""
+    from ecoscan.valutazione.casi import tutti
+    con_testo = [c for c in tutti()
+                 if c.origine == "chiarimenti" and c.chiarimento_atteso and c.testo_utente]
+    assert not con_testo, f"casi ambigui che dichiarano già la condizione: {con_testo}"

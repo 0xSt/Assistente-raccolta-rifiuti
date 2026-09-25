@@ -4,7 +4,7 @@ Assistente per la raccolta differenziata che gira interamente in locale. L'utent
 
 Progetto universitario. Comuni del prototipo: **Napoli** (ASIA) e **Torino** (AMIAT).
 
-## Stato attuale (v0.46.1)
+## Stato attuale (v0.47.0)
 
 Il quadro completo è in [docs/diario.md](docs/diario.md).
 
@@ -23,7 +23,7 @@ Il quadro completo è in [docs/diario.md](docs/diario.md).
 | Frontend a chat (Streamlit) | Fatto: allegato immagine, chiarimenti a pulsante, riconoscimento visibile e correggibile, citazione della fonte |
 | Tracciamento e prompt su MLflow | Fatto: una traccia per turno con foto e retrieval, sessioni, versione dell'app e prompt collegati |
 | Docker completo | Fatto: cinque servizi, Ollama sull'host in sviluppo |
-| Valutazione | Fatto: 92 casi in tre insiemi (regressioni, campione, assenti), otto metriche, confronto fra esecuzioni, run su MLflow |
+| Valutazione | Fatto: 121 casi in quattro insiemi (regressioni, campione, assenti), otto metriche, confronto fra esecuzioni, run su MLflow |
 | Valutazione sulle foto | Pronta: 20 etichette scritte, le foto sono da scattare |
 | Backend, frontend, modello | Da fare |
 
