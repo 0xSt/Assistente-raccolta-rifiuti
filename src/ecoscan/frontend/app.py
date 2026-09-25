@@ -129,22 +129,15 @@ def mostra_messaggio(messaggio: dict) -> None:
             st.markdown(messaggio["testo"])
         if nota := messaggio.get("nota"):
             st.caption(nota)
-        if spiegazione := messaggio.get("spiegazione"):
-            with st.expander("Come ci sono arrivato"):
-                st.markdown(spiegazione)
-                if candidati := messaggio.get("candidati"):
-                    with st.expander("Tutti i documenti trovati"):
-                        st.dataframe(candidati, hide_index=True, width="stretch")
 
 
-def aggiungi_risposta(risposta: dict, etichette: dict[str, str]) -> None:
+def aggiungi_risposta(risposta: dict, etichette: dict[str, str],
+                      risposto: str | None = None) -> None:
     st.session_state.messaggi.append({
         "ruolo": "assistente",
         "riconoscimento": presentazione.frase_riconoscimento(risposta),
-        "testo": presentazione.messaggio(risposta, etichette),
+        "testo": presentazione.messaggio(risposta, etichette, risposto),
         "nota": presentazione.nota_fonte(risposta),
-        "spiegazione": presentazione.spiegazione(risposta, etichette),
-        "candidati": presentazione.riassunto_candidati(risposta, etichette),
     })
     # il contesto si conserva SEMPRE: serve al chiarimento, ma anche a correggere
     # l'oggetto riconosciuto dopo una risposta già data
@@ -153,12 +146,16 @@ def aggiungi_risposta(risposta: dict, etichette: dict[str, str]) -> None:
     st.session_state.ultima = risposta
 
 
-def chiedi(etichette: dict[str, str], azione, *argomenti) -> None:
-    """Una chiamata al backend, con l'attesa e l'errore gestiti una volta sola."""
+def chiedi(etichette: dict[str, str], azione, *argomenti, risposto: str | None = None) -> None:
+    """Una chiamata al backend, con l'attesa e l'errore gestiti una volta sola.
+
+    `risposto` si passa solo quando questo giro nasce da una **domanda** dell'assistente:
+    è la parola che la risposta riprenderà in apertura ("Ok, unto: …").
+    """
     try:
         with st.spinner("Ci penso… su CPU può volerci qualche minuto"):
             risposta = azione(*argomenti)
-        aggiungi_risposta(risposta, etichette)
+        aggiungi_risposta(risposta, etichette, risposto)
     except ErroreBackend as errore:
         st.session_state.messaggi.append({"ruolo": "assistente", "testo": f"⚠️ {errore}"})
 
@@ -178,7 +175,8 @@ def pulsanti_chiarimento(cliente: ClienteAPI, etichette: dict[str, str]) -> None
     for colonna, opzione in zip(colonne, opzioni, strict=False):
         if colonna.button(opzione.capitalize(), key=f"opzione-{opzione}", width="stretch"):
             st.session_state.messaggi.append({"ruolo": "utente", "testo": opzione})
-            chiedi(etichette, cliente.continua, st.session_state.contesto, opzione)
+            chiedi(etichette, cliente.continua, st.session_state.contesto, opzione,
+                   risposto=opzione)
             st.rerun()
 
 
@@ -235,7 +233,7 @@ def gestisci_invio(cliente: ClienteAPI, inserito, comune: str,
     if foto:
         chiedi(etichette, cliente.analizza, foto.getvalue(), foto.name, comune, testo or None)
     elif contesto:
-        chiedi(etichette, cliente.continua, contesto, testo)
+        chiedi(etichette, cliente.continua, contesto, testo, risposto=testo)
     else:
         chiedi(etichette, cliente.domanda, comune, testo, None)
     st.rerun()

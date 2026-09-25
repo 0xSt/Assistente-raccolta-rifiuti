@@ -4,7 +4,7 @@ Sta separato dall'interfaccia perché è la parte che si sbaglia più facilmente
 pena verificare: una regola di esclusione presentata male dice l'opposto del vero, e il
 livello di evidenza dev'essere visibile senza che l'utente debba conoscere il progetto.
 
-Due principi guidano cosa si mostra:
+Quattro principi guidano cosa si mostra:
 
 - **i nomi interni non si mostrano.** Le risposte portano il nome con cui la destinazione è
   scritta nei dati (a Torino `carta_e_cartone`); qui si traduce con le etichette che il
@@ -12,17 +12,27 @@ Due principi guidano cosa si mostra:
   l'utente legge;
 - **ciò che dice il comune resta distinto da ciò che ha capito l'assistente.** Il
   riconoscimento della foto è dell'assistente e può essere sbagliato: si mostra a parte,
-  perché l'utente possa correggerlo. La destinazione viene dai dati del comune, e si cita il
-  documento da cui arriva.
+  perché l'utente possa correggerlo. La destinazione viene dai dati del comune, e si cita la
+  fonte da cui arriva;
+- **una cosa si dice una volta sola** (D192). La condizione che ha deciso la risposta stava
+  in tre punti — nel riconoscimento, in un "Vale se è unto." tutto suo, e nella riga delle
+  varianti: ora sta nel titolo, dove decide qualcosa, e l'altra strada diventa una frase;
+- **si parla quando c'è un'eccezione** (D193). Una frase che compare in ogni risposta non
+  informa: diventa arredamento che l'occhio salta, e porta con sé quelle che invece
+  contavano. "Il comune elenca proprio questo oggetto" era vera nella grande maggioranza dei
+  casi, quindi taceva proprio dove serviva. Ora il livello di evidenza si scrive solo quando
+  **non** è il caso normale: categoria, livello 2, livello 3.
 """
 from __future__ import annotations
 
 from ecoscan import condizioni as condizioni_
+from ecoscan.procedure import ORDINARIO
 
 VERBO = {"escluso": "**non** va in", "ammesso": "va in"}
 
+# Al livello 1 non si scrive niente: la voce nomina l'oggetto, che è ciò che l'utente si
+# aspetta già. Restano i casi in cui la risposta vale **meno** di così, e lì si dichiara.
 SPIEGAZIONE_LIVELLO = {
-    1: "Il comune elenca proprio questo oggetto.",
     2: "Il comune non elenca l'oggetto: questa è la regola generale del contenitore.",
     3: "Il comune non dice nulla su questo oggetto.",
 }
@@ -33,16 +43,14 @@ SPIEGAZIONE_LIVELLO = {
 SPIEGAZIONE_CORRISPONDENZA = {
     "categoria": "Il comune non elenca proprio questo oggetto, ma la categoria a cui "
                  "appartiene.",
-    "sinonimo": "Il comune elenca questo oggetto con un altro nome.",
 }
 
 
 def spiegazione_livello(risposta: dict) -> str:
-    """Perché la risposta vale, in una frase che non dice più del vero."""
+    """Perché la risposta vale, quando c'è qualcosa da dire."""
     livello = risposta.get("livello_evidenza", 3)
     if livello == 1:
-        tipo = risposta.get("tipo_corrispondenza") or ""
-        return SPIEGAZIONE_CORRISPONDENZA.get(tipo, SPIEGAZIONE_LIVELLO[1])
+        return SPIEGAZIONE_CORRISPONDENZA.get(risposta.get("tipo_corrispondenza") or "", "")
     return SPIEGAZIONE_LIVELLO.get(livello, "")
 
 
@@ -55,18 +63,8 @@ NOME_FONTE = {
     "amiat_rifiutologo_2025": "Rifiutologo AMIAT 2025",
 }
 
-SICUREZZA = ((0.7, "sicurezza alta"), (0.4, "sicurezza media"), (0.0, "sicurezza bassa"))
-
-MOTIVO_SCELTA = {
-    "stesso_oggetto": "è proprio questo oggetto",
-    "sinonimo": "è un altro nome dello stesso oggetto",
-    "stesso_materiale": "è lo stesso materiale",
-    "categoria": "l'oggetto rientra in questa categoria",
-}
-
-# Oltre tre alternative la spiegazione torna a leggersi come la tabella di diagnostica da
-# cui è nata per allontanarsi
-MASSIME_ALTERNATIVE = 3
+# Oltre due varianti la frase sola non regge e si torna all'elenco
+VARIANTI_IN_FRASE = 2
 
 
 def etichetta(nome: str, etichette: dict[str, str] | None = None) -> str:
@@ -86,24 +84,63 @@ def etichette_di(destinazioni: list[str], etichette: dict[str, str] | None = Non
     return [etichetta(d, etichette) for d in destinazioni]
 
 
-def titolo(risposta: dict, etichette: dict[str, str] | None = None) -> str:
-    """La prima riga: dove va, o che non si sa."""
+def maiuscola(testo: str) -> str:
+    """Iniziale maiuscola senza toccare il resto: `capitalize()` abbasserebbe le altre."""
+    return testo[:1].upper() + testo[1:]
+
+
+def ripresa_di(condizioni: list[str], risposto: str | None, destinazioni: str) -> str:
+    """"Ok, unto:" — la ripresa di ciò che l'utente ha appena risposto (D196).
+
+    Vale solo quando il messaggio precedente era una **domanda**: è quella parola che fa di
+    due messaggi affiancati uno scambio. Si riprende la condizione **applicata**, non le
+    parole dell'utente: vengono dai dati del comune, quindi sono sempre scritte bene, anche
+    quando lui aveva scritto "è tutta unta". Solo se non c'è nessuna condizione si ripete
+    ciò che ha detto, che è l'unica cosa rimasta.
+
+    Non si riprende una parola che è già nel nome del contenitore: "Ok, vetro: va in Vetro"
+    è peggio del titolo normale.
+    """
+    if risposto is None:
+        return ""
+    detto = ", ".join(c for c in condizioni if c) or (risposto or "").strip()
+    if not detto or detto.lower() in destinazioni.lower():
+        return ""
+    return f"Ok, {detto}:"
+
+
+def titolo(risposta: dict, etichette: dict[str, str] | None = None,
+           risposto: str | None = None) -> str:
+    """La prima riga: dove va, a quale condizione, o che non si sa.
+
+    La condizione sta **qui** e non su una riga sua: "va in Organico se è unto" è una frase,
+    "va in Organico." seguito da "Vale se è unto." sono due affermazioni che l'utente deve
+    rimettere insieme da solo.
+    """
     destinazioni = risposta.get("destinazioni") or []
     if not destinazioni:
         return "Non so dove va questo oggetto."
     verbo = VERBO.get(risposta.get("polarita") or "", "va in")
-    oggetto = (risposta.get("oggetto") or "l'oggetto").capitalize()
     nomi = " oppure ".join(etichette_di(destinazioni, etichette))
-    return f"{oggetto}: {verbo} **{nomi}**"
+    condizioni = risposta.get("condizioni") or []
+    if apertura := ripresa_di(condizioni, risposto, nomi):
+        return f"{apertura} {verbo} **{nomi}**."
+    oggetto = maiuscola((risposta.get("oggetto") or "l'oggetto").strip())
+    coda = f" {premessa}" if (premessa := condizioni_.premessa(condizioni)) else ""
+    return f"{oggetto}: {verbo} **{nomi}**{coda}."
 
 
-def corpo(risposta: dict, etichette: dict[str, str] | None = None) -> str:
-    """Il resto del messaggio: condizioni, varianti, avvertenza, livello di evidenza."""
+def corpo(risposta: dict, etichette: dict[str, str] | None = None,
+          risposto: str | None = None) -> str:
+    """Il resto del messaggio: l'altra strada, l'avvertenza, il come, il livello.
+
+    Dopo una domanda l'altra strada **non** si ripete: era già nel messaggio precedente,
+    che l'aveva mostrata proprio per far capire cosa c'era in gioco. La regola "una cosa si
+    dice una volta sola" vale anche fra due turni, non solo dentro un messaggio.
+    """
     righe: list[str] = []
 
-    if frase := condizioni_.frase(risposta.get("condizioni") or []):
-        righe.append(frase)
-    if alternative := altre_varianti(risposta, etichette):
+    if risposto is None and (alternative := altre_varianti(risposta, etichette)):
         righe.append(alternative)
     if avvertenza := risposta.get("avvertenza"):
         righe.append(f"⚠️ {avvertenza}")
@@ -111,17 +148,15 @@ def corpo(risposta: dict, etichette: dict[str, str] | None = None) -> str:
     if passi := procedure(risposta):
         righe.append(passi)
 
-    livello = risposta.get("livello_evidenza", 3)
-    righe.append(spiegazione_livello(risposta))
+    if spiegazione := spiegazione_livello(risposta):
+        righe.append(spiegazione)
 
-    if livello == 3:
+    if risposta.get("livello_evidenza", 3) == 3:
         righe.append(ripiego(risposta)
                      or "Puoi controllare sul sito del comune o portarlo a un centro di raccolta.")
     if risposta.get("contraddizione"):
         righe.append("Attenzione: la fonte del comune indica destinazioni diverse per lo "
                      "stesso caso.")
-    if chiarimento := risposta.get("chiarimento"):
-        righe.append(f"**{chiarimento}**")
 
     return "\n\n".join(r for r in righe if r)
 
@@ -131,13 +166,17 @@ def procedure(risposta: dict) -> str:
 
     Per la raccolta ordinaria non si scrive niente: tutti sanno cos'è un cassonetto, e una
     procedura lì trasformerebbe ogni risposta in un elenco puntato. Il backend la toglie già
-    quando ci sono altri canali; qui si presenta ciò che resta.
+    quando ci sono altri canali; **quando è l'unica la toglie questa funzione** (D193), che
+    è il caso della maggioranza delle risposte: tre righe uguali sotto ogni oggetto sono la
+    definizione di rumore.
 
     **Quando i canali sono più d'uno** (115 voci a Napoli) diventano alternative numerate e
     ordinate per sforzo: chi legge trova per prima quella che può fare da casa, e solo dopo
     quella che gli chiede di prendere la macchina. L'ordine è il messaggio.
     """
     elenco = risposta.get("procedure") or []
+    if len(elenco) == 1 and (elenco[0].get("canale") or "") == ORDINARIO:
+        return ""
     if not elenco:
         return ""
     pezzi = []
@@ -171,51 +210,108 @@ def ripiego(risposta: dict) -> str:
 
 
 def documento_scelto(risposta: dict) -> dict | None:
-    """Il candidato da cui viene la risposta. Senza, non si può citare nulla."""
+    """Il candidato da cui viene la risposta. Senza, non si può dire nulla delle varianti."""
     scelto = risposta.get("scelto_id")
     if not scelto:
         return None
     return next((c for c in risposta.get("candidati") or [] if c.get("id") == scelto), None)
 
 
+def varianti_di(risposta: dict) -> list[dict]:
+    return (documento_scelto(risposta) or {}).get("varianti") or []
+
+
+def dove_va(variante: dict, etichette: dict[str, str] | None = None) -> str:
+    return " oppure ".join(etichette_di(variante.get("destinazioni") or [], etichette)) or "?"
+
+
 def altre_varianti(risposta: dict, etichette: dict[str, str] | None = None) -> str:
     """Le altre varianti dello stesso oggetto, quando la risposta ne ha scelta una.
 
-    Mostrarle anche dopo la scelta insegna la regola: "se è pulito → Carta e cartone · **se
-    è unto → Organico** ✓" vale più di un "vale se è: unto" da solo.
+    Mostrarle anche dopo la scelta insegna la regola per la volta dopo. **Come** mostrarle
+    dipende da quante sono (D192): due varianti sono la stragrande maggioranza, e con due
+    rami l'altro è uno solo, quindi si può nominare in una frase — "Se invece è pulito:
+    Carta e cartone." Da tre in su la frase non regge e resta l'elenco, che lì è la forma
+    giusta perché il confronto è fra più righe.
     """
-    scelto = documento_scelto(risposta)
-    varianti = (scelto or {}).get("varianti") or []
+    varianti = varianti_di(risposta)
     if len(varianti) < 2:
         return ""
     condizioni_scelte = " e ".join(risposta.get("condizioni") or [])
+    scelte = [v for v in varianti
+              if (v.get("condizione") or "") and v["condizione"] in condizioni_scelte]
+    if len(varianti) == VARIANTI_IN_FRASE and len(scelte) == 1:
+        altra = next(v for v in varianti if v is not scelte[0])
+        apertura = condizioni_.controfattuale(altra.get("condizione") or "") or "negli altri casi"
+        return f"{maiuscola(apertura)}: **{dove_va(altra, etichette)}**."
     pezzi = []
     for variante in varianti:
         condizione = variante.get("condizione")
-        dove = " oppure ".join(etichette_di(variante.get("destinazioni") or [], etichette)) or "?"
         premessa = condizioni_.premessa([condizione]) if condizione else ""
-        riga = f"{premessa} → {dove}" if premessa else f"negli altri casi → {dove}"
+        riga = f"{premessa} → {dove_va(variante, etichette)}" if premessa \
+            else f"negli altri casi → {dove_va(variante, etichette)}"
         pezzi.append(f"**{riga}** ✓" if condizione and condizione in condizioni_scelte else riga)
     return "Le varianti di questo oggetto: " + " · ".join(pezzi) + "."
+
+
+def posta_in_gioco(risposta: dict, etichette: dict[str, str] | None = None) -> str:
+    """Perché sto chiedendo: i due contenitori fra cui cambia la risposta.
+
+    Una domanda senza il motivo è un modulo da compilare; con il motivo è una cosa che si
+    capisce, e l'utente sa anche **quanto** conta rispondere bene.
+    """
+    varianti = varianti_di(risposta)
+    if len(varianti) < 2:
+        return ""
+    pezzi = []
+    for variante in varianti:
+        condizione = variante.get("condizione")
+        premessa = condizioni_.premessa([condizione]) if condizione else "negli altri casi"
+        pezzi.append(f"{premessa} va in **{dove_va(variante, etichette)}**")
+    return "Il contenitore dipende: " + ", ".join(pezzi) + "."
+
+
+def domanda(risposta: dict, etichette: dict[str, str] | None = None) -> str:
+    """Il messaggio quando l'assistente chiede, che è **solo** la domanda (D194).
+
+    Prima la domanda era l'ultima riga di una risposta completa: l'utente leggeva una
+    destinazione, delle procedure e una fonte, e solo in fondo scopriva che non era una
+    risposta. Chi si fermava prima portava via un contenitore che l'assistente non si sentiva
+    di garantire — e la metrica `domanda_dovuta` lo contava come un successo.
+
+    Se chiede, chiede: la destinazione, il come e la fonte arrivano al turno dopo, quando
+    sono vere.
+    """
+    testo = risposta.get("chiarimento")
+    if not testo:
+        return ""
+    return "\n\n".join(p for p in (posta_in_gioco(risposta, etichette), f"**{testo}**") if p)
 
 
 def frase_riconoscimento(risposta: dict) -> str:
     """Cosa ha visto l'assistente nella foto.
 
     Si mostra sempre, anche quando la risposta è giusta: è il passaggio più fragile della
-    catena, e l'utente può accorgersi dell'errore solo se lo vede.
+    catena, e l'utente può accorgersi dell'errore solo se lo vede. Ma si mostra **ciò che
+    lui può smentire**, non i campi del riconoscimento (D195): la categoria è una parola di
+    tassonomia che nessuno userebbe, e la confidenza è un giudizio che l'assistente dà su di
+    sé e su cui l'utente non può fare niente — quando è troppo bassa il sistema chiede già di
+    rifare la foto, che è la forma utile della stessa informazione.
+
+    Restano l'oggetto, lo stato — la cosa più facile da sbagliare e quella che più spesso
+    cambia il contenitore — e i materiali **solo se hanno deciso**, cioè se compaiono fra le
+    condizioni applicate: è il caso degli omonimi, "bicchiere" di vetro contro di plastica.
     """
     riconoscimento = risposta.get("riconoscimento") or {}
     oggetto = (riconoscimento.get("oggetto") or "").strip()
     if not oggetto:
         return ""
-    dettagli = [d for d in (riconoscimento.get("categoria"),
-                            ", ".join(riconoscimento.get("materiali") or []),
-                            riconoscimento.get("stato")) if d]
-    confidenza = float(riconoscimento.get("confidenza") or 0.0)
-    sicurezza = next(parola for soglia, parola in SICUREZZA if confidenza >= soglia)
-    coda = f" ({'; '.join(dettagli)})" if dettagli else ""
-    return f"👁️ Ho riconosciuto: **{oggetto}**{coda} · {sicurezza}"
+    applicate = {c.lower() for c in risposta.get("condizioni") or []}
+    dettagli = [d for d in [(riconoscimento.get("stato") or "").strip()] if d]
+    dettagli += [m for m in riconoscimento.get("materiali") or []
+                 if m.lower() in applicate and m.lower() not in {d.lower() for d in dettagli}]
+    coda = f", {', '.join(dettagli)}" if dettagli else ""
+    return f"Ho riconosciuto: **{oggetto}**{coda}"
 
 
 def provenienza(fonte: str | None, riferimento: str | None) -> str:
@@ -235,7 +331,13 @@ def provenienza(fonte: str | None, riferimento: str | None) -> str:
 
 
 def nota_fonte(risposta: dict) -> str:
-    """Livello di evidenza e provenienza, sotto la risposta."""
+    """Livello di evidenza e provenienza, sotto la risposta.
+
+    Sotto una **domanda** non si scrive: non c'è ancora niente di cui dichiarare la fonte, e
+    una nota di provenienza darebbe alla domanda l'aria di una risposta.
+    """
+    if risposta.get("chiarimento"):
+        return ""
     fonte, riferimento = risposta.get("fonte"), risposta.get("riferimento")
     if not fonte and not riferimento:
         return ""
@@ -243,68 +345,14 @@ def nota_fonte(risposta: dict) -> str:
     return " · ".join(p for p in (livello, provenienza(fonte, riferimento)) if p)
 
 
-def citazione(risposta: dict) -> str:
-    """Il testo del comune da cui viene la risposta, parola per parola.
+def messaggio(risposta: dict, etichette: dict[str, str] | None = None,
+              risposto: str | None = None) -> str:
+    """Il messaggio dell'assistente: una domanda, oppure una risposta.
 
-    È la prova che la destinazione non è inventata dal modello: il modello sceglie fra
-    documenti esistenti, non li scrive.
+    `risposto` è ciò che l'utente ha appena detto a una domanda, e serve solo a riprenderlo
+    nel titolo: fuori dal chiarimento resta `None`.
     """
-    scelto = documento_scelto(risposta)
-    if not scelto:
-        return ""
-    nome = scelto.get("nome") or f"documento di livello {scelto.get('livello', '?')}"
-    return f"> {(scelto.get('testo') or '').strip()}\n\n— {nome}"
-
-
-def perche(risposta: dict) -> str:
-    """Perché l'assistente ha scelto quel documento, in una riga."""
-    tipo = risposta.get("tipo_corrispondenza") or ""
-    pezzi = [MOTIVO_SCELTA.get(tipo, tipo.replace("_", " ")), risposta.get("motivo") or ""]
-    testo = " · ".join(p for p in pezzi if p)
-    return f"L'ho scelto perché {testo}." if testo else ""
-
-
-def alternative(risposta: dict, etichette: dict[str, str] | None = None) -> list[str]:
-    """Le altre voci considerate e non scelte, con la loro destinazione.
-
-    Servono a rendere visibile che c'era una scelta: senza, la risposta sembra l'unica
-    possibile anche quando era in bilico.
-    """
-    scelto = risposta.get("scelto_id")
-    righe = []
-    for candidato in risposta.get("candidati") or []:
-        if candidato.get("id") == scelto:
-            continue
-        nome = candidato.get("nome") or (candidato.get("testo") or "")[:60]
-        dove = " oppure ".join(etichette_di(candidato.get("destinazioni") or [], etichette))
-        righe.append(f"{nome} → {dove}" if dove else nome)
-        if len(righe) == MASSIME_ALTERNATIVE:
-            break
-    return righe
-
-
-def spiegazione(risposta: dict, etichette: dict[str, str] | None = None) -> str:
-    """Il contenuto di "Come ci sono arrivato": citazione, motivo, alternative scartate."""
-    parti = [citazione(risposta), perche(risposta)]
-    if not documento_scelto(risposta) and risposta.get("candidati"):
-        parti.append("Nessuna delle voci trovate corrispondeva all'oggetto.")
-    if scartate := alternative(risposta, etichette):
-        parti.append("Altre voci che ho considerato e scartato:\n"
-                     + "\n".join(f"- {r}" for r in scartate))
-    return "\n\n".join(p for p in parti if p)
-
-
-def messaggio(risposta: dict, etichette: dict[str, str] | None = None) -> str:
-    return "\n\n".join(p for p in (titolo(risposta, etichette), corpo(risposta, etichette)) if p)
-
-
-def riassunto_candidati(risposta: dict, etichette: dict[str, str] | None = None) -> list[dict]:
-    """Righe per la tabella dei candidati: la vista tecnica, per chi sviluppa."""
-    scelto = risposta.get("scelto_id")
-    return [{
-        "scelto": "✓" if c.get("id") == scelto else "",
-        "livello": c.get("livello"),
-        "documento": c.get("testo"),
-        "destinazioni": " oppure ".join(etichette_di(c.get("destinazioni") or [], etichette)) or "-",
-        "somiglianza": round(c.get("punteggio") or 0.0, 3),
-    } for c in risposta.get("candidati") or []]
+    if chiede := domanda(risposta, etichette):
+        return chiede
+    return "\n\n".join(p for p in (titolo(risposta, etichette, risposto),
+                                   corpo(risposta, etichette, risposto)) if p)

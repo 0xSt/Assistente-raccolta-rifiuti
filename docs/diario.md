@@ -29,7 +29,7 @@ Va aggiornato **a ogni cambiamento sostanziale**, non a ogni riga di codice. In 
 
 ---
 
-## Stato attuale (v0.48.1, 25/09/2026)
+## Stato attuale (v0.49.0, 25/09/2026)
 
 | Componente | Stato |
 |---|---|
@@ -42,7 +42,7 @@ Va aggiornato **a ogni cambiamento sostanziale**, non a ogni riga di codice. In 
 | Serving | Documenti su Qdrant, sola ricerca semantica, aggancio esatto dei codici materiale |
 | Agente | Fatto: riconoscimento, cascata dei livelli, scelta vincolata, risposta. Indipendente da HTTP |
 | API FastAPI | Fatto: analizza, continua, correggi, cerca, comuni, destinazioni, salute, riscontro |
-| Frontend a chat | Fatto (v0.31.0): etichette leggibili, riconoscimento visibile e correggibile, chiarimenti a pulsante, citazione del documento |
+| Frontend a chat | Fatto (v0.31.0): etichette leggibili, riconoscimento visibile e correggibile, chiarimenti a pulsante, fonte in nota. Messaggi asciugati in v0.49.0 (D192–D197) |
 | Osservabilità | Fatto (v0.30.0): tracce MLflow per turno con foto, retrieval e sessione; versione dell'app e prompt collegati |
 | Docker | Fatto: qdrant, mlflow, backend, frontend; ollama sotto profilo |
 | Regole di categoria — Napoli | Completo per quanto la fonte pubblica: 38 ammessi, 11 esclusi (5 Vetro estratti + 6 Umido trascritti a mano), 2 assenze verificate |
@@ -78,6 +78,12 @@ Formato: decisione, motivazione, stato.
 | D8 | Retrieval ibrido: FTS5 a trigrammi + embedding, fusione RRF, filtro per comune prima della ricerca | Il solo semantico confonde oggetti simili con destinazioni diverse (bottiglia/bicchiere di vetro) | Accettata |
 | D9 | Il modello sceglie tra candidati reali o risponde "nessuno"; la regola finale arriva sempre da SQL | Contenere le allucinazioni, rendere la valutazione misurabile | Accettata |
 | D10 | Ricerca a cascata: voci → regole di categoria → livello 3 | Il livello di evidenza diventa un risultato del flusso, non una stima del modello | Accettata |
+| D192 | **Una cosa si dice una volta sola.** La condizione applicata sta nel titolo ("va in Organico **se è unto**") e non più in una riga sua; con due varianti l'altra strada diventa una frase ("Se invece è pulito: Carta e cartone.") invece di una tabella | "unto" compariva tre volte nello stesso messaggio: nel riconoscimento, in un "Vale se è unto." tutto suo e nella riga delle varianti. Tre affermazioni che l'utente deve rimettere insieme da solo, mentre "va in Organico se è unto" è una frase e si legge una volta. La tabella resta da tre varianti in su, dove il confronto è davvero fra più righe | Accettata |
+| D193 | **Si parla quando c'è un'eccezione.** Il livello di evidenza si scrive solo per `categoria`, livello 2 e livello 3; la procedura della raccolta ordinaria, quando è l'unica, non si scrive | Una frase presente in ogni risposta non informa: diventa arredamento che l'occhio salta, e porta con sé quelle che invece contavano. "Il comune elenca proprio questo oggetto" era vera nella grande maggioranza dei casi, e la procedura ordinaria («Lo butti da casa» + due passi + una nota) è il canale della maggioranza delle voci: tre righe uguali sotto ogni oggetto. Restano dove dicono qualcosa | Accettata |
+| D194 | **Quando chiede, chiede e basta**: se c'è un chiarimento il messaggio è la domanda, preceduta dalla posta in gioco ("Il contenitore dipende: se è pulito va in Carta e cartone, se è unto va in Organico"). Destinazione, procedure e fonte arrivano al turno dopo | La domanda era l'ultima riga di una risposta completa: chi si fermava prima portava via un contenitore che l'assistente non si sentiva di garantire, e la fonte sotto dava alla domanda l'aria di una risposta. È anche il difetto che la metrica non vedeva: `domanda_dovuta` contava come successo una domanda che l'utente poteva ignorare senza accorgersene. La posta in gioco c'è perché una domanda senza il motivo è un modulo da compilare | Accettata |
+| D195 | Del riconoscimento si mostrano **oggetto e stato**, e il materiale solo se ha deciso (cioè se è fra le condizioni applicate). Categoria, confidenza ed emoji spariscono | La riga serve a una cosa sola: farsi smentire. La categoria è una parola di tassonomia che nessuno userebbe per il proprio oggetto, e la confidenza è un giudizio che l'assistente dà su di sé, su cui l'utente non può fare niente — quando è troppo bassa il sistema chiede già di rifare la foto, che è la forma utile della stessa informazione. Il materiale conta negli omonimi ("bicchiere" di vetro contro di plastica), ed è lì che si mostra | Accettata |
+| D196 | La risposta a una domanda si apre **riprendendo ciò che l'utente ha appena detto**: "Ok, unto: va in Organico." Si riprende la condizione **applicata**, non le sue parole, e l'altra strada non si ripete | È la parola che fa di due messaggi affiancati uno scambio: senza, il secondo turno riparte da zero come se la domanda non fosse mai stata fatta. La condizione applicata viene dai dati del comune, quindi è sempre scritta bene anche quando l'utente aveva scritto "è tutta unta"; e l'altra strada l'aveva già mostrata la domanda, proprio per far capire cosa c'era in gioco (D192 vale anche fra due turni) | Accettata |
+| D197 | Il pannello "Come ci sono arrivato" — citazione del documento, motivo della scelta, voci scartate, tabella dei punteggi — si rimuove. La provenienza resta nella nota sotto la risposta, con il link alla fonte | Supera D133, per decisione di Stef. Serviva a chi sviluppa il sistema, e per quello ci sono le tracce su MLflow, che mostrano gli stessi dati per intero e senza limite di tre righe; sotto la risposta era un invito ad andare a controllare che spostava il lavoro sull'utente. La garanzia che la destinazione non sia inventata non la dava comunque la citazione — la dà il fatto che la scelta è vincolata ai candidati (D9) — e ciò che l'utente può verificare davvero è la fonte, che resta linkata | Accettata |
 
 ### Schema dati
 
@@ -141,7 +147,7 @@ Formato: decisione, motivazione, stato.
 | D130 | Il **riconoscimento** della foto si mostra sempre all'utente, prima della risposta | È il passaggio più fragile della catena e l'unico che l'utente può smentire con certezza, perché ha l'oggetto in mano | Accettata |
 | D131 | Nuova rotta `/correggi`: l'utente dichiara l'oggetto e si rifanno solo ricerca e scelta, con confidenza 1.0 | La foto non si rilegge (è il passaggio lento) e non si fa riguardare a un modello che ha già sbagliato. È il motivo per cui `analizza` e `rispondi` erano separati (D72) | Accettata |
 | D132 | Il chiarimento porta con sé le **opzioni**, e l'interfaccia ne fa pulsanti | Le condizioni vengono dalle varianti del documento: farle scrivere a mano aggiungeva solo modi di sbagliare | Accettata |
-| D133 | "Come ci sono arrivato" mostra la **citazione** del documento scelto, il motivo e le voci scartate; la tabella dei punteggi passa in secondo piano | I punteggi di somiglianza spiegano il sistema a chi lo sviluppa, non la risposta a chi la riceve. La citazione è anche la prova che la destinazione non è inventata dal modello | Accettata |
+| D133 | "Come ci sono arrivato" mostra la **citazione** del documento scelto, il motivo e le voci scartate; la tabella dei punteggi passa in secondo piano | Superata da D197, per decisione di Stef: il pannello si rimuove del tutto. L'osservazione che l'ha motivata resta vera — i punteggi spiegano il sistema a chi lo sviluppa, non la risposta a chi la riceve — ma vale per il pannello intero, non solo per la tabella | Superata da D197 |
 | D134 | *(ritirata)* Un oggetto composto riceve una risposta per ogni parte separabile | Provata in v0.32.0 e rimossa in v0.32.1: la prima foto vera (piatto con forchetta appoggiata sopra) ha mostrato che il caso frequente non è l'oggetto con parti separabili ma la foto con **più oggetti distinti**, che è un problema diverso. La funzione costava una ricerca e una chiamata al modello per parte senza risolverlo | Superata da D136, ritirata in v0.32.1 |
 | D135 | *(ritirata)* Nessun chiarimento per le parti, e parti cercate solo senza domande in sospeso | Cadono con D134 | Superata da D136, ritirata in v0.32.1 |
 | D136 | Più oggetti nella stessa foto restano **fuori portata** per ora: il modello descrive un solo oggetto, quello principale | Distinguere gli altri oggetti da buttare dallo sfondo (in una foto: un piatto, una forchetta, un portatile, una scrivania, un cavo) è un problema di riconoscimento, non di recupero, e va affrontato da solo | Accettata |
@@ -346,6 +352,61 @@ Cose imparate che non sono decisioni, ma che conviene ricordare.
 ---
 
 ## Cronologia
+
+### v0.49.0 — 25/09/2026
+
+**La risposta smette di essere un modulo.** Una risposta tipica erano sei blocchi, sempre
+gli stessi e sempre nello stesso ordine, per dire che il cartone unto va nell'organico:
+riconoscimento con categoria e confidenza, titolo, "Vale se è unto.", la riga delle
+varianti, la procedura della raccolta ordinaria, il livello di evidenza, la nota di fonte e
+un pannello da aprire. Nessun blocco era sbagliato; il problema era che c'erano tutti, ogni
+volta. Quattro regole li riducono a due.
+
+**1. Una cosa si dice una volta sola** (D192). "unto" compariva tre volte nello stesso
+messaggio. Ora la condizione sta nel titolo — «Cartone della pizza: va in **Organico** se è
+unto.» — e l'altra strada, quando le varianti sono due, è una frase invece di una tabella:
+«Se invece è pulito: **Carta e cartone**.» Da tre varianti in su resta l'elenco, dove il
+confronto è davvero fra più righe. `condizioni.controfattuale` tiene le quattro nature
+separate anche qui, così "piccole quantità" non diventa "se invece è piccole quantità".
+
+**2. Si parla quando c'è un'eccezione** (D193). "Il comune elenca proprio questo oggetto"
+era vera nella grande maggioranza delle risposte, e una frase sempre presente non informa:
+l'occhio la salta, e con lei salta quelle che contavano. Ora il livello di evidenza si
+scrive solo per `categoria`, livello 2 e livello 3. Stessa sorte per la procedura della
+raccolta ordinaria quando è l'unica: è il canale della maggioranza delle voci, e tre righe
+identiche sotto ogni oggetto sono la definizione di rumore. Accanto a un altro canale
+resta, perché lì il confronto serve.
+
+**3. Quando chiede, chiede e basta** (D194). La domanda era l'ultima riga di una risposta
+completa, sotto destinazione, procedure e fonte: chi si fermava prima portava via un
+contenitore che l'assistente non si sentiva di garantire. Ora il messaggio è la domanda,
+preceduta dalla posta in gioco — «Il contenitore dipende: se è pulito va in **Carta e
+cartone**, se è unto va in **Organico**.» — e la nota di fonte tace, perché non c'è ancora
+niente di cui dichiarare la provenienza. È anche il difetto che `domanda_dovuta` non vedeva:
+contava come successo una domanda che l'utente poteva ignorare senza accorgersene.
+
+**4. Il riconoscimento serve a essere smentito** (D195). Via categoria, confidenza ed
+emoji: la categoria è una parola di tassonomia che nessuno userebbe per il proprio oggetto,
+e la confidenza è un giudizio che l'assistente dà su di sé e su cui l'utente non può fare
+niente — quando è troppo bassa il sistema chiede già di rifare la foto, che è la forma utile
+della stessa informazione. Restano oggetto e stato, e il materiale solo se ha deciso, cioè
+negli omonimi.
+
+**Un pezzo di conversazione vera** (D196). Dopo un chiarimento la risposta si apre
+riprendendo ciò che l'utente ha appena detto: «Ok, unto: va in **Organico**.» Si riprende la
+condizione *applicata* e non le sue parole, così anche chi aveva scritto "è tutta unta" si
+sente rispondere con il termine del comune; e l'altra strada non si ripete, perché l'aveva
+già mostrata la domanda.
+
+**Rimosso "Come ci sono arrivato"** (D197, supera D133). Citazione, motivo, voci scartate e
+tabella dei punteggi servivano a chi sviluppa, e per quello ci sono le tracce su MLflow, che
+mostrano gli stessi dati per intero. Sotto la risposta erano un invito ad andare a
+controllare, cioè un lavoro spostato sull'utente. La provenienza resta nella nota, con il
+link alla fonte: è la cosa che l'utente può verificare davvero.
+
+Con `frase` tolta da `condizioni` (non la usava più nessuno) e `citazione`, `perche`,
+`alternative`, `spiegazione` e `riassunto_candidati` tolte dalla presentazione, il modulo
+perde un terzo delle righe. Il messaggio tipico passa da sei blocchi a due.
 
 ### v0.48.1 — 25/09/2026
 
