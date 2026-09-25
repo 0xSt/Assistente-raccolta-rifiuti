@@ -29,7 +29,7 @@ Va aggiornato **a ogni cambiamento sostanziale**, non a ogni riga di codice. In 
 
 ---
 
-## Stato attuale (v0.45.0, 19/09/2026)
+## Stato attuale (v0.46.0, 25/09/2026)
 
 | Componente | Stato |
 |---|---|
@@ -257,6 +257,7 @@ Formato: decisione, motivazione, stato.
 | D182 | Ogni esecuzione della valutazione è anche una **run MLflow**, in un esperimento separato da quello delle conversazioni, e non è mai bloccante | I file JSON bastano per confrontare due esecuzioni, non per guardare la serie storica di dieci. L'esperimento separato perché le tracce sono osservazioni di ciò che è successo a un utente, le run sono misure ripetibili su un dataset fermo: insieme renderebbero illeggibili entrambe le liste. Non bloccante per D116: una misura non si perde perché manca un servizio di osservabilità | Accettata |
 | D183 | I documenti si arricchiscono con **dati della fonte** — il canale quando non è la raccolta ordinaria, i flussi di materiale che il testo non nomina già, e le regole di categoria che nominano l'oggetto — e **mai con descrizioni generate da un modello** | I documenti oggetto sono corti (57 caratteri di media) ed è il caso in cui l'espansione rende di più. Farla scrivere a un modello però sbaglierebbe due volte: direbbe che il bicchiere di vetro è riciclabile, che a Napoli è falso, mettendo nel testo indicizzato una frase che contraddice la fonte (contro D9); e renderebbe "Bicchiere di vetro" e "Bottiglia in vetro" **più simili fra loro**, mentre il difetto da combattere è proprio la confusione fra vicini. L'arricchimento dalla fonte fa l'opposto: al bicchiere aggancia "Nel contenitore Vetro NON va: Bicchieri", che è la frase per cui quella voce non sta nel vetro. Si spegne con `ECOSCAN_ARRICCHIMENTO=no`, perché una modifica al recupero che non si può confrontare con la propria assenza non si sa se ha funzionato | Accettata |
 | D184 | La registrazione di una valutazione **non è best-effort**: ignora `ECOSCAN_MLFLOW_ATTIVO`, ripiega su un archivio locale se il server non risponde, e se non riesce nemmeno lì **ferma il comando con errore** | D116 dice che il tracciamento non deve mai bloccare, ed è giusto per le conversazioni: una traccia persa non fa danno, l'utente ha avuto la sua risposta. Una misura è un'altra cosa — si prende una volta, dopo minuti di CPU, e se non viene registrata è persa. Le tre regole seguono da lì. In più: l'esito si salva **sempre** anche su file, senza dover ricordare `--salva`, e `--prova-mlflow` scrive una run minuscola per rispondere in un secondo alla domanda "è il server o è il mio codice?" | Accettata |
+| D185 | Ogni caso di valutazione lascia una **traccia** su MLflow, agganciata alla run della misura, con i tag su cui si filtra (caso, insieme, comune, diagnosi, posizione) | Le percentuali dicono *quanti* casi vanno male; la traccia dice *perché quel caso* è andato male — quali domande sono state poste all'indice, quali documenti sono usciti e in che ordine, cosa ha scelto il modello e cosa ha scartato la politica dei materiali. È la stessa traccia di una conversazione vera, quindi si legge con gli stessi occhi. La run si apre **prima** dei casi perché una traccia creata dentro una run le resta agganciata (`mlflow.sourceRun`, verificato su un server vero): registrando alla fine, le tracce resterebbero nell'esperimento senza legame con la misura che le ha prodotte | Accettata |
 
 ### Transform
 
@@ -339,6 +340,29 @@ Cose imparate che non sono decisioni, ma che conviene ricordare.
 ---
 
 ## Cronologia
+
+### v0.46.0 — 25/09/2026
+
+**Ogni caso lascia la sua traccia** (D185). Finora una valutazione produceva otto numeri e
+un elenco di diagnosi: abbastanza per sapere *dove* intervenire, non per capire *perché* un
+caso preciso è andato storto. Ora ogni caso apre una traccia MLflow con dentro tutto il
+percorso — le domande poste all'indice, i documenti usciti con il loro ordine, i documenti
+scartati per materiale, la scelta del modello con il suo motivo — e i tag su cui filtrare:
+`caso`, `insieme`, `comune`, `diagnosi`, `recuperato`, `posizione`, `livello`, `atteso`.
+
+Nell'interfaccia si aprono **dalla run**: la run della misura si apre prima dei casi, e una
+traccia creata mentre una run è in corso le resta agganciata. Verificato su un server vero
+prima di scriverlo, non dedotto dalla documentazione.
+
+Il tracciatore punta allo stesso archivio della run — compreso quello locale di ripiego —
+altrimenti misura e tracce finirebbero in due posti diversi. E come per la misura (D184),
+`attivo=True`: le tracce di una valutazione non sono osservabilità facoltativa. Si
+disattivano con `--senza-tracce`, che resta utile quando si vuole solo il numero.
+
+**Da sapere leggendole**: nella modalità completa il recupero compare due volte per caso —
+una per misurare il tetto su entrambi i livelli, una eseguita dalla cascata vera. È il
+prezzo di misurare il recupero indipendentemente dalla risposta, e la traccia lo rende
+visibile invece di nasconderlo.
 
 ### v0.45.0 — 19/09/2026
 

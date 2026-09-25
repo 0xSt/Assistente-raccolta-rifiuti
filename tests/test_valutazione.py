@@ -5,8 +5,11 @@ scriva senza doppioni, che la diagnosi distingua un recupero fallito da una scel
 sbagliata, e che una misura non dichiari di sapere ciò che non ha misurato.
 """
 import json
+from contextlib import contextmanager
 
 import pytest
+
+from ecoscan.osservabilita.tracciamento import SpanNullo, TracciatoreNullo
 
 from ecoscan.agente.agente import Agente
 from ecoscan.valutazione import esegui as val
@@ -399,3 +402,66 @@ def test_l_esecuzione_chiama_l_avanzamento_dopo_ogni_caso(ambiente):
     val.esegui(agente, [caso_dei_giornali()], con_modello=False,
                avanzamento=lambda n, t, c, e: visti.append((n, t, c.id, e.recuperato)))
     assert visti == [(1, 1, "Torino · giornale", True)]
+
+
+# --------------------------------------------------- una traccia per ogni caso
+
+class TracciatoreFinto(TracciatoreNullo):
+    """Registra cosa gli è stato chiesto, senza parlare con MLflow. Eredita dal nullo, così
+    se l'interfaccia cambia questo test se ne accorge invece di inventarsene una sua."""
+
+    def __init__(self):
+        self.turni, self.etichette, self.uscite = [], [], []
+
+    @contextmanager
+    def turno(self, nome, conversazione, ingressi):
+        self.turni.append((nome, conversazione, ingressi))
+        raccolte = self.uscite
+
+        class Radice(SpanNullo):
+            trace_id = "tr-finto"
+
+            def uscita(self, valore):
+                raccolte.append(valore)
+
+        yield Radice()
+
+    def etichetta(self, span, **tag):
+        self.etichette.append(tag)
+
+
+def test_ogni_caso_apre_la_sua_traccia(ambiente):
+    """Le percentuali dicono quanti casi vanno male; la traccia dice perché *quel* caso è
+    andato male. Senza, la valutazione resta un contatore."""
+    from ecoscan.valutazione.esegui import _ModelloAssente
+    tracciatore = TracciatoreFinto()
+    agente = Agente(ambiente.recupero, _ModelloAssente(), k=8, tracciatore=tracciatore)
+    val.valuta_caso(agente, caso_dei_giornali(), con_modello=False, sessione="prova")
+
+    nome, sessione, ingressi = tracciatore.turni[0]
+    assert (nome, sessione) == ("valutazione", "prova")
+    assert ingressi["caso"] == "Torino · giornale"
+    assert ingressi["destinazioni_attese"] == ["carta_e_cartone"]
+    assert tracciatore.uscite[0]["recuperato"] is True
+
+
+def test_la_traccia_porta_i_tag_su_cui_si_filtra(ambiente):
+    """Sui tag l'interfaccia di MLflow filtra, sugli attributi no: è così che dopo una
+    valutazione si aprono le sole tracce dei casi falliti."""
+    from ecoscan.valutazione.esegui import _ModelloAssente
+    tracciatore = TracciatoreFinto()
+    agente = Agente(ambiente.recupero, _ModelloAssente(), k=8, tracciatore=tracciatore)
+    val.valuta_caso(agente, caso_dei_giornali(), con_modello=False)
+
+    tag = tracciatore.etichette[0]
+    assert tag["caso"] == "Torino · giornale"
+    assert tag["insieme"] == "regressioni" and tag["comune"] == "Torino"
+    assert tag["diagnosi"] == val.RECUPERATO and tag["recuperato"] == "si"
+
+
+def test_un_caso_negativo_dichiara_nel_tag_che_deve_tacere(ambiente):
+    from ecoscan.valutazione.esegui import _ModelloAssente
+    tracciatore = TracciatoreFinto()
+    agente = Agente(ambiente.recupero, _ModelloAssente(), k=8, tracciatore=tracciatore)
+    val.valuta_caso(agente, caso_assente(), con_modello=False)
+    assert "deve astenersi" in tracciatore.etichette[0]["atteso"]

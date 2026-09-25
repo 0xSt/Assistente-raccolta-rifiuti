@@ -186,12 +186,40 @@ def porta_alla_destinazione(candidato: Candidato, attese: list[str]) -> bool:
     return bool(set(candidato.destinazioni) & set(attese))
 
 
-def valuta_caso(agente: Agente, caso: Caso, con_modello: bool = True) -> Esito:
-    """Esegue un caso e misura recupero e risposta.
+def valuta_caso(agente: Agente, caso: Caso, con_modello: bool = True,
+                sessione: str | None = None) -> Esito:
+    """Esegue un caso e misura recupero e risposta, dentro una traccia tutta sua.
 
     Il recupero si misura su **tutti** i livelli, non solo su quello che ha risposto: se la
     voce giusta era al livello 1 e la risposta è arrivata dal 2, vogliamo saperlo.
+
+    **La traccia è il motivo per cui questo non è solo un contatore.** Le percentuali dicono
+    quanti casi vanno male; la traccia dice *perché quel caso* è andato male: quali domande
+    sono state poste all'indice, quali documenti sono usciti e in che ordine, cosa ha
+    risposto il modello e cosa ha scartato la politica dei materiali. È la stessa traccia
+    che si registra per una conversazione vera, quindi si legge con gli stessi occhi.
     """
+    ingressi = {"caso": caso.id, "comune": caso.comune, "oggetto": caso.oggetto,
+                "testo_utente": caso.testo_utente,
+                "destinazioni_attese": caso.destinazioni_attese,
+                "livello_atteso": caso.livello_atteso, "voce_fonte": caso.voce_fonte}
+    with agente.tracciatore.turno("valutazione", sessione or caso.origine, ingressi) as radice:
+        esito = _valuta(agente, caso, con_modello)
+        radice.uscita({"destinazioni": esito.destinazioni, "livello": esito.livello,
+                       "recuperato": esito.recuperato, "posizione": esito.posizione,
+                       "candidati": esito.candidati, "diagnosi": esito.diagnosi,
+                       "raggiungibili": esito.raggiungibili})
+        # i tag, non gli attributi: sui tag l'interfaccia di MLflow filtra, ed è così che
+        # dopo una valutazione si aprono le sole tracce dei casi falliti
+        agente.tracciatore.etichetta(
+            radice, caso=caso.id, insieme=caso.origine, comune=caso.comune,
+            diagnosi=esito.diagnosi, recuperato="si" if esito.recuperato else "no",
+            posizione=esito.posizione, livello=esito.livello,
+            atteso=" · ".join(caso.destinazioni_attese) or "(nessuna: deve astenersi)")
+    return esito
+
+
+def _valuta(agente: Agente, caso: Caso, con_modello: bool) -> Esito:
     richiesta = Richiesta(caso.riconoscimento, caso.comune, caso.testo_utente)
     trovati: list[Candidato] = []
     for livello in (1, 2):
@@ -218,13 +246,13 @@ def valuta_caso(agente: Agente, caso: Caso, con_modello: bool = True) -> Esito:
 
 
 def esegui(agente: Agente, casi: list[Caso], con_modello: bool = True,
-           avanzamento=None) -> list[Esito]:
+           avanzamento=None, sessione: str | None = None) -> list[Esito]:
     """Esegue i casi. `avanzamento(numero, totale, caso, esito)` viene chiamato **dopo**
     ciascuno, con l'esito già in mano: così la riga di avanzamento può dire com'è andato
     invece di annunciare soltanto cosa sta per fare."""
     esiti = []
     for numero, caso in enumerate(casi, start=1):
-        esito = valuta_caso(agente, caso, con_modello)
+        esito = valuta_caso(agente, caso, con_modello, sessione)
         esiti.append(esito)
         if avanzamento:
             avanzamento(numero, len(casi), caso, esito)
@@ -525,6 +553,8 @@ def main() -> None:
     ap.add_argument("-k", type=int, default=8, help="quanti candidati per livello")
     ap.add_argument("--senza-mlflow", action="store_true",
                     help="non registra l'esecuzione come run di MLflow")
+    ap.add_argument("--senza-tracce", action="store_true",
+                    help="registra le misure ma non una traccia per caso (più veloce)")
     ap.add_argument("--prova-mlflow", action="store_true",
                     help="scrive una run minuscola e riferisce: serve a capire se il "
                          "problema è il server o la valutazione")
@@ -562,11 +592,9 @@ def main() -> None:
     if con_modello:
         print("Su CPU la scelta richiede qualche secondo per caso.", flush=True)
 
-    avanzamento = Avanzamento(len(casi))
-    esiti = esegui(agente, casi, con_modello=con_modello, avanzamento=avanzamento)
-    durata = avanzamento.fine()
-
     esecuzione = descrizione_esecuzione(agente, casi, args.k, con_modello)
+    esiti, durata, registrazione = _esegui_registrando(agente, casi, con_modello, esecuzione,
+                                                       args)
     print(f"Eseguiti {len(casi)} casi in {durata:.0f} s "
           f"({durata / max(len(casi), 1):.1f} s per caso).")
     riepiloga(esiti, args.k)
@@ -585,9 +613,44 @@ def main() -> None:
     for percorso in salvati:
         print(f"Esito salvato in {percorso}")
 
-    if not args.senza_mlflow:
-        from ecoscan.osservabilita.valutazione_registrata import registra
-        registra(esecuzione, misure(esiti, args.k), come_json(esiti, esecuzione, args.k))
+    if registrazione is not None:
+        registrazione.scrivi(esecuzione, misure(esiti, args.k),
+                             come_json(esiti, esecuzione, args.k))
+        registrazione.riferisci(tracce=len(esiti))
+
+
+def _esegui_registrando(agente: Agente, casi: list[Caso], con_modello: bool,
+                        esecuzione: dict, args) -> tuple[list[Esito], float, object]:
+    """Esegue i casi dentro una run aperta, così ogni caso lascia la sua traccia.
+
+    La run si apre **prima**: una traccia creata mentre una run è in corso le resta
+    agganciata, e nell'interfaccia si aprono dalla run stessa. Registrare alla fine
+    lascerebbe le tracce nell'esperimento senza legame con la misura che le ha prodotte.
+
+    Il tracciatore punta allo stesso archivio della run — che può essere quello locale, se
+    il server non risponde — altrimenti misura e tracce finirebbero in due posti diversi.
+    """
+    avanzamento = Avanzamento(len(casi))
+    if args.senza_mlflow:
+        esiti = esegui(agente, casi, con_modello=con_modello, avanzamento=avanzamento)
+        return esiti, avanzamento.fine(), None
+
+    from ecoscan.osservabilita.tracciamento import Tracciatore
+    from ecoscan.osservabilita.valutazione_registrata import ESPERIMENTO, registrazione
+
+    sessione = f"valutazione {esecuzione['data']}"
+    with registrazione(sessione) as apertura:
+        if not args.senza_tracce:
+            # `attivo=True` e non `conf.MLFLOW_ATTIVO`: come per la misura, le tracce di una
+            # valutazione non sono osservabilità facoltativa (D184). Le foto non servono:
+            # qui non ce ne sono, i casi partono dal riconoscimento.
+            tracciatore = Tracciatore(indirizzo=apertura.indirizzo, esperimento=ESPERIMENTO,
+                                      attivo=True, salva_foto=False)
+            tracciatore.configura(agente.configurazione())
+            agente.tracciatore = tracciatore
+        esiti = esegui(agente, casi, con_modello=con_modello, avanzamento=avanzamento,
+                       sessione=sessione)
+        return esiti, avanzamento.fine(), apertura
 
 
 def _percorso_automatico(esecuzione: dict) -> Path:
