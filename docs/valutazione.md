@@ -1,6 +1,6 @@
 # La valutazione
 
-> Aggiornato alla **v0.47.0**.
+> Aggiornato alla **v0.48.0**.
 
 Questo documento spiega **cosa misura** il sistema di valutazione, **perché** misura quelle
 cose e non altre, **come** si usa e **come si leggono** i numeri che produce.
@@ -135,7 +135,7 @@ scopi diversi (è D172 portato alle sue conseguenze).
 | `regressioni.jsonl` | casi nati da errori osservati | 18 | **pass/fail**: 18 su 18 |
 | `campione.jsonl` | campione stratificato del dizionario | 63 | **percentuali**: è la stima |
 | `assenti.jsonl` | oggetti che il comune non copre | 11 | le due **astensioni** |
-| `chiarimenti.jsonl` | oggetti con due varianti in conflitto | 29 | le due **domande** |
+| `chiarimenti.jsonl` | oggetti con due varianti in conflitto, e omonimi distinti dal materiale | 49 | le due **domande** |
 
 ### Perché il campione esiste
 
@@ -288,6 +288,18 @@ sola.
 Le due diagnosi sono separate perché si riparano in punti diversi: una domanda mancata è
 una condizione che il codice non ha visto fra le varianti; una di troppo è un testo
 dell'utente che non è stato letto.
+
+I casi sono di **due specie**, perché due sono le incertezze che l'agente può avere:
+
+- **condizione** — la voce ha due varianti che portano altrove e l'utente non ha detto
+  quale sia la sua (cartone della pizza pulito o unto);
+- **materiale** — due voci omonime di materiali diversi portano altrove (bicchiere di vetro
+  o di plastica). Aggiunti in v0.48.0 con la domanda che li risolve (D188).
+
+**Una risposta accompagnata da una domanda dovuta è provvisoria** e non entra nelle metriche
+della risposta: l'agente ha detto "probabilmente X, ma dimmi Y", e pretendere che X sia già
+la risposta completa significherebbe punirlo per aver fatto la cosa giusta. Il caso si
+giudica sulla domanda.
 
 Non si misurano con `--senza-modello`: la domanda nasce durante la scelta, e senza modello
 non viene nemmeno formulata. Valgono `None`, non zero.

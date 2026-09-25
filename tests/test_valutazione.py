@@ -558,3 +558,39 @@ def test_i_casi_ambigui_non_dichiarano_la_condizione():
     con_testo = [c for c in tutti()
                  if c.origine == "chiarimenti" and c.chiarimento_atteso and c.testo_utente]
     assert not con_testo, f"casi ambigui che dichiarano già la condizione: {con_testo}"
+
+
+def test_una_risposta_provvisoria_non_si_misura_come_definitiva():
+    """L'agente ha detto "probabilmente X, ma dimmi Y": pretendere che X sia già la risposta
+    completa significherebbe punirlo per aver fatto la cosa giusta."""
+    provvisoria = val.Esito(caso=caso_ambiguo(), recuperato=True, posizione=1,
+                            destinazioni=["Carta e Cartoncino"],   # una sola delle due
+                            chiarimento="L'oggetto è: pulito oppure unto?")
+    assert provvisoria.provvisoria is True
+    assert provvisoria.diagnosi == val.CORRETTO_CON_DOMANDA
+    misure = val.misure([provvisoria])
+    assert misure["contenitore_corretto"] is None, "non è una risposta definitiva"
+    assert misure["domanda_dovuta"] == 100.0
+
+
+def test_una_risposta_senza_domanda_si_misura_eccome():
+    """Il rovescio: se non ha chiesto, la destinazione che ha dato è la sua risposta finale
+    e si giudica come tale."""
+    definitiva = val.Esito(caso=caso_dichiarato(), recuperato=True, posizione=1,
+                           destinazioni=["Organico"])
+    assert definitiva.provvisoria is False
+    assert val.misure([definitiva])["contenitore_corretto"] == 100.0
+
+
+def test_l_esito_dice_quale_voce_ha_risposto():
+    """Senza, un caso che si aspettava una voce e ne ha trovata un'altra sembra un difetto
+    della domanda invece che della scelta: è successo il 25/09 con "medicinali", dove ha
+    risposto la voce «Medicinale» (una variante sola, niente da chiedere) invece di
+    «Farmaci»."""
+    caso = Caso(comune="Napoli", oggetto="medicinali che ho in casa",
+                voce_fonte="Farmaci", destinazioni_attese=["Contenitore Farmaco"],
+                origine="chiarimenti", chiarimento_atteso=True)
+    esito = val.Esito(caso=caso, recuperato=True, posizione=1,
+                      destinazioni=["Contenitore Farmaco"], scelto="Medicinale")
+    assert esito.scelto == "Medicinale"
+    assert val.come_json([esito])["esiti"][caso.id]["scelto"] == "Medicinale"

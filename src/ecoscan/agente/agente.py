@@ -26,7 +26,9 @@ from ecoscan import configurazione as conf
 from ecoscan import materiali as materiali_
 from ecoscan import prompt as prompt_
 from ecoscan.agente.modelli import ModelloVisione
-from ecoscan.agente.recupero import Recupero, nomina_l_oggetto, scegli_variante
+from ecoscan.agente.recupero import (
+    Recupero, nomina_l_oggetto, scegli_variante, stessa_cosa,
+)
 from ecoscan.agente.tipi import (
     STESSO_OGGETTO, TIPI_NON_VALIDI, Candidato, Riconoscimento, Risposta, Scelta,
 )
@@ -221,19 +223,50 @@ class Agente:
         return STESSO_OGGETTO if nomina else dichiarato
 
     @staticmethod
-    def _chiarimento(da_chiarire: list[str], scelta: Scelta,
+    def _materiali_da_chiarire(scelto: Candidato, candidati: list[Candidato],
+                               richiesta: Richiesta) -> list[str]:
+        """I materiali che distinguono documenti omonimi, quando non sappiamo quale sia.
+
+        È il difetto che restava scoperto: il chiarimento nasceva solo dalle **condizioni**
+        di una voce (D73), quindi "bicchiere" — che a Napoli può essere di vetro (Non
+        Riciclabile) o di plastica (Plastica e Metalli) — non produceva nessuna domanda. Il
+        modello ne sceglieva uno e basta, e l'utente non aveva modo di sapere che la
+        risposta dipendeva da un'informazione che non aveva dato.
+
+        Si chiede solo quando la domanda **cambierebbe la risposta**: due materiali almeno,
+        che portano in contenitori diversi, fra documenti che nominano davvero l'oggetto. Se
+        il riconoscimento il materiale l'ha già dichiarato, non c'è niente da chiedere: a
+        quel punto tocca al filtro dei materiali togliere i documenti incompatibili.
+        """
+        if richiesta.riconoscimento.materiali:
+            return []
+        # la famiglia si ancora al documento **scelto**: senza, un candidato qualunque di un
+        # altro materiale farebbe nascere una domanda che non c'entra con la risposta
+        omonimi = [(c.nome or "", tuple(c.destinazioni)) for c in candidati
+                   if c is scelto or stessa_cosa(c.nome or "", scelto.nome or "")]
+        return materiali_.distinzione(omonimi)
+
+    @staticmethod
+    def _chiarimento(da_chiarire: list[str], materiali: list[str], scelta: Scelta,
                      gia_chiesto: bool) -> tuple[str | None, list[str]]:
         """La domanda da fare e le risposte possibili.
 
         Le condizioni diventano i pulsanti dell'interfaccia, e la domanda cambia con la loro
         natura: "com'è" per lo stato, "quanto ne hai" per le quantità, "chi lo conferisce"
-        per le utenze. Dopo una domanda già fatta non se ne fa un'altra: l'utente ha
-        risposto, e ripetergliela lo lascerebbe in un giro senza uscita.
+        per le utenze, "di che materiale è" per le voci omonime. Dopo una domanda già fatta
+        non se ne fa un'altra: l'utente ha risposto, e ripetergliela lo lascerebbe in un giro
+        senza uscita.
+
+        L'ordine è una precedenza: la condizione della voce scelta è più specifica del
+        materiale, perché riguarda proprio quel documento; il chiarimento suggerito dal
+        modello viene per ultimo, perché è l'unico che non nasce dai dati.
         """
         if gia_chiesto:
             return None, []
         if da_chiarire:
             return condizioni_.domanda(da_chiarire), list(da_chiarire)
+        if materiali:
+            return condizioni_.domanda(materiali, condizioni_.MATERIALE), list(materiali)
         return scelta.chiarimento, []
 
     def _componi(self, scelto: Candidato, scelta: Scelta, candidati: list[Candidato],
@@ -244,7 +277,9 @@ class Agente:
 
         variante, da_chiarire = scegli_variante(
             scelto, [richiesta.testo_utente, richiesta.riconoscimento.stato])
-        chiarimento, opzioni = self._chiarimento(da_chiarire, scelta, richiesta.gia_chiesto)
+        materiali = self._materiali_da_chiarire(scelto, candidati, richiesta)
+        chiarimento, opzioni = self._chiarimento(da_chiarire, materiali, scelta,
+                                                 richiesta.gia_chiesto)
 
         return Risposta(
             livello_evidenza=scelto.livello, comune=richiesta.comune,
@@ -338,6 +373,24 @@ class Agente:
                 "modello_visione": self.modello.nome,
                 "id_conversazione": conversazione}
 
+    @staticmethod
+    def _con_la_risposta(riconoscimento: dict, risposta_utente: str) -> Riconoscimento:
+        """Il riconoscimento aggiornato con ciò che l'utente ha appena detto.
+
+        Dove finisce la risposta dipende da cosa è: una condizione va nello **stato**, un
+        materiale nei **materiali**. Metterlo sempre nello stato era giusto finché si
+        chiedevano solo le condizioni; da quando si chiede anche il materiale, lo stato
+        "vetro" non servirebbe a niente — il filtro dei materiali guarda `materiali`, e le
+        formulazioni cercano "oggetto + materiale" (D164). La domanda cambierebbe la
+        risposta solo per caso.
+        """
+        campi = dict(riconoscimento)
+        if materiali_.dichiarato(risposta_utente or ""):
+            campi["materiali"] = [*(campi.get("materiali") or []), risposta_utente]
+        else:
+            campi["stato"] = risposta_utente or None
+        return Riconoscimento(**campi)
+
     def correggi(self, contesto: dict, oggetto: str) -> Risposta:
         """L'utente dice che l'oggetto riconosciuto è sbagliato: si riparte dal suo.
 
@@ -389,8 +442,7 @@ class Agente:
         # il turno diventa l'inizio di una conversazione nuova, invece di fallire
         conversazione = contesto.get("id_conversazione") or nuova_conversazione()
         testo = " ".join(filter(None, [contesto.get("testo_utente"), risposta_utente]))
-        arricchito = Riconoscimento(**{**contesto["riconoscimento"],
-                                       "stato": risposta_utente or None})
+        arricchito = self._con_la_risposta(contesto["riconoscimento"], risposta_utente)
         ingressi = {"comune": contesto["comune"], "risposta_utente": risposta_utente,
                     "testo_utente": testo, "riconoscimento": contesto["riconoscimento"]}
 

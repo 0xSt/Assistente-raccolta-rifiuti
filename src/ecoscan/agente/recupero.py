@@ -19,6 +19,7 @@ import re
 from dataclasses import dataclass
 from typing import Protocol
 
+from ecoscan import materiali as materiali_
 from ecoscan.agente.tipi import Candidato, Riconoscimento, Variante
 from ecoscan.db.vettorizza import cerca, cerca_per_codice
 
@@ -146,6 +147,31 @@ def nomina_l_oggetto(candidato: Candidato, riconoscimento: Riconoscimento,
         if parole and all(p in nome for p in parole):
             return True
     return False
+
+
+def nucleo(nome: str) -> frozenset[str]:
+    """Le parole di un nome che dicono *cosa* è l'oggetto: né materiali né parole di servizio.
+
+    "Bicchiere di vetro" e "Bicchiere in plastica" hanno lo stesso nucleo — `bicchier` — e
+    differiscono solo per il materiale. È il modo di riconoscere gli omonimi guardando i
+    **documenti** invece della domanda: `nomina_l_oggetto` chiede che la domanda contenga
+    tutte le parole del nome, che è giusto per preferire il documento specifico e troppo
+    stretto per accorgersi che due candidati parlano della stessa cosa.
+    """
+    parole = re.findall(r"[a-zà-ù0-9]+", (nome or "").lower())
+    return frozenset(radice(p) for p in parole
+                     if len(p) >= 3 and p not in PAROLE_DI_SERVIZIO
+                     and not materiali_.famiglia(p))
+
+
+def stessa_cosa(uno: str, altro: str) -> bool:
+    """Due nomi parlano dello stesso oggetto, a meno del materiale e delle qualificazioni.
+
+    Il confronto è per inclusione e non per uguaglianza: "Vaschette in alluminio" e
+    "Vaschette alimentari in plastica" sono la stessa cosa detta con una parola in più.
+    """
+    primo, secondo = nucleo(uno), nucleo(altro)
+    return bool(primo and secondo) and (primo <= secondo or secondo <= primo)
 
 
 def scegli_variante(candidato: Candidato, testi: list[str | None]) -> tuple[Variante | None, list[str]]:

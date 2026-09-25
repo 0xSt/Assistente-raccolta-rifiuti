@@ -72,3 +72,38 @@ def test_le_voci_reali_di_napoli_che_il_filtro_deve_tenere():
                  "Stoviglie in metallo", "Vaschetta in alluminio per alimenti"]
     assert not any(materiali.incompatibili(nome, acciaio) for nome in da_tenere)
     assert materiali.incompatibili("Forchetta in plastica", acciaio)
+
+
+# --------------------------------------- il rovescio: quando il materiale NON lo sappiamo
+
+def test_due_omonimi_di_materiali_diversi_chiedono_una_domanda():
+    """Il difetto che restava scoperto: "bicchiere" a Napoli può essere di vetro (Non
+    Riciclabile) o di plastica (Plastica e Metalli), e la risposta cambia del tutto."""
+    assert materiali.distinzione([
+        ("Bicchiere di vetro", ("Non Riciclabile",)),
+        ("Bicchiere in plastica", ("Plastica e Metalli",))]) == ["plastica", "vetro"]
+
+
+def test_non_si_chiede_se_la_risposta_non_cambierebbe():
+    """Alluminio e latta sono due materiali, ma a Napoli vanno nello stesso contenitore:
+    la domanda costerebbe un giro all'utente per niente."""
+    assert materiali.distinzione([
+        ("Barattolo in alluminio", ("Plastica e Metalli",)),
+        ("Barattolo in latta", ("Plastica e Metalli",))]) == []
+
+
+def test_non_si_chiede_con_un_materiale_solo():
+    assert materiali.distinzione([("Bottiglia in vetro", ("Vetro",))]) == []
+
+
+def test_un_documento_che_nomina_due_materiali_non_distingue_niente():
+    """"Barattolo in metallo o plastica" risponderebbe a entrambe le risposte: come opzione
+    di una domanda non separa nulla."""
+    assert materiali.dichiarato("Barattolo in metallo o plastica") is None
+    assert materiali.distinzione([
+        ("Barattolo in metallo o plastica", ("Plastica e Metalli",)),
+        ("Barattolo in vetro", ("Vetro",))]) == []
+
+
+def test_un_documento_che_tace_il_materiale_non_entra_nella_domanda():
+    assert materiali.dichiarato("Scatolette per tonno") is None
