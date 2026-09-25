@@ -49,7 +49,7 @@ from ecoscan.percorsi import DATI
 
 CARTELLA = DATI / "valutazione" / "casi"
 # l'ordine in cui si leggono, che è anche l'ordine in cui conviene guardarli
-INSIEMI = ("regressioni", "campione", "assenti")
+INSIEMI = ("regressioni", "campione", "assenti", "chiarimenti")
 
 
 @dataclass
@@ -69,6 +69,7 @@ class Caso:
     origine: str = "regressioni"           # quale insieme: lo decide il nome del file
     voce_fonte: str = ""                   # la voce del dizionario da cui nasce l'attesa
     strato: dict | None = None             # come è stato campionato (comune, canale, ...)
+    chiarimento_atteso: bool | None = None # True: deve chiedere. False: non deve. None: non si verifica
 
     @property
     def id(self) -> str:
@@ -97,6 +98,17 @@ class Caso:
         qualcos'altro che gli somiglia.
         """
         return not self.destinazioni_attese
+
+    @property
+    def ambiguo(self) -> bool:
+        """Il caso mette alla prova la domanda, in una delle due direzioni.
+
+        Sono due controlli speculari sullo stesso oggetto: uno **senza** dire la condizione,
+        dove l'agente deve chiedere; uno **dicendola**, dove deve rispondere e basta. Il
+        primo da solo si supererebbe chiedendo sempre, che è il difetto opposto e altrettanto
+        inutile — la stessa ragione per cui le astensioni si leggono in coppia.
+        """
+        return self.chiarimento_atteso is not None
 
     @property
     def valido(self) -> bool:

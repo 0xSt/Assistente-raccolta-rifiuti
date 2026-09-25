@@ -1,6 +1,6 @@
 # La valutazione
 
-> Aggiornato alla **v0.46.0**.
+> Aggiornato alla **v0.47.0**.
 
 Questo documento spiega **cosa misura** il sistema di valutazione, **perché** misura quelle
 cose e non altre, **come** si usa e **come si leggono** i numeri che produce.
@@ -20,13 +20,14 @@ La valutazione è fatta di due strumenti, con due costi e due ritmi diversi.
 Un terzo comando, `ecoscan-campiona`, non misura: prepara il dataset estraendo voci dal
 database.
 
-Ciò che viene misurato, in tutto, sono **otto numeri**:
+Ciò che viene misurato, in tutto, sono **dieci numeri**:
 
 | gruppo | numeri | risponde a |
 |---|---|---|
 | recupero | `recall@1`, `recall@4`, `recall@8` | il documento giusto arriva al modello? E in che posizione? |
 | risposta | `contenitore_corretto`, `copertura` | manda qualcuno nel posto sbagliato? Perde un'alternativa? |
 | astensione | `astensione_corretta`, `astensione_a_sproposito` | sa dire "non lo so" quando è giusto, e solo allora? |
+| domanda | `domanda_dovuta`, `domanda_inutile` | chiede la condizione quando non può saperla, e solo allora? |
 | costo | `riconoscimento_p50/p90`, `corrette_dalla_foto` | quanto costa la visione, in secondi e in punti persi? |
 
 E quello che **non** viene misurato, dichiarato qui una volta per tutte: la qualità della
@@ -134,6 +135,7 @@ scopi diversi (è D172 portato alle sue conseguenze).
 | `regressioni.jsonl` | casi nati da errori osservati | 18 | **pass/fail**: 18 su 18 |
 | `campione.jsonl` | campione stratificato del dizionario | 63 | **percentuali**: è la stima |
 | `assenti.jsonl` | oggetti che il comune non copre | 11 | le due **astensioni** |
+| `chiarimenti.jsonl` | oggetti con due varianti in conflitto | 29 | le due **domande** |
 
 ### Perché il campione esiste
 
@@ -268,6 +270,27 @@ Si leggono **in coppia**, come precision e recall:
 - `astensione_a_sproposito` — dei casi coperti, quanti hanno ricevuto un livello 3.
 
 Il primo da solo si massimizza tacendo sempre, e un sistema muto non è prudente: è inutile.
+
+### Domanda — `domanda_dovuta` e `domanda_inutile`
+
+Anche queste **in coppia**, e per lo stesso motivo delle astensioni:
+
+- `domanda_dovuta` — dei casi in cui la condizione decide la destinazione e l'utente non
+  l'ha dichiarata, quante volte l'agente chiede invece di tirare a indovinare;
+- `domanda_inutile` — dei casi in cui l'utente l'ha già dichiarata, quante volte chiede lo
+  stesso, facendo perdere tempo a chi aveva già risposto.
+
+La prima da sola si massimizza chiedendo sempre, che è il difetto opposto e altrettanto
+fastidioso. Per questo il dataset è fatto di **coppie**: lo stesso oggetto due volte, una
+senza la condizione e una con — e un test fallisce se una voce compare in una direzione
+sola.
+
+Le due diagnosi sono separate perché si riparano in punti diversi: una domanda mancata è
+una condizione che il codice non ha visto fra le varianti; una di troppo è un testo
+dell'utente che non è stato letto.
+
+Non si misurano con `--senza-modello`: la domanda nasce durante la scelta, e senza modello
+non viene nemmeno formulata. Valgono `None`, non zero.
 
 ### Livello — `livello_atteso`
 
