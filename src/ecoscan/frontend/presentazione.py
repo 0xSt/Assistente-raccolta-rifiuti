@@ -40,21 +40,67 @@ SPIEGAZIONE_LIVELLO = {
 # Al livello 1 la frase dipende da COME la voce corrisponde: dire "elenca proprio questo
 # oggetto" quando la voce è la categoria afferma più di quanto il sistema sappia, e la fonte
 # citata rimanda a un altro oggetto. L'utente perde così il motivo per dubitare (D163).
-SPIEGAZIONE_CORRISPONDENZA = {
-    "categoria": "Il comune non elenca proprio questo oggetto, ma la categoria a cui "
-                 "appartiene.",
-}
+CATEGORIA = "Il comune non elenca proprio questo oggetto, ma la categoria a cui appartiene"
 
 
 def spiegazione_livello(risposta: dict) -> str:
-    """Perché la risposta vale, quando c'è qualcosa da dire."""
+    """Perché la risposta vale, quando c'è qualcosa da dire.
+
+    Con una corrispondenza per **categoria** si nomina la voce (D199): "ma la categoria a cui
+    appartiene" senza dire quale lascia l'utente con un'affermazione che non può controllare,
+    ed è proprio il punto in cui la scelta sbaglia più spesso. Con il nome davanti — «la
+    regola di *Braccioli, canottini, materassini e altri gonfiabili*» — chiunque vede in un
+    secondo se la categoria regge, e per una tavola da surf non regge.
+    """
     livello = risposta.get("livello_evidenza", 3)
-    if livello == 1:
-        return SPIEGAZIONE_CORRISPONDENZA.get(risposta.get("tipo_corrispondenza") or "", "")
-    return SPIEGAZIONE_LIVELLO.get(livello, "")
+    if livello != 1:
+        return SPIEGAZIONE_LIVELLO.get(livello, "")
+    if (risposta.get("tipo_corrispondenza") or "") != "categoria":
+        return ""
+    voce = (documento_scelto(risposta) or {}).get("nome") or ""
+    return f"{CATEGORIA}: la regola è quella di «{voce}»." if voce else f"{CATEGORIA}."
+
+
+# Quanto fidarsi, come lo vede l'interfaccia: il livello di evidenza smette di essere una
+# frase da leggere e diventa il colore del riquadro (D200).
+NORMALE, INCERTO, ATTENZIONE = "normale", "incerto", "attenzione"
+
+
+def tono(risposta: dict) -> str:
+    """Che aria deve avere il messaggio.
+
+    `attenzione` quando la fonte si contraddice: è l'unico caso in cui il comune dice due
+    cose diverse, e l'utente deve saperlo prima di agire. `incerto` quando la risposta non
+    viene dalla voce dell'oggetto — livello 3, livello 2, o livello 1 per categoria: sono i
+    casi in cui una persona farebbe bene a controllare. `normale` per il resto.
+    """
+    if risposta.get("contraddizione"):
+        return ATTENZIONE
+    if risposta.get("chiarimento"):
+        return NORMALE
+    livello = risposta.get("livello_evidenza", 3)
+    if livello != 1 or (risposta.get("tipo_corrispondenza") or "") == "categoria":
+        return INCERTO
+    return NORMALE
 
 
 ETICHETTA_LIVELLO = {1: "voce del dizionario", 2: "regola di categoria", 3: "nessuna regola"}
+
+# Il colore del contenitore è **un dato del comune**, non una decorazione: sta nella tabella
+# `destinazione` e arriva da `/destinazioni`. È anche l'informazione con cui una persona
+# cerca il bidone per strada, e fra i due comuni non coincide — la carta è blu a Napoli e
+# gialla a Torino, il giallo a Napoli è la plastica. Chi si è trasferito sbaglia con
+# sicurezza, ed è la dimostrazione visiva di D7: le regole non si prestano fra comuni (D201).
+PALLINO = {"marrone": "🟤", "giallo": "🟡", "blu": "🔵", "verde": "🟢",
+           "grigio": "⚫", "grigio chiaro": "⚪", "bianco": "⚪", "rosso": "🔴",
+           "arancione": "🟠", "viola": "🟣", "nero": "⚫"}
+
+# Dove il colore non c'è (contenitori dedicati, centri, ritiri) il canale dice il **gesto**,
+# che è l'altra cosa che una persona vuole sapere a colpo d'occhio: lo butto sotto casa o
+# devo prendere la macchina?
+SEGNO_CANALE = {"raccolta_ordinaria": "🗑️", "contenitore_dedicato": "📦",
+                "centro_raccolta": "🏭", "ritiro_domicilio": "🚚",
+                "raccolta_itinerante": "🚐"}
 
 # Le fonti hanno codici buoni per i dati e illeggibili per una persona
 NOME_FONTE = {
@@ -67,21 +113,46 @@ NOME_FONTE = {
 VARIANTI_IN_FRASE = 2
 
 
-def etichetta(nome: str, etichette: dict[str, str] | None = None) -> str:
+def contenitore(nome: str, etichette: dict | None = None) -> dict:
+    """Ciò che si sa di una destinazione: etichetta, colore, canale.
+
+    L'elenco può arrivare in due forme: `{nome: "Etichetta"}`, che è quella storica e quella
+    delle prove, oppure `{nome: {"etichetta":…, "colore":…, "canale":…}}`, che è quella che
+    passa l'interfaccia da quando mostra anche il colore. Accettarle entrambe evita di
+    dover riscrivere ogni chiamata per una decorazione.
+    """
+    voce = (etichette or {}).get(nome)
+    if isinstance(voce, dict):
+        return voce
+    if isinstance(voce, str):
+        return {"etichetta": voce}
+    return {}
+
+
+def etichetta(nome: str, etichette: dict | None = None) -> str:
     """Il nome di una destinazione come va scritto all'utente.
 
     Senza elenco (backend più vecchio, o chiamata di prova) si ripiega sul nome interno reso
     leggibile: meglio "Carta e cartone" che `carta_e_cartone`, e meglio il nome interno che
     niente.
     """
-    if etichette and nome in etichette:
-        return etichette[nome]
+    if scritta := contenitore(nome, etichette).get("etichetta"):
+        return scritta
     leggibile = nome.replace("_", " ").strip()
     return leggibile[:1].upper() + leggibile[1:] if leggibile else nome
 
 
-def etichette_di(destinazioni: list[str], etichette: dict[str, str] | None = None) -> list[str]:
-    return [etichetta(d, etichette) for d in destinazioni]
+def segno(nome: str, etichette: dict | None = None) -> str:
+    """Il pallino del colore del contenitore, o l'icona del canale se colore non ne ha."""
+    dati = contenitore(nome, etichette)
+    colore = (dati.get("colore") or "").strip().lower()
+    return PALLINO.get(colore) or SEGNO_CANALE.get(dati.get("canale") or "", "")
+
+
+def etichette_di(destinazioni: list[str], etichette: dict | None = None) -> list[str]:
+    """I nomi da mostrare, ciascuno col suo pallino davanti quando si sa di che colore è."""
+    return [" ".join(p for p in (segno(d, etichette), etichetta(d, etichette)) if p)
+            for d in destinazioni]
 
 
 def maiuscola(testo: str) -> str:

@@ -29,7 +29,7 @@ Va aggiornato **a ogni cambiamento sostanziale**, non a ogni riga di codice. In 
 
 ---
 
-## Stato attuale (v0.49.1, 25/09/2026)
+## Stato attuale (v0.50.0, 25/09/2026)
 
 | Componente | Stato |
 |---|---|
@@ -42,7 +42,7 @@ Va aggiornato **a ogni cambiamento sostanziale**, non a ogni riga di codice. In 
 | Serving | Documenti su Qdrant, sola ricerca semantica, aggancio esatto dei codici materiale |
 | Agente | Fatto: riconoscimento, cascata dei livelli, scelta vincolata, risposta. Indipendente da HTTP |
 | API FastAPI | Fatto: analizza, continua, correggi, domanda, cerca, comuni, destinazioni, salute |
-| Frontend a chat | Fatto (v0.31.0): etichette leggibili, riconoscimento visibile e correggibile, chiarimenti a pulsante, fonte in nota. Messaggi asciugati in v0.49.1 (D192–D198) |
+| Frontend a chat | Fatto (v0.31.0): etichette leggibili, riconoscimento visibile e correggibile, chiarimenti a pulsante, fonte in nota. Messaggi asciugati e colore dei contenitori in v0.50.0 (D192–D203) |
 | Osservabilità | Fatto (v0.30.0): tracce MLflow per turno con foto, retrieval e sessione; versione dell'app e prompt collegati |
 | Docker | Fatto: qdrant, mlflow, backend, frontend; ollama sotto profilo |
 | Regole di categoria — Napoli | Completo per quanto la fonte pubblica: 38 ammessi, 11 esclusi (5 Vetro estratti + 6 Umido trascritti a mano), 2 assenze verificate |
@@ -83,6 +83,11 @@ Formato: decisione, motivazione, stato.
 | D194 | **Quando chiede, chiede e basta**: se c'è un chiarimento il messaggio è la domanda e nient'altro (la posta in gioco che accompagnava la domanda è caduta con D198). Destinazione, procedure e fonte arrivano al turno dopo | La domanda era l'ultima riga di una risposta completa: chi si fermava prima portava via un contenitore che l'assistente non si sentiva di garantire, e la fonte sotto dava alla domanda l'aria di una risposta. È anche il difetto che la metrica non vedeva: `domanda_dovuta` contava come successo una domanda che l'utente poteva ignorare senza accorgersene. La posta in gioco c'è perché una domanda senza il motivo è un modulo da compilare | Accettata |
 | D195 | Del riconoscimento si mostrano **oggetto e stato**, e il materiale solo se ha deciso (cioè se è fra le condizioni applicate). Categoria, confidenza ed emoji spariscono | La riga serve a una cosa sola: farsi smentire. La categoria è una parola di tassonomia che nessuno userebbe per il proprio oggetto, e la confidenza è un giudizio che l'assistente dà su di sé, su cui l'utente non può fare niente — quando è troppo bassa il sistema chiede già di rifare la foto, che è la forma utile della stessa informazione. Il materiale conta negli omonimi ("bicchiere" di vetro contro di plastica), ed è lì che si mostra | Accettata |
 | D196 | La risposta a una domanda si apre **riprendendo ciò che l'utente ha appena detto**: "Ok, unto: va in Organico." Si riprende la condizione **applicata**, non le sue parole | È la parola che fa di due messaggi affiancati uno scambio: senza, il secondo turno riparte da zero come se la domanda non fosse mai stata fatta. La condizione applicata viene dai dati del comune, quindi è sempre scritta bene anche quando l'utente aveva scritto "è tutta unta" | Accettata |
+| D199 | Con una corrispondenza per **categoria** la risposta nomina la voce: "la regola è quella di «Braccioli, canottini, materassini e altri gonfiabili»" | "Ma la categoria a cui appartiene", senza dire quale, è un'affermazione che l'utente non può controllare — e la categoria è proprio il tipo di corrispondenza in cui la scelta sbaglia più spesso. Col nome davanti, per una tavola da surf si vede in un secondo che la categoria non regge, e non serve aprire MLflow per scoprirlo (caso di Stef, 25/09) | Accettata |
+| D200 | Il livello di evidenza diventa il **riquadro** in cui la risposta sta: azzurro quando non viene dalla voce dell'oggetto (livello 3, livello 2, livello 1 per categoria), giallo quando la fonte si contraddice | Era una frase in fondo al messaggio, cioè l'ultima cosa che si legge e la prima che si salta; ma "quanto fidarsi" è ciò che decide se andare a controllare, e va visto prima di leggere. Una domanda resta bianca: non è una risposta di cui diffidare | Accettata |
+| D201 | La risposta mostra il **colore del contenitore**, come pallino davanti al nome; dove colore non c'è, l'icona del canale | Il colore è un dato del comune che stava nel database e nessuno mostrava, ed è l'informazione con cui una persona cerca il bidone per strada. Fra i due comuni non coincide — carta blu a Napoli e gialla a Torino, giallo a Napoli è la plastica — quindi è anche la dimostrazione visiva di D7: chi si è trasferito sbaglia con sicurezza. L'icona del canale, dove il colore manca, dice il gesto: sotto casa o in macchina | Accettata |
+| D202 | Lo schermo iniziale offre **quattro oggetti da provare**, scelti perché portano a quattro comportamenti diversi: una domanda, una risposta che cambia col comune, una che non si esaurisce nel contenitore, una in cui l'assistente ammette di non sapere | Uno schermo vuoto non dice cosa si può chiedere, e la scritta di benvenuto lo spiega a chi la legge. Quattro pulsanti lo dimostrano in quattro clic, e insieme sono la dimostrazione del sistema: davanti a chi guarda l'app per la prima volta si mostra da sola invece di aspettare che qualcuno digiti | Accettata |
+| D203 | Durante l'attesa si mostrano il **cronometro** e i passaggi che il sistema farà, **senza fingere** di sapere a che punto è | Su CPU una foto sono minuti, e uno spinner con una scritta ferma non distingue "sta lavorando" da "si è piantato". Il backend però risponde una volta sola: inventare un avanzamento a tempo sarebbe una barra di caricamento finta, che è una bugia piccola ma della stessa famiglia di quelle che questo progetto evita altrove. Si dice cosa farà — tre passaggi, che spiegano da soli perché ci mette tanto — e si mostra il tempo, che è l'unica cosa vera che si sappia | Accettata |
 | D198 | La domanda **non** elenca prima i contenitori fra cui cambia la risposta: è una riga e i pulsanti. Le due strade si scrivono dopo, sotto la risposta | Decisione di Stef, dopo aver provato "scarpe vecchie". Sembrava che la posta in gioco spiegasse la domanda; in realtà la anticipava, e davanti a due pulsanti che portano le stesse parole della domanda non c'era niente da spiegare. Sotto la risposta le stesse due strade valgono di più, perché una è quella giusta per l'oggetto che si ha in mano: per questo cade anche la parte di D196 che le nascondeva al secondo turno | Accettata |
 | D197 | Il pannello "Come ci sono arrivato" — citazione del documento, motivo della scelta, voci scartate, tabella dei punteggi — si rimuove. La provenienza resta nella nota sotto la risposta, con il link alla fonte | Supera D133, per decisione di Stef. Serviva a chi sviluppa il sistema, e per quello ci sono le tracce su MLflow, che mostrano gli stessi dati per intero e senza limite di tre righe; sotto la risposta era un invito ad andare a controllare che spostava il lavoro sull'utente. La garanzia che la destinazione non sia inventata non la dava comunque la citazione — la dà il fatto che la scelta è vincolata ai candidati (D9) — e ciò che l'utente può verificare davvero è la fonte, che resta linkata | Accettata |
 
@@ -353,6 +358,42 @@ Cose imparate che non sono decisioni, ma che conviene ricordare.
 ---
 
 ## Cronologia
+
+### v0.50.0 — 25/09/2026
+
+**L'interfaccia comincia a somigliare a un'app.** Cinque interventi, nessuno dei quali
+tocca l'agente.
+
+**Il colore del contenitore** (D201). Era nel database da sempre — la tabella `destinazione`
+ha una colonna `colore`, `/destinazioni` la espone — e il frontend la buttava via. Ora la
+destinazione si legge «va in 🟡 **Carta e cartone**», e dove colore non c'è (contenitori
+dedicati, centri, ritiri) c'è l'icona del canale, che dice il gesto. Non è decorazione: è
+come si cerca il bidone per strada, e fra i due comuni i colori sono scambiati — la carta è
+blu a Napoli e gialla a Torino, il giallo a Napoli è la plastica. Chi si è trasferito
+sbaglia con sicurezza, ed è la dimostrazione visiva di D7.
+
+**Il livello di evidenza diventa il riquadro** (D200). Era una frase in fondo, cioè l'ultima
+che si legge e la prima che si salta. Ora una risposta che non viene dalla voce dell'oggetto
+sta in un riquadro azzurro, una contraddizione della fonte in uno giallo, e quanto fidarsi
+si vede prima di leggere. Una domanda resta bianca: non è una risposta di cui diffidare.
+
+**La categoria dice quale** (D199). «Ma la categoria a cui appartiene» non diceva *quale*, e
+la categoria è il tipo di corrispondenza in cui la scelta sbaglia più spesso. Ora la voce si
+nomina, e per una tavola da surf si vede subito che la categoria non regge.
+
+**L'attesa** (D203). Su CPU sono minuti davanti a una scritta ferma. Ora un cronometro e i
+tre passaggi che il sistema farà — guardo la foto · cerco nel dizionario · scelgo fra le
+voci trovate. Non si finge un avanzamento: il backend risponde una volta sola, e una barra
+di caricamento a tempo sarebbe una bugia piccola ma della stessa famiglia di quelle che qui
+si evitano altrove. La chiamata gira in un thread perché Streamlit disegna solo dal
+principale.
+
+**Quattro oggetti da provare** (D202), finché la conversazione non è cominciata: *cartone
+della pizza* (fa una domanda), *bicchiere di vetro* (cambia col comune), *lavatrice* (non
+basta il dove), *tavola da surf* (ammette di non saperlo).
+
+**E la barra laterale**: i due comuni in un controllo a segmenti invece che in un menù a
+tendina, «Stato dei servizi» in fondo, dietro un divisore — è un pannello per chi sviluppa.
 
 ### v0.49.1 — 25/09/2026
 
