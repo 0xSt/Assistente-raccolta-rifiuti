@@ -46,6 +46,7 @@ class Procedura:
     canale: str
     sforzo: int                 # 1 = da casa, 5 = ci devi andare tu
     titolo: str
+    destinazione: str = ""      # vuoto = vale per tutto il canale; altrimenti specializza
     passi: list[str] = field(default_factory=list)
     nota: str = ""
     da_verificare: str = ""
@@ -64,6 +65,7 @@ def _righe(percorso: Path) -> list[Procedura]:
             passi = [p.strip() for p in (riga.get("passi") or "").split("|") if p.strip()]
             procedure.append(Procedura(
                 comune=(riga["comune"] or "").strip(), canale=(riga["canale"] or "").strip(),
+                destinazione=(riga.get("destinazione") or "").strip(),
                 sforzo=int(riga.get("sforzo") or 9), titolo=(riga.get("titolo") or "").strip(),
                 passi=passi, nota=(riga.get("nota") or "").strip(),
                 da_verificare=(riga.get("da_verificare") or "").strip()))
@@ -76,13 +78,30 @@ def tutte(percorso: Path = PROCEDURE) -> tuple[Procedura, ...]:
     return tuple(_righe(percorso))
 
 
-def per(comune: str, canale: str) -> Procedura | None:
+def per(comune: str, canale: str, destinazione: str | None = None) -> Procedura | None:
+    """La procedura di un canale, specializzata sulla destinazione quando esiste.
+
+    **Perché serve la specializzazione.** La procedura sta sul canale e non sulla voce
+    (D166): nove coppie invece di 902 righe, ed è la scelta giusta per quasi tutto. Ma un
+    canale può raccogliere contenitori che si usano in modi diversi: sotto
+    `contenitore_dedicato` stanno farmaci, pile, abiti e olio esausto, e la procedura
+    generica finiva per elencarli tutti e quattro, con la nota dell'olio attaccata anche a
+    una cintura di pelle. Informazione non richiesta in una risposta è rumore che toglie
+    credito a quella richiesta.
+
+    La riga con la destinazione vince; quella senza resta come ripiego per i contenitori che
+    non hanno bisogno di istruzioni proprie. Così si specializza solo dove serve, e
+    l'economia di D166 non si perde.
+    """
     comune, canale = (comune or "").strip().lower(), (canale or "").strip().lower()
-    return next((p for p in tutte()
-                 if p.comune.lower() == comune and p.canale.lower() == canale), None)
+    bersaglio = (destinazione or "").strip().lower()
+    candidate = [p for p in tutte()
+                 if p.comune.lower() == comune and p.canale.lower() == canale]
+    specifica = next((p for p in candidate if p.destinazione.lower() == bersaglio and bersaglio), None)
+    return specifica or next((p for p in candidate if not p.destinazione), None)
 
 
-def per_canali(comune: str, canali: list[str], con_ordinario: bool = False) -> list[Procedura]:
+def per_canali(comune: str, canali: list, con_ordinario: bool = False) -> list[Procedura]:
     """Le procedure dei canali indicati, dalla più comoda alla più faticosa.
 
     L'ordine è il messaggio: chi legge deve trovare per prima l'alternativa che può fare da
@@ -92,11 +111,14 @@ def per_canali(comune: str, canali: list[str], con_ordinario: bool = False) -> l
     ha bisogno di essere spiegata e occuperebbe il posto di quella che invece sì.
     """
     visti, trovate = set(), []
-    for canale in canali:
-        if canale in visti:
+    for voce in canali:
+        # un elemento può essere il solo canale o la coppia (canale, destinazione): la
+        # seconda forma serve a specializzare, la prima resta valida per chi non ce l'ha
+        canale, destinazione = voce if isinstance(voce, tuple) else (voce, None)
+        if (canale, destinazione) in visti:
             continue
-        visti.add(canale)
-        if (procedura := per(comune, canale)) is not None:
+        visti.add((canale, destinazione))
+        if (procedura := per(comune, canale, destinazione)) is not None and procedura not in trovate:
             trovate.append(procedura)
     if not con_ordinario and any(p.canale != ORDINARIO for p in trovate):
         trovate = [p for p in trovate if p.canale != ORDINARIO]
