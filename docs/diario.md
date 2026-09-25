@@ -29,7 +29,7 @@ Va aggiornato **a ogni cambiamento sostanziale**, non a ogni riga di codice. In 
 
 ---
 
-## Stato attuale (v0.47.0, 25/09/2026)
+## Stato attuale (v0.48.0, 25/09/2026)
 
 | Componente | Stato |
 |---|---|
@@ -48,7 +48,7 @@ Va aggiornato **a ogni cambiamento sostanziale**, non a ogni riga di codice. In 
 | Regole di categoria — Napoli | Completo per quanto la fonte pubblica: 38 ammessi, 11 esclusi (5 Vetro estratti + 6 Umido trascritti a mano), 2 assenze verificate |
 | Regole di categoria — Torino | Estratte: 10 schede, 30 ammessi, 27 esclusi |
 | Revisione manuale | **Completa**: 32 decisioni prese (16 per comune), 0 aperte, 0 voci da revisionare |
-| Valutazione | Fatto: 121 casi in quattro insiemi, otto metriche, run su MLflow. Mancano le foto da scattare |
+| Valutazione | Fatto: 141 casi in quattro insiemi, otto metriche, run su MLflow. Mancano le foto da scattare |
 | Backend, frontend, modello | Da fare |
 
 ---
@@ -260,6 +260,9 @@ Formato: decisione, motivazione, stato.
 | D185 | Ogni caso di valutazione lascia una **traccia** su MLflow, agganciata alla run della misura, con i tag su cui si filtra (caso, insieme, comune, diagnosi, posizione) | Le percentuali dicono *quanti* casi vanno male; la traccia dice *perché quel caso* è andato male — quali domande sono state poste all'indice, quali documenti sono usciti e in che ordine, cosa ha scelto il modello e cosa ha scartato la politica dei materiali. È la stessa traccia di una conversazione vera, quindi si legge con gli stessi occhi. La run si apre **prima** dei casi perché una traccia creata dentro una run le resta agganciata (`mlflow.sourceRun`, verificato su un server vero): registrando alla fine, le tracce resterebbero nell'esperimento senza legame con la misura che le ha prodotte | Accettata |
 | D186 | Una procedura può **specializzarsi sulla destinazione**: la riga con la destinazione vince, quella senza resta come ripiego | D166 attacca la procedura al canale, ed è giusto per quasi tutto: nove coppie invece di 902 voci. Ma `contenitore_dedicato` raccoglie farmaci, pile, abiti e olio esausto, che si conferiscono in quattro modi diversi: la procedura generica li elencava tutti e quattro, e per una cintura di pelle diceva anche che l'olio va portato in una bottiglia chiusa. Informazione non richiesta in una risposta non è generosità, è rumore che toglie credito a quella richiesta. Specializzando solo dove serve — sette righe in più — l'economia di D166 resta | Accettata |
 | D187 | Il **chiarimento si misura nelle due direzioni**, con un insieme fatto di coppie: lo stesso oggetto senza la condizione (deve chiedere) e con la condizione (non deve) | `domanda_dovuta` da sola si massimizza chiedendo sempre, che è il difetto opposto e altrettanto fastidioso — la stessa ragione per cui le astensioni si leggono in coppia (D178). Le coppie sono un vincolo del dataset, non una buona intenzione: un test fallisce se una voce compare in una direzione sola. Le due diagnosi restano separate perché si riparano in punti diversi: una domanda mancata è una condizione che il codice non ha visto fra le varianti, una di troppo è un testo dell'utente che non è stato letto | Accettata |
+| D188 | L'agente chiede anche **di che materiale è**, quando fra i candidati ci sono voci omonime di materiali diversi che portano in contenitori diversi e il riconoscimento non ha dichiarato il materiale | È D73 applicato al materiale invece che allo stato. Il chiarimento nasceva solo dalle **condizioni** di una voce, quindi "bicchiere" a Napoli — di vetro (Non Riciclabile) o di plastica (Plastica e Metalli) — non produceva nessuna domanda: il modello ne sceglieva uno e l'utente non sapeva che la risposta dipendeva da un'informazione che non aveva dato. Nei due dizionari le famiglie di omonimi distinte dal materiale sono **37**. Si chiede solo quando la domanda cambierebbe la risposta: due materiali almeno, con destinazioni diverse | Accettata |
+| D189 | Gli omonimi si riconoscono **dai documenti**, confrontando il loro nucleo — il nome senza materiali né parole di servizio — e non dalla domanda dell'utente | `nomina_l_oggetto` pretende che la domanda contenga tutte le parole del nome: è giusto per preferire il documento specifico (D-piu_specifico) e troppo stretto qui, perché "tagliere della cucina" non nomina "Tagliere in legno" e la domanda non nascerebbe. Il confronto fra nuclei è per **inclusione**, così "Vaschette in alluminio" e "Vaschette alimentari in plastica" restano la stessa cosa detta con una parola in più. La famiglia si ancora al documento **scelto**: senza, un candidato qualunque di un altro materiale farebbe nascere una domanda che non c'entra con la risposta | Accettata |
+| D190 | La risposta a una domanda sul materiale finisce nei **materiali** del riconoscimento, non nello stato; e una risposta accompagnata da una domanda dovuta è **provvisoria**, quindi non si misura come definitiva | `continua` metteva sempre la risposta nello stato: giusto finché si chiedevano solo le condizioni, inutile per un materiale — il filtro guarda `materiali` e le formulazioni cercano "oggetto + materiale" (D164), quindi la domanda avrebbe cambiato la risposta solo per caso. Sulla misura: l'agente che dice "probabilmente X, ma dimmi di che materiale è" ha fatto la cosa giusta, e pretendere che X sia già la risposta completa lo punirebbe per questo | Accettata |
 
 ### Transform
 
@@ -342,6 +345,46 @@ Cose imparate che non sono decisioni, ma che conviene ricordare.
 ---
 
 ## Cronologia
+
+### v0.48.0 — 25/09/2026
+
+**L'agente chiede anche di che materiale è** (D188–D190). Era il buco più grosso rimasto nel
+chiarimento, e la misura di ieri lo lasciava fuori: il dubbio nasceva solo dalle
+**condizioni** di una voce, mai dall'**identità** dell'oggetto. Così "bicchiere" a Napoli —
+che può essere di vetro (Non Riciclabile) o di plastica (Plastica e Metalli) — riceveva una
+risposta secca, scelta dal modello, senza che l'utente sapesse che dipendeva da
+un'informazione che non aveva dato. Nei due dizionari le famiglie di omonimi distinte dal
+materiale sono **37**.
+
+Due cautele, perché una domanda di troppo è fastidiosa quanto una mancata: si chiede solo se
+i materiali in gioco sono almeno due **e portano in contenitori diversi** (alluminio e latta
+a Napoli finiscono entrambi in Plastica e Metalli: chiedere costerebbe un giro per niente), e
+solo se il riconoscimento il materiale non l'ha già dichiarato — a quel punto tocca al filtro
+dei materiali, che esiste dalla v0.37.0.
+
+**Gli omonimi si riconoscono dai documenti** (D189). Il primo tentativo usava
+`nomina_l_oggetto`, che pretende che la domanda contenga tutte le parole del nome: con
+"tagliere della cucina" la domanda non nasceva. Ora si confronta il **nucleo** dei nomi —
+quello che resta togliendo materiali e parole di servizio — per inclusione, e la famiglia si
+ancora al documento scelto.
+
+**La risposta va dove serve** (D190). `continua` metteva la risposta dell'utente sempre nello
+`stato`: per un materiale non sarebbe servita a niente, perché il filtro guarda `materiali` e
+le formulazioni cercano "oggetto + materiale" (D164). Ora ci finisce, e il secondo giro è
+deterministico.
+
+**Due conseguenze sulla misura.** Una risposta accompagnata da una domanda dovuta è
+**provvisoria** e non entra nelle metriche della risposta: l'agente ha detto "probabilmente
+X, ma dimmi di che materiale è", e pretendere che X fosse già completa lo punirebbe per aver
+fatto la cosa giusta. E l'esito dice ora **quale voce ha risposto**: senza, un caso che si
+aspettava una voce e ne ha trovata un'altra sembra un difetto della domanda invece che della
+scelta — è quello che è successo il 25/09 con "medicinali", dove ha risposto `Medicinale`
+(una variante sola, niente da chiedere) invece di `Farmaci`.
+
+**Dataset**: `chiarimenti.jsonl` passa da 29 a **49 casi**, con dieci nuove coppie sul
+materiale (bicchiere, tagliere, gruccia, imbuto, cucchiaio, piatto, posate, vaschetta,
+caraffa). Le attese sono state verificate contro il codice prima di scriverle, ed è così che
+è saltato fuori il limite di `nomina_l_oggetto`.
 
 ### v0.47.0 — 25/09/2026
 

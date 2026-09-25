@@ -8,7 +8,11 @@ nella stessa lista. Tre tipi, contati sul database vero:
 - **quantità** — "piccole quantità", "grandi quantità" (15 casi): la domanda giusta è
   "quanto ne hai?", e la frase è "vale per piccole quantità", non "vale se è piccole
   quantità";
-- **chi conferisce** — "utenza domestica" (5 casi): la domanda è "chi lo butta?".
+- **chi conferisce** — "utenza domestica" (5 casi): la domanda è "chi lo butta?";
+- **materiale** — non è una condizione della fonte ma una differenza fra **voci omonime**
+  ("Bicchiere di vetro" contro "Bicchiere in plastica", 37 famiglie nei due comuni): la
+  domanda giusta è "di che materiale è?", e va dichiarata perché le parole dei materiali
+  non contengono nessun segnale che le distingua da uno stato.
 
 Trattarle tutte come stati produceva frasi come "Vale se è: piccole quantità" e pulsanti
 tipo "Utenza domestica" in risposta a "com'è il tuo oggetto?".
@@ -22,7 +26,7 @@ avranno un tipo proprio nel livello normalizzato, questo modulo diventa la sua l
 """
 from __future__ import annotations
 
-STATO, QUANTITA, UTENZA = "stato", "quantita", "utenza"
+STATO, QUANTITA, UTENZA, MATERIALE = "stato", "quantita", "utenza", "materiale"
 
 SEGNALI = ((QUANTITA, ("quantità", "quantita")),
            (UTENZA, ("utenza", "domestica", "domestico", "commerciale", "non domestica")))
@@ -31,10 +35,11 @@ DOMANDA = {
     STATO: "Per rispondere con certezza devo sapere se l'oggetto è: {opzioni}?",
     QUANTITA: "Per rispondere con certezza devo sapere quanto ne hai: {opzioni}?",
     UTENZA: "Per rispondere con certezza devo sapere chi lo conferisce: {opzioni}?",
+    MATERIALE: "Per rispondere con certezza devo sapere di che materiale è: {opzioni}?",
 }
 
 PREMESSA = {STATO: "se è {condizioni}", QUANTITA: "per {condizioni}",
-            UTENZA: "per {condizioni}"}
+            UTENZA: "per {condizioni}", MATERIALE: "se è di {condizioni}"}
 
 
 def tipo(condizione: str) -> str:
@@ -53,11 +58,16 @@ def tipo_comune(condizioni: list[str]) -> str:
     return tipi.pop() if len(tipi) == 1 else STATO
 
 
-def domanda(opzioni: list[str]) -> str:
-    """La domanda da fare all'utente per sciogliere il dubbio fra più condizioni."""
+def domanda(opzioni: list[str], natura: str | None = None) -> str:
+    """La domanda da fare all'utente per sciogliere il dubbio fra più condizioni.
+
+    `natura` si dichiara quando il tipo non si può indovinare dalle parole: i materiali
+    ("vetro", "plastica") non contengono nessun segnale che li distingua da uno stato, e
+    classificarli a parola produrrebbe "com'è l'oggetto: vetro oppure plastica?".
+    """
     if not opzioni:
         return ""
-    return DOMANDA[tipo_comune(opzioni)].format(opzioni=" oppure ".join(opzioni))
+    return DOMANDA[natura or tipo_comune(opzioni)].format(opzioni=" oppure ".join(opzioni))
 
 
 def premessa(condizioni: list[str]) -> str:

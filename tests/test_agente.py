@@ -531,3 +531,87 @@ def test_l_etichetta_verificata_arriva_nella_risposta(ambiente):
     agente = Agente(ambiente.recupero, DichiaraCategoria("Cartone da pizza", riconoscimento))
     risposta = agente.rispondi(riconoscimento, "Torino")
     assert risposta.tipo_corrispondenza == "stesso_oggetto"
+
+
+# ------------------------------------------- la domanda sul materiale (D188)
+
+def candidato_omonimo(nome: str, destinazioni: list[str]) -> Candidato:
+    return Candidato(id=nome, livello=1, testo=f"{nome}.", nome=nome,
+                     varianti=[Variante(condizioni=[], destinazioni=destinazioni)])
+
+
+def richiesta_di(oggetto: str, materiali: list[str] | None = None, **extra) -> Richiesta:
+    return Richiesta(Riconoscimento(oggetto=oggetto, materiali=materiali or [],
+                                    confidenza=1.0), "Napoli", **extra)
+
+
+def test_chiede_il_materiale_quando_gli_omonimi_portano_altrove():
+    """Il buco di D73: il chiarimento nasceva solo dalle condizioni di una voce, quindi
+    "bicchiere" non produceva nessuna domanda e il modello ne sceglieva uno a caso."""
+    candidati = [candidato_omonimo("Bicchiere di vetro", ["Non Riciclabile"]),
+                 candidato_omonimo("Bicchiere in plastica", ["Plastica e Metalli"])]
+    assert Agente._materiali_da_chiarire(candidati[0], candidati,
+                                        richiesta_di("bicchiere")) == ["plastica", "vetro"]
+
+
+def test_non_chiede_il_materiale_se_il_riconoscimento_lo_ha_gia_detto():
+    """A quel punto tocca al filtro dei materiali togliere gli incompatibili: chiedere
+    sarebbe far ripetere all'utente quello che la foto ha già detto."""
+    candidati = [candidato_omonimo("Bicchiere di vetro", ["Non Riciclabile"]),
+                 candidato_omonimo("Bicchiere in plastica", ["Plastica e Metalli"])]
+    assert Agente._materiali_da_chiarire(
+        candidati[0], candidati, richiesta_di("bicchiere", materiali=["vetro"])) == []
+
+
+def test_non_chiede_il_materiale_di_documenti_che_parlano_d_altro():
+    """La famiglia si ancora al documento scelto: senza, un candidato qualunque di un altro
+    materiale farebbe nascere una domanda che non c'entra con la risposta."""
+    candidati = [candidato_omonimo("Bicchiere di vetro", ["Non Riciclabile"]),
+                 candidato_omonimo("Tagliere in legno", ["Isola Ecologica Estesa"])]
+    assert Agente._materiali_da_chiarire(candidati[0], candidati,
+                                         richiesta_di("bicchiere")) == []
+
+
+def test_gli_omonimi_si_riconoscono_dai_documenti_non_dalla_domanda():
+    """`nomina_l_oggetto` pretende che la domanda contenga tutte le parole del nome: giusto
+    per preferire il documento specifico, troppo stretto per accorgersi che due candidati
+    parlano della stessa cosa. Con "tagliere della cucina" la domanda deve nascere lo
+    stesso."""
+    candidati = [candidato_omonimo("Tagliere in legno", ["Isola Ecologica Estesa"]),
+                 candidato_omonimo("Tagliere in plastica", ["Non Riciclabile"])]
+    assert Agente._materiali_da_chiarire(
+        candidati[0], candidati, richiesta_di("tagliere della cucina")) == ["legno", "plastica"]
+
+
+def test_la_condizione_della_voce_ha_la_precedenza_sul_materiale():
+    """È più specifica: riguarda proprio il documento scelto, non la famiglia di omonimi."""
+    domanda, opzioni = Agente._chiarimento(["pulito", "unto"], ["plastica", "vetro"],
+                                           Scelta(scheda_id=None), gia_chiesto=False)
+    assert opzioni == ["pulito", "unto"] and "l'oggetto è" in domanda
+
+
+def test_la_domanda_sul_materiale_chiede_di_che_materiale_e():
+    """Classificare "vetro" a parola produrrebbe "com'è l'oggetto: vetro oppure plastica?"."""
+    domanda, opzioni = Agente._chiarimento([], ["plastica", "vetro"],
+                                           Scelta(scheda_id=None), gia_chiesto=False)
+    assert "di che materiale è" in domanda
+    assert opzioni == ["plastica", "vetro"]
+
+
+def test_dopo_una_domanda_non_se_ne_fa_un_altra():
+    assert Agente._chiarimento(["pulito", "unto"], ["plastica", "vetro"],
+                               Scelta(scheda_id=None), gia_chiesto=True) == (None, [])
+
+
+def test_la_risposta_sul_materiale_finisce_nei_materiali_non_nello_stato():
+    """Lo stato "vetro" non servirebbe a niente: il filtro guarda `materiali` e le
+    formulazioni cercano "oggetto + materiale" (D164)."""
+    contesto = {"oggetto": "bicchiere", "materiali": [], "confidenza": 1.0}
+    dopo = Agente._con_la_risposta(contesto, "vetro")
+    assert dopo.materiali == ["vetro"] and dopo.stato is None
+
+
+def test_la_risposta_su_una_condizione_finisce_ancora_nello_stato():
+    dopo = Agente._con_la_risposta({"oggetto": "cartone", "materiali": [], "confidenza": 1.0},
+                                   "unto")
+    assert dopo.stato == "unto" and dopo.materiali == []

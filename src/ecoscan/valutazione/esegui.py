@@ -85,6 +85,7 @@ ASTENUTO = "astensione corretta: nessuna regola del comune copre l'oggetto"
 NON_ASTENUTO = "ha risposto invece di astenersi"
 # La domanda ha una coppia sua, per lo stesso motivo delle astensioni: chiedere sempre e
 # non chiedere mai sono due difetti opposti, e un numero solo li confonderebbe.
+CORRETTO_CON_DOMANDA = "ha chiesto, come doveva: la destinazione è provvisoria"
 MANCATA_DOMANDA = "doveva chiedere la condizione e ha risposto lo stesso"
 DOMANDA_INUTILE = "ha chiesto una condizione che l'utente aveva già dichiarato"
 
@@ -106,6 +107,7 @@ class Esito:
     raggiungibili: list[str] = field(default_factory=list)   # dove portano i candidati trovati
     chiarimento: str | None = None         # la domanda fatta all'utente, se c'è stata
     opzioni: list[str] = field(default_factory=list)         # le risposte possibili
+    scelto: str | None = None              # quale voce ha risposto
 
     @property
     def contenitore_corretto(self) -> bool | None:
@@ -153,6 +155,16 @@ class Esito:
         return self.ha_chiesto == self.caso.chiarimento_atteso
 
     @property
+    def provvisoria(self) -> bool:
+        """La risposta è accompagnata da una domanda che era dovuta.
+
+        Non si misura come definitiva: l'agente ha detto "probabilmente X, ma dimmi Y", e
+        pretendere che X sia già la risposta completa significherebbe punirlo per aver
+        fatto la cosa giusta. Il caso si giudica sulla domanda, non sulla destinazione.
+        """
+        return bool(self.caso.chiarimento_atteso) and self.chiarimento_corretto is True
+
+    @property
     def perfetta(self) -> bool:
         """Contenitore giusto e nessuna alternativa persa: il vecchio `risposta_corretta`.
 
@@ -184,6 +196,8 @@ class Esito:
             return RECUPERATO if self.recuperato else RECUPERO_FALLITO
         if self.chiarimento_corretto is False:
             return MANCATA_DOMANDA if self.caso.chiarimento_atteso else DOMANDA_INUTILE
+        if self.provvisoria:
+            return CORRETTO_CON_DOMANDA
         if self.perfetta:
             return CORRETTO if self.recuperato else ALTRA_STRADA
         if self.contenitore_corretto:
@@ -240,7 +254,7 @@ def valuta_caso(agente: Agente, caso: Caso, con_modello: bool = True,
             radice, caso=caso.id, insieme=caso.origine, comune=caso.comune,
             diagnosi=esito.diagnosi, recuperato="si" if esito.recuperato else "no",
             posizione=esito.posizione, livello=esito.livello,
-            chiede="si" if esito.ha_chiesto else "no",
+            chiede="si" if esito.ha_chiesto else "no", scelto=esito.scelto,
             chiarimento_atteso={True: "si", False: "no"}.get(caso.chiarimento_atteso),
             atteso=" · ".join(caso.destinazioni_attese) or "(nessuna: deve astenersi)")
     return esito
@@ -270,7 +284,11 @@ def _valuta(agente: Agente, caso: Caso, con_modello: bool) -> Esito:
     return Esito(caso=caso, recuperato=posizione is not None, destinazioni=risposta.destinazioni,
                  livello=risposta.livello_evidenza, candidati=len(trovati), posizione=posizione,
                  raggiungibili=raggiungibili, chiarimento=risposta.chiarimento,
-                 opzioni=list(risposta.opzioni))
+                 opzioni=list(risposta.opzioni),
+                 # quale voce ha risposto: senza, un caso che si aspettava una voce e ne ha
+                 # trovata un'altra sembra un difetto della domanda invece che della scelta
+                 scelto=next((c.nome for c in risposta.candidati
+                              if c.id == risposta.scelto_id), None))
 
 
 def esegui(agente: Agente, casi: list[Caso], con_modello: bool = True,
@@ -356,7 +374,7 @@ def misure(esiti: list[Esito], k: int = 8) -> dict[str, float | int | None]:
     """
     positivi = [e for e in esiti if not e.caso.negativo]
     negativi = [e for e in esiti if e.caso.negativo]
-    con_scelta = [e for e in positivi if e.valutata_la_scelta]
+    con_scelta = [e for e in positivi if e.valutata_la_scelta and not e.provvisoria]
     coperture = [e.copertura for e in con_scelta if e.copertura is not None]
     livelli = [e for e in esiti if e.livello_corretto is not None]
 
@@ -425,6 +443,9 @@ def _riga_caso(e: Esito, buone: tuple[str, ...]) -> None:
         print(f"     di troppo (contenitore sbagliato): {', '.join(e.di_troppo)}")
     elif e.mancate and e.destinazioni:
         print(f"     mancano (canale perso): {', '.join(e.mancate)}")
+    if e.scelto and e.caso.voce_fonte and e.scelto not in e.caso.voce_fonte:
+        print(f"     ha risposto la voce «{e.scelto}», il caso si aspettava "
+              f"«{e.caso.voce_fonte}»")
     if e.caso.chiarimento_atteso is not None:
         atteso = "doveva chiedere" if e.caso.chiarimento_atteso else "non doveva chiedere"
         fatto = f"ha chiesto: «{e.chiarimento}»" if e.ha_chiesto else "non ha chiesto"
@@ -459,7 +480,7 @@ def _per_strato(esiti: list[Esito], nome: str, chiave) -> None:
 def riepiloga(esiti: list[Esito], k: int = 8) -> None:
     print(f"\n{'esito':4} {'caso':44} {'pos.':>5}  diagnosi")
     print("-" * 100)
-    buone = (CORRETTO, RECUPERATO, ASTENUTO)
+    buone = (CORRETTO, CORRETTO_CON_DOMANDA, RECUPERATO, ASTENUTO)
     for e in sorted(esiti, key=lambda e: (e.diagnosi in buone, e.caso.id)):
         _riga_caso(e, buone)
 
@@ -468,7 +489,9 @@ def riepiloga(esiti: list[Esito], k: int = 8) -> None:
         # le regressioni si leggono come pass/fail: sono i casi che NON devono tornare
         # indietro, e una percentuale su diciotto casi scelti apposta non stima niente
         if insieme == "regressioni":
-            passati = sum(1 for e in gruppo if e.diagnosi in buone)
+            passati = sum(1 for e in gruppo
+                          if e.diagnosi in (CORRETTO, CORRETTO_CON_DOMANDA, RECUPERATO,
+                                            ASTENUTO))
             print(f"\n## Regressioni: {passati}/{len(gruppo)} superate")
             continue
         print(f"\n## Misure sull'insieme «{insieme}» ({m['casi']} casi)")
@@ -522,7 +545,7 @@ def come_json(esiti: list[Esito], esecuzione: dict | None = None,
                                   "copertura": e.copertura,
                                   "destinazioni": e.destinazioni, "livello": e.livello,
                                   "posizione": e.posizione, "diagnosi": e.diagnosi,
-                                  "chiarimento": e.chiarimento}
+                                  "chiarimento": e.chiarimento, "scelto": e.scelto}
                       for e in esiti}}
 
 

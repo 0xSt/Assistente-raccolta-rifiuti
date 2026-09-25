@@ -82,3 +82,36 @@ def incompatibili(testo: str, materiali: list[str]) -> bool:
     if not del_documento:
         return False
     return not (del_documento & dell_oggetto)
+
+
+def dichiarato(testo: str) -> str | None:
+    """L'unico materiale nominato da un testo, se ne nomina esattamente uno.
+
+    Un documento che ne nomina due ("Barattolo in metallo o plastica") non distingue niente:
+    non serve a formulare una domanda, perché entrambe le risposte porterebbero a lui.
+    """
+    famiglie = famiglie_nel_testo(testo)
+    return famiglie.pop() if len(famiglie) == 1 else None
+
+
+def distinzione(documenti: list[tuple[str, tuple[str, ...]]]) -> list[str]:
+    """I materiali che distinguono documenti omonimi, quando portano in posti diversi.
+
+    È il rovescio di `incompatibili`: quella toglie i documenti di un materiale che
+    l'oggetto non ha, questa si accorge che **il materiale non lo sappiamo** e che sapere
+    cambierebbe la risposta. Nei due dizionari le famiglie di omonimi distinte dal materiale
+    sono 37: bicchiere di vetro contro bicchiere in plastica, posate in acciaio contro
+    posate in plastica, tagliere in legno contro tagliere in plastica.
+
+    Restituisce l'elenco vuoto quando la domanda non servirebbe: un materiale solo, oppure
+    più materiali che portano tutti nello stesso contenitore.
+    """
+    per_famiglia: dict[str, set[str]] = {}
+    for nome, destinazioni in documenti:
+        if (famiglia_ := dichiarato(nome)) and destinazioni:
+            per_famiglia.setdefault(famiglia_, set()).update(destinazioni)
+    if len(per_famiglia) < 2:
+        return []
+    if len({frozenset(d) for d in per_famiglia.values()}) < 2:
+        return []
+    return sorted(per_famiglia)
