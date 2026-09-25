@@ -4,7 +4,7 @@ Come è fatto il sistema, come sono legati i file, e perché. È il documento da
 orientarsi; il **[diario](diario.md)** racconta *quando* e *perché* le cose sono cambiate,
 questo dice *com'è adesso*.
 
-Aggiornato alla **v0.48.1**.
+Aggiornato alla **v0.49.0**.
 
 ---
 
@@ -20,7 +20,7 @@ Una sola regola spiega quasi ogni scelta di progetto:
 > c'è nella foto e a scegliere fra documenti reali, mai a dire dove va una cosa.**
 
 Da qui discendono la scelta vincolata (il modello indica un numero in un elenco, non scrive
-un nome), il livello di evidenza (quanto è fondata la risposta), la citazione della fonte in
+un nome), il livello di evidenza (quanto è fondata la risposta), il link alla fonte sotto
 ogni risposta e il fatto che la variante giusta la scelga il codice e non il modello.
 
 ---
@@ -193,7 +193,7 @@ Le rotte: `/salute`, `/comuni`, `/destinazioni`, `/analizza`, `/continua`, `/cor
 |---|---|
 | `frontend/app.py` | La chat in Streamlit: allegato o nome scritto, chiarimenti a pulsante, correzione, legenda dei contenitori |
 | `frontend/cliente.py` | L'unico punto di contatto col backend |
-| `frontend/presentazione.py` | Da risposta dell'API a messaggio leggibile: titolo, corpo, fonte, spiegazione |
+| `frontend/presentazione.py` | Da risposta dell'API a messaggio leggibile: titolo, corpo, domanda, fonte |
 
 ### Osservabilità e diagnostica
 

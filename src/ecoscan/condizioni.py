@@ -41,6 +41,13 @@ DOMANDA = {
 PREMESSA = {STATO: "se è {condizioni}", QUANTITA: "per {condizioni}",
             UTENZA: "per {condizioni}", MATERIALE: "se è di {condizioni}"}
 
+# Il ramo NON scelto, quando le varianti sono due: "se invece è pulito". La forma è diversa
+# dalla premessa perché la frase è diversa — "vale se è unto" descrive il caso dell'utente,
+# "se invece è pulito" descrive l'altro — e perché "invece" è la parola che segnala il
+# contrasto senza bisogno di una tabella.
+ALTRIMENTI = {STATO: "se invece è {condizioni}", QUANTITA: "per {condizioni}",
+              UTENZA: "per {condizioni}", MATERIALE: "se invece è di {condizioni}"}
+
 
 def tipo(condizione: str) -> str:
     """Di che natura è una condizione. Lo stato è il caso normale, quindi il predefinito."""
@@ -84,6 +91,14 @@ def premessa(condizioni: list[str]) -> str:
     return " e ".join(pezzi)
 
 
-def frase(condizioni: list[str]) -> str:
-    """Come si scrive la condizione che si è applicata, sotto la risposta."""
-    return f"Vale {testo}." if (testo := premessa(condizioni)) else ""
+def controfattuale(condizione: str, natura: str | None = None) -> str:
+    """L'altra strada, come pezzo di frase: "se invece è pulito", "per grandi quantità".
+
+    Serve quando le varianti sono **due**: con due rami il modo naturale di dire la regola
+    non è una tabella ma una frase sola, perché l'altro ramo è uno solo e si può nominare.
+    """
+    if not condizione:
+        return ""
+    return ALTRIMENTI[natura or tipo(condizione)].format(condizioni=condizione)
+
+

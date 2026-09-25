@@ -124,33 +124,49 @@ def test_senza_etichette_il_nome_interno_si_rende_leggibile():
 def test_si_dice_cosa_e_stato_riconosciuto_nella_foto():
     """È il passaggio più fragile: l'utente se ne accorge solo se lo vede."""
     frase = presentazione.frase_riconoscimento({"riconoscimento": {
-        "oggetto": "cartone della pizza", "materiali": ["cartone"], "confidenza": 0.9}})
-    assert "cartone della pizza" in frase and "sicurezza alta" in frase
-    assert "bassa" in presentazione.frase_riconoscimento(
-        {"riconoscimento": {"oggetto": "x", "confidenza": 0.1}})
+        "oggetto": "cartone della pizza", "stato": "unto", "confidenza": 0.9}})
+    assert "cartone della pizza" in frase and "unto" in frase
     assert presentazione.frase_riconoscimento({"riconoscimento": {"oggetto": ""}}) == ""
 
 
-def test_la_spiegazione_cita_il_documento_del_comune():
-    risposta = {"scelto_id": "oggetto:Torino:cartone-per-pizze", "tipo_corrispondenza": "stesso_oggetto",
-                "motivo": "nomina l'oggetto", "candidati": [
-                    {"id": "oggetto:Torino:cartone-per-pizze", "nome": "Cartone per pizze",
-                     "testo": "Cartone per pizze. Se è unto va in organico.",
-                     "destinazioni": ["organico"]},
-                    {"id": "oggetto:Torino:cartone", "nome": "Cartone da imballaggio",
-                     "destinazioni": ["carta_e_cartone"], "testo": "Cartone da imballaggio."}]}
-    testo = presentazione.spiegazione(risposta, ETICHETTE)
-    assert "> Cartone per pizze." in testo, "il documento va citato parola per parola"
-    assert "è proprio questo oggetto" in testo
-    assert "Cartone da imballaggio → Carta e cartone" in testo, "le scartate vanno mostrate"
+def test_il_riconoscimento_non_mostra_i_campi_interni():
+    """Categoria e confidenza sono giudizi su cui l'utente non può fare niente: mostrarli
+    riempie la riga che serve a smentire l'oggetto."""
+    frase = presentazione.frase_riconoscimento({"riconoscimento": {
+        "oggetto": "bicchiere", "categoria": "stoviglia", "materiali": ["vetro"],
+        "confidenza": 0.3}})
+    assert frase == "Ho riconosciuto: **bicchiere**"
+    assert "👁️" not in frase
 
 
-def test_le_varianti_restano_visibili_dopo_la_scelta():
-    """Vedere il ramo non scelto insegna la regola per la volta dopo."""
+def test_il_materiale_si_mostra_solo_se_ha_deciso():
+    """Fra "Bicchiere di vetro" e "Bicchiere in plastica" il materiale è la risposta: lì
+    l'utente deve poterlo smentire."""
+    frase = presentazione.frase_riconoscimento(
+        {"condizioni": ["vetro"],
+         "riconoscimento": {"oggetto": "bicchiere", "materiali": ["vetro"]}})
+    assert frase == "Ho riconosciuto: **bicchiere**, vetro"
+
+
+def test_con_due_varianti_l_altra_strada_e_una_frase():
+    """Vedere il ramo non scelto insegna la regola per la volta dopo; con due rami l'altro
+    è uno solo e si nomina, invece di diventare una tabella."""
     testo = presentazione.corpo({"livello_evidenza": 1, "condizioni": ["unto"],
                                  "scelto_id": "c1", "candidati": [{"id": "c1", "varianti": [
                                      {"condizione": "pulito", "destinazioni": ["carta_e_cartone"]},
                                      {"condizione": "unto", "destinazioni": ["organico"]}]}]},
+                                ETICHETTE)
+    assert testo.startswith("Se invece è pulito: **Carta e cartone**.")
+    assert "→" not in testo and "✓" not in testo
+
+
+def test_con_tre_varianti_resta_l_elenco():
+    """Da tre in su la frase sola non regge: il confronto è fra più righe."""
+    testo = presentazione.corpo({"livello_evidenza": 1, "condizioni": ["unto"],
+                                 "scelto_id": "c1", "candidati": [{"id": "c1", "varianti": [
+                                     {"condizione": "pulito", "destinazioni": ["carta_e_cartone"]},
+                                     {"condizione": "unto", "destinazioni": ["organico"]},
+                                     {"condizione": "rotto", "destinazioni": ["organico"]}]}]},
                                 ETICHETTE)
     assert "se è pulito → Carta e cartone" in testo
     assert "**se è unto → Organico** ✓" in testo
@@ -185,24 +201,43 @@ def test_senza_destinazioni_lo_dice_chiaramente():
     assert "Non so" in presentazione.titolo({"destinazioni": []})
 
 
-def test_il_livello_di_evidenza_e_spiegato_a_parole():
-    uno = presentazione.corpo({"livello_evidenza": 1})
-    due = presentazione.corpo({"livello_evidenza": 2})
+def test_il_livello_di_evidenza_si_dice_solo_quando_e_un_eccezione():
+    """Una frase che compare in ogni risposta non informa: al livello 1 la voce nomina
+    l'oggetto, che è ciò che l'utente si aspetta già."""
+    assert presentazione.corpo({"livello_evidenza": 1,
+                                "tipo_corrispondenza": "stesso_oggetto"}) == ""
+    assert presentazione.corpo({"livello_evidenza": 1, "tipo_corrispondenza": "sinonimo"}) == ""
+    categoria = presentazione.corpo({"livello_evidenza": 1, "tipo_corrispondenza": "categoria"})
+    assert "non elenca proprio questo oggetto" in categoria
+    assert "regola generale del contenitore" in presentazione.corpo({"livello_evidenza": 2})
     tre = presentazione.corpo({"livello_evidenza": 3})
-    assert "elenca proprio questo oggetto" in uno
-    assert "regola generale del contenitore" in due
     assert "non dice nulla" in tre and "centro di raccolta" in tre
 
 
-def test_il_chiarimento_e_in_evidenza():
-    testo = presentazione.corpo({"livello_evidenza": 1, "chiarimento": "È vuota o piena?"})
-    assert "**È vuota o piena?**" in testo
+def test_la_condizione_sta_nel_titolo_e_non_altrove():
+    """"va in Organico se è unto" è una frase; titolo più "Vale se è unto." sono due
+    affermazioni che l'utente deve rimettere insieme."""
+    risposta = {"livello_evidenza": 1, "tipo_corrispondenza": "stesso_oggetto",
+                "oggetto": "cartone della pizza", "destinazioni": ["organico"],
+                "condizioni": ["unto"]}
+    assert presentazione.titolo(risposta, ETICHETTE) == \
+        "Cartone della pizza: va in **Organico** se è unto."
+    assert "Vale" not in presentazione.messaggio(risposta, ETICHETTE)
+    assert presentazione.messaggio(risposta, ETICHETTE).count("unto") == 1
+
+
+def test_una_condizione_di_quantita_entra_nel_titolo_senza_diventare_uno_stato():
+    """"Vale se è: piccole quantità" era la frase sbagliata più visibile."""
+    testo = presentazione.titolo({"oggetto": "polistirolo", "destinazioni": ["organico"],
+                                  "condizioni": ["piccole quantità"]}, ETICHETTE)
+    assert testo.endswith("per piccole quantità.") and "se è" not in testo
 
 
 def test_avvertenza_e_condizioni_compaiono():
-    testo = presentazione.corpo({"livello_evidenza": 1, "condizioni": ["unto"],
-                                 "avvertenza": "Svuotala prima"})
-    assert "unto" in testo and "Svuotala prima" in testo
+    risposta = {"livello_evidenza": 1, "oggetto": "barattolo", "destinazioni": ["organico"],
+                "condizioni": ["unto"], "avvertenza": "Svuotalo prima"}
+    testo = presentazione.messaggio(risposta, ETICHETTE)
+    assert "unto" in testo and "Svuotalo prima" in testo
 
 
 def test_la_nota_di_fonte_dice_livello_e_provenienza():
@@ -211,13 +246,32 @@ def test_la_nota_di_fonte_dice_livello_e_provenienza():
     assert "regola di categoria" in nota and "pagina 8" in nota
 
 
-def test_i_candidati_diventano_righe_leggibili():
-    righe = presentazione.riassunto_candidati({"scelto_id": "s1", "candidati": [
-        {"id": "s1", "livello": 1, "testo": "Scarpe. Se è utilizzabile va in Contenitore Abiti Usati.",
-         "destinazioni": ["Contenitore Abiti Usati"], "punteggio": 0.8123}]})
-    assert righe[0]["documento"].startswith("Scarpe.")
-    assert righe[0]["somiglianza"] == 0.812
-    assert righe[0]["scelto"] == "✓"
+def test_la_risposta_riprende_cio_che_l_utente_ha_appena_detto():
+    """È la parola che fa di due messaggi affiancati uno scambio."""
+    risposta = {"livello_evidenza": 1, "oggetto": "cartone della pizza",
+                "destinazioni": ["organico"], "condizioni": ["unto"]}
+    assert presentazione.titolo(risposta, ETICHETTE, risposto="è tutto unto") == \
+        "Ok, unto: va in **Organico**.", "si riprende la condizione applicata, non le sue parole"
+    assert presentazione.titolo(risposta, ETICHETTE).startswith("Cartone della pizza:")
+
+
+def test_dopo_una_domanda_l_altra_strada_non_si_ripete():
+    """L'aveva già mostrata la domanda, per far capire cosa c'era in gioco."""
+    risposta = {"livello_evidenza": 1, "oggetto": "cartone della pizza",
+                "destinazioni": ["organico"], "condizioni": ["unto"],
+                "scelto_id": "c1", "candidati": [{"id": "c1", "varianti": [
+                    {"condizione": "pulito", "destinazioni": ["carta_e_cartone"]},
+                    {"condizione": "unto", "destinazioni": ["organico"]}]}]}
+    assert presentazione.messaggio(risposta, ETICHETTE, risposto="unto") == \
+        "Ok, unto: va in **Organico**."
+    assert "Se invece è pulito" in presentazione.messaggio(risposta, ETICHETTE)
+
+
+def test_la_ripresa_non_ripete_il_nome_del_contenitore():
+    """"Ok, vetro: va in Vetro" è peggio del titolo normale."""
+    risposta = {"oggetto": "bicchiere", "destinazioni": ["vetro"], "condizioni": []}
+    assert presentazione.titolo(risposta, {"vetro": "Vetro"}, risposto="vetro") == \
+        "Bicchiere: va in **Vetro**."
 
 
 def test_la_contraddizione_della_fonte_viene_detta():
@@ -241,20 +295,14 @@ def test_il_frontend_non_importa_il_backend():
         assert not [m for m in moduli if m.startswith(vietati)], f"{file.name} importa il backend"
 
 
-def test_una_condizione_di_quantita_non_diventa_uno_stato():
-    """"Vale se è: piccole quantità" era la frase sbagliata più visibile."""
-    testo = presentazione.corpo({"livello_evidenza": 1, "condizioni": ["piccole quantità"]})
-    assert "Vale per piccole quantità." in testo and "Vale se è" not in testo
-
-
-def test_le_varianti_di_quantita_si_leggono_bene():
+def test_il_controfattuale_di_una_quantita_non_diventa_uno_stato():
+    """"Se invece è piccole quantità" è la frase sbagliata che il tipo evita."""
     testo = presentazione.corpo({"livello_evidenza": 1, "condizioni": ["grandi quantità"],
                                  "scelto_id": "c1", "candidati": [{"id": "c1", "varianti": [
                                      {"condizione": "piccole quantità", "destinazioni": ["organico"]},
                                      {"condizione": "grandi quantità",
                                       "destinazioni": ["carta_e_cartone"]}]}]}, ETICHETTE)
-    assert "per piccole quantità → Organico" in testo
-    assert "**per grandi quantità → Carta e cartone** ✓" in testo
+    assert testo == "Per piccole quantità: **Organico**."
 
 
 # ------------------------------------------------------ domanda scritta e legenda
@@ -318,11 +366,20 @@ def test_la_nota_della_procedura_si_legge():
     assert "abbandono di rifiuti" in testo
 
 
-def test_senza_procedure_il_messaggio_resta_quello_di_prima():
-    """La maggior parte delle risposte è raccolta ordinaria: non devono cambiare aspetto."""
-    testo = presentazione.corpo({"livello_evidenza": 1, "tipo_corrispondenza": "stesso_oggetto"})
-    assert "Il comune elenca proprio questo oggetto." in testo
-    assert "Puoi fare in" not in testo
+def test_la_raccolta_ordinaria_da_sola_non_si_scrive():
+    """È il canale della maggioranza delle risposte: tre righe uguali sotto ogni oggetto
+    sono la definizione di rumore, e tutti sanno cos'è un cassonetto."""
+    ordinaria = {"canale": "raccolta_ordinaria", "titolo": "Lo butti da casa",
+                 "passi": ["Mettilo nel sacco del colore giusto"], "sforzo": 1}
+    assert presentazione.corpo({"livello_evidenza": 1, "procedure": [ordinaria]}) == ""
+    due = presentazione.corpo({"livello_evidenza": 1, "procedure": [ordinaria, PROCEDURA_ISOLA]})
+    assert "Lo butti da casa" in due, "accanto a un altro canale il confronto serve"
+
+
+def test_senza_procedure_il_messaggio_e_vuoto():
+    """La risposta normale è il titolo e basta: nel corpo non resta niente da dire."""
+    assert presentazione.corpo({"livello_evidenza": 1,
+                                "tipo_corrispondenza": "stesso_oggetto"}) == ""
 
 
 def test_il_livello_3_dice_dove_chiedere_invece_di_non_so():
@@ -336,3 +393,42 @@ def test_il_livello_3_dice_dove_chiedere_invece_di_non_so():
 def test_il_livello_3_senza_ripiego_resta_la_frase_di_prima():
     testo = presentazione.corpo({"livello_evidenza": 3})
     assert "sito del comune" in testo
+
+
+# ------------------------------------------------------------ quando chiede, chiede e basta
+
+DOMANDA = {"livello_evidenza": 1, "oggetto": "cartone della pizza",
+           "destinazioni": ["organico"], "condizioni": ["unto"],
+           "chiarimento": "Per rispondere con certezza devo sapere se l'oggetto è: "
+                          "pulito oppure unto?",
+           "opzioni": ["pulito", "unto"], "fonte": "amiat_rifiutologo_2025",
+           "riferimento": "pagina 8", "procedure": [PROCEDURA_ISOLA],
+           "scelto_id": "c1", "candidati": [{"id": "c1", "varianti": [
+               {"condizione": "pulito", "destinazioni": ["carta_e_cartone"]},
+               {"condizione": "unto", "destinazioni": ["organico"]}]}]}
+
+
+def test_quando_chiede_il_messaggio_e_solo_la_domanda():
+    """Una destinazione sotto la domanda è una risposta che l'assistente non garantisce:
+    chi si ferma prima porta via un contenitore che nessuno gli ha promesso."""
+    testo = presentazione.messaggio(DOMANDA, ETICHETTE)
+    assert testo.endswith("pulito oppure unto?**")
+    assert "Cartone della pizza: va in" not in testo, "nessuna destinazione data per buona"
+    assert "Lo porti tu" not in testo, "le procedure arrivano col turno dopo"
+    assert presentazione.nota_fonte(DOMANDA) == "", "non c'è ancora una fonte da dichiarare"
+
+
+def test_la_domanda_dice_anche_perche_la_sto_facendo():
+    """Senza la posta in gioco è un modulo da compilare; con, si capisce quanto conta."""
+    testo = presentazione.messaggio(DOMANDA, ETICHETTE)
+    assert testo.startswith("Il contenitore dipende: se è pulito va in **Carta e cartone**, "
+                            "se è unto va in **Organico**.")
+
+
+def test_una_domanda_senza_varianti_resta_la_domanda_sola():
+    """La domanda sul materiale non nasce dalle varianti di una voce: non c'è posta in
+    gioco da mostrare, e inventarla sarebbe peggio che tacere."""
+    testo = presentazione.messaggio({"livello_evidenza": 1, "destinazioni": ["organico"],
+                                     "chiarimento": "Di che materiale è: vetro oppure plastica?"},
+                                    ETICHETTE)
+    assert testo == "**Di che materiale è: vetro oppure plastica?**"

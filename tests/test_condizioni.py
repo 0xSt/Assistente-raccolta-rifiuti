@@ -33,23 +33,25 @@ def test_condizioni_mescolate_usano_la_domanda_piu_generica():
     assert "l'oggetto è" in condizioni.domanda(["sporco", "piccole quantità"])
 
 
-def test_la_frase_non_dice_piu_vale_se_e_piccole_quantita():
-    assert condizioni.frase(["unto"]) == "Vale se è unto."
-    assert condizioni.frase(["piccole quantità"]) == "Vale per piccole quantità."
-    assert condizioni.frase(["utenza domestica"]) == "Vale per utenza domestica."
-    assert condizioni.frase([]) == ""
+def test_la_premessa_non_dice_piu_vale_se_e_piccole_quantita():
+    """La premessa si innesta nel titolo: "va in Organico **se è unto**"."""
+    assert condizioni.premessa(["unto"]) == "se è unto"
+    assert condizioni.premessa(["piccole quantità"]) == "per piccole quantità"
+    assert condizioni.premessa(["utenza domestica"]) == "per utenza domestica"
+    assert condizioni.premessa([]) == ""
 
 
 def test_condizioni_di_tipo_diverso_restano_separate():
     """È il caso del polistirolo a Napoli: grandi quantità E utenza domestica."""
-    assert condizioni.frase(["grandi quantità", "utenza domestica"]) == \
-        "Vale per grandi quantità e per utenza domestica."
-    assert condizioni.frase(["sporco", "piccole quantità"]) == \
-        "Vale se è sporco e per piccole quantità."
+    assert condizioni.premessa(["grandi quantità", "utenza domestica"]) == \
+        "per grandi quantità e per utenza domestica"
+    assert condizioni.premessa(["sporco", "piccole quantità"]) == \
+        "se è sporco e per piccole quantità"
 
 
-def test_la_premessa_si_innesta_nelle_varianti():
-    """Serve alla riga "se è pulito → Carta e cartone" sotto la risposta."""
-    assert condizioni.premessa(["pulito"]) == "se è pulito"
-    assert condizioni.premessa(["grandi quantità"]) == "per grandi quantità"
-    assert condizioni.premessa([]) == ""
+def test_il_controfattuale_nomina_l_altra_strada():
+    """Con due varianti la regola si dice in una frase, non in una tabella."""
+    assert condizioni.controfattuale("pulito") == "se invece è pulito"
+    assert condizioni.controfattuale("piccole quantità") == "per piccole quantità"
+    assert condizioni.controfattuale("vetro", condizioni.MATERIALE) == "se invece è di vetro"
+    assert condizioni.controfattuale("") == ""
