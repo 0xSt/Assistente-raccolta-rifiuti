@@ -245,23 +245,26 @@ def procedure(risposta: dict) -> str:
     quella che gli chiede di prendere la macchina. L'ordine è il messaggio.
     """
     elenco = risposta.get("procedure") or []
-    if len(elenco) == 1 and (elenco[0].get("canale") or "") == ORDINARIO:
+    if not elenco or (len(elenco) == 1 and (elenco[0].get("canale") or "") == ORDINARIO):
         return ""
-    if not elenco:
-        return ""
-    pezzi = []
-    if len(elenco) > 1:
-        pezzi.append("**Puoi fare in due modi:**" if len(elenco) == 2
-                     else f"**Puoi fare in {len(elenco)} modi:**")
-    for numero, procedura in enumerate(elenco, start=1):
-        capo = procedura.get("titolo") or procedura.get("canale", "")
-        if len(elenco) > 1:
-            capo = f"{numero}. {capo}" + ("  ·  *il più comodo*" if numero == 1 else "")
-        pezzi.append(f"**{capo}**" if len(elenco) == 1 else capo)
-        pezzi.extend(f"   - {passo}" for passo in procedura.get("passi") or [])
-        if nota := procedura.get("nota"):
-            pezzi.append(f"   ℹ️ {nota}")
-    return "\n".join(pezzi)
+    if len(elenco) == 1:
+        return _una_procedura(elenco[0])
+    quante = "due" if len(elenco) == 2 else str(len(elenco))
+    return "\n".join([f"**Puoi fare in {quante} modi:**",
+                      *(_una_procedura(p, numero) for numero, p in enumerate(elenco, start=1))])
+
+
+def _una_procedura(procedura: dict, numero: int = 0) -> str:
+    """Una procedura come righe di testo. Con `numero` è un'alternativa fra altre, e la
+    prima porta l'etichetta: l'ordine per sforzo è già arrivato così dal backend."""
+    capo = procedura.get("titolo") or procedura.get("canale", "")
+    if numero:
+        capo = f"{numero}. {capo}" + ("  ·  *il più comodo*" if numero == 1 else "")
+    righe = [capo if numero else f"**{capo}**",
+             *(f"   - {passo}" for passo in procedura.get("passi") or [])]
+    if nota := procedura.get("nota"):
+        righe.append(f"   ℹ️ {nota}")
+    return "\n".join(righe)
 
 
 def ripiego(risposta: dict) -> str:

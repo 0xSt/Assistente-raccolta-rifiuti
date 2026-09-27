@@ -98,24 +98,25 @@ class Risorse:
             comune, [(canali[d], d) for d in destinazioni if d in canali])
 
     def salute(self) -> dict:
+        """Ogni servizio si prova facendogli fare la cosa piu' piccola che sa fare.
+
+        I tre controlli erano tre `try/except` con la stessa forma; `_prova` la scrive una
+        volta e raccoglie il motivo del guasto, che e' la parte per cui questa rotta serve:
+        sapere che Ollama e' spento non aiuta se non si legge anche perche'.
+        """
         dettagli: dict[str, str] = {}
-        try:
-            self.db.execute("SELECT 1 FROM voce LIMIT 1").fetchone()
-            database = True
-        except Exception as errore:                      # database assente o schema incompleto
-            database, dettagli["database"] = False, str(errore)
 
-        try:
-            schede = self.qdrant.count(COLLEZIONE).count
-            qdrant_ok = True
-        except Exception as errore:                      # server spento o collezione mancante
-            schede, qdrant_ok, dettagli["qdrant"] = None, False, str(errore)
+        def prova(nome: str, azione):
+            try:
+                return azione(), True
+            except Exception as errore:      # servizio spento, schema incompleto, modello assente
+                dettagli[nome] = str(errore)
+                return None, False
 
-        try:
-            self.vettorizzatore.vettorizza(["prova"], "query")
-            ollama = True
-        except Exception as errore:                      # Ollama spento o modello non scaricato
-            ollama, dettagli["ollama"] = False, str(errore)
+        _, database = prova("database", lambda: self.db.execute(
+            "SELECT 1 FROM voce LIMIT 1").fetchone())
+        schede, qdrant_ok = prova("qdrant", lambda: self.qdrant.count(COLLEZIONE).count)
+        _, ollama = prova("ollama", lambda: self.vettorizzatore.vettorizza(["prova"], "query"))
 
         tutto = database and qdrant_ok and ollama
         return {"stato": "pronto" if tutto else "degradato", "database": database,

@@ -409,6 +409,25 @@ def _regole_per_comune(db: sqlite3.Connection) -> dict[str, list[tuple[str, str,
     return per_comune
 
 
+def _contraddizione(varianti: list[Variante]) -> bool:
+    """La fonte si contraddice: due varianti indistinguibili con destinazioni diverse.
+
+    Non e' un difetto dei dati nostri ed e' voluto che sopravviva fino alla risposta: se il
+    comune dice due cose, l'utente deve saperlo invece di riceverne una a caso.
+    """
+    per_condizione: dict[tuple, set[tuple[str, ...]]] = {}
+    for v in varianti:
+        per_condizione.setdefault(tuple(sorted(v.condizioni)), set()).add(tuple(v.destinazioni))
+    return any(len(d) > 1 for d in per_condizione.values())
+
+
+def _prima_provenienza(varianti: list[Variante], provenienza: dict) -> tuple:
+    """Piu' voci fuse in un oggetto solo: si cita la prima che dichiara una provenienza,
+    perche' il documento e' uno e il link dev'essere uno."""
+    return next((p for v in varianti if any(p := provenienza.get(v.voce_id, (None, None)))),
+                (None, None))
+
+
 def documenti_oggetto(db: sqlite3.Connection, arricchisci: bool | None = None) -> list[Documento]:
     arricchisci = conf.ARRICCHIMENTO if arricchisci is None else arricchisci
     alias_per_voce = _alias_per_voce(db)
@@ -420,29 +439,20 @@ def documenti_oggetto(db: sqlite3.Connection, arricchisci: bool | None = None) -
         alias = list(dict.fromkeys(a for v in tutte for a in alias_per_voce.get(v.voce_id, [])))
         codici = list(dict.fromkeys(v.codice_materiale for v in tutte if v.codice_materiale))
         varianti = unisci_varianti(tutte)
+        contraddizione = _contraddizione(tutte)
+        fonte, riferimento = _prima_provenienza(tutte, provenienza)
 
-        # due varianti indistinguibili ma con destinazioni diverse: la fonte si contraddice
-        per_condizione: dict[tuple, set[tuple[str, ...]]] = {}
-        for v in tutte:
-            per_condizione.setdefault(tuple(sorted(v.condizioni)), set()).add(tuple(v.destinazioni))
-        contraddizione = any(len(d) > 1 for d in per_condizione.values())
-
-        # più voci fuse in un oggetto solo: si cita la prima che dichiara una provenienza,
-        # perché il documento è uno e il link dev'essere uno
-        fonte, riferimento = next(
-            (p for v in tutte if any(p := provenienza.get(v.voce_id, (None, None)))),
-            (None, None))
-
-        base = testo_oggetto(nome, varianti, alias, codici, contraddizione)
-        arricchimento = arricchimento_da_fonte(
-            nome, varianti,
-            {d: canali.get((comune, d), "") for v in varianti for d in v.destinazioni},
-            {d: flussi.get((comune, d), []) for v in varianti for d in v.destinazioni},
-            regole_comune.get(comune, []), base) if arricchisci else []
+        testo = testo_oggetto(nome, varianti, alias, codici, contraddizione)
+        if arricchisci and (aggiunte := arricchimento_da_fonte(
+                nome, varianti,
+                {d: canali.get((comune, d), "") for v in varianti for d in v.destinazioni},
+                {d: flussi.get((comune, d), []) for v in varianti for d in v.destinazioni},
+                regole_comune.get(comune, []), testo)):
+            testo = testo_oggetto(nome, varianti, alias, codici, contraddizione, aggiunte)
 
         documenti.append(Documento(
             id=_chiave(comune, nome), comune=comune, tipo="oggetto", livello=1, nome=nome,
-            testo=testo_oggetto(nome, varianti, alias, codici, contraddizione, arricchimento),
+            testo=testo,
             varianti=varianti, alias=alias, codice_materiale=", ".join(codici) or None,
             fonte=fonte, riferimento=riferimento, contraddizione=contraddizione))
     return documenti

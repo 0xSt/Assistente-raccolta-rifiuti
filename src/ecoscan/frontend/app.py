@@ -33,11 +33,26 @@ ESEMPI = (
 )
 
 
+# Lo stato di una conversazione: il nome del campo e il suo valore iniziale. Scriverlo
+# qui, una volta, e' cio' che impedisce ad "apri l'app" e "nuova conversazione" di
+# divergere — e divergevano gia': il pulsante dimenticava `comune` e in piu' toglieva
+# `ultima`, che all'avvio non esiste.
+def _conversazione_vuota() -> dict:
+    return {"messaggi": [{"ruolo": "assistente", "testo": BENVENUTO}],
+            "contesto": None,           # l'ultimo consegnato dal backend
+            "attende_risposta": False,  # c'è un chiarimento in sospeso
+            "ultima": None}
+
+
 def prepara_stato() -> None:
-    st.session_state.setdefault("messaggi", [{"ruolo": "assistente", "testo": BENVENUTO}])
-    st.session_state.setdefault("contesto", None)      # l'ultimo consegnato dal backend
-    st.session_state.setdefault("attende_risposta", False)   # c'è un chiarimento in sospeso
+    for campo, valore in _conversazione_vuota().items():
+        st.session_state.setdefault(campo, valore)
     st.session_state.setdefault("comune", None)
+
+
+def azzera_conversazione() -> None:
+    """Ricomincia da capo, tenendo il comune scelto: e' un'impostazione, non un messaggio."""
+    st.session_state.update(_conversazione_vuota())
 
 
 @st.cache_data(ttl=60, show_spinner=False)
@@ -98,7 +113,33 @@ def legenda(base: str, comune: str) -> None:
                 st.markdown(riga)
 
 
+def _selettore_comune(comuni: list[dict]) -> str:
+    """Due comuni in un menù a tendina sono due clic per una scelta che si vede tutta: il
+    controllo a segmenti li mostra entrambi e ne basta uno."""
+    nomi = [c["nome"] for c in comuni]
+    comune = st.segmented_control("Comune", nomi, default=nomi[0],
+                                  help="Le regole cambiano da comune a comune: "
+                                       "la risposta vale solo per quello scelto.") or nomi[0]
+    scelto = next(c for c in comuni if c["nome"] == comune)
+    st.caption(f"{scelto['gestore']} · {scelto['voci']} voci · {scelto['regole']} regole")
+    return comune
+
+
+def _pannello_servizi(cliente: ClienteAPI) -> None:
+    """In fondo e chiuso: è un pannello per chi sviluppa, non per chi butta la spazzatura."""
+    with st.expander("Stato dei servizi"):
+        try:
+            salute = cliente.salute()
+            for servizio in ("database", "qdrant", "ollama"):
+                st.write(f"{'🟢' if salute[servizio] else '🔴'} {servizio}")
+            st.caption(f"{salute.get('schede_indicizzate', '?')} schede · "
+                       f"modello {salute['modello_visione']}")
+        except ErroreBackend as errore:
+            st.error(str(errore))
+
+
 def barra_laterale(cliente: ClienteAPI) -> str | None:
+    """Il comune scelto, o `None` se il backend non risponde: senza comune non c'è risposta."""
     with st.sidebar:
         st.markdown("### ♻️ EcoScan")
         st.caption("Assistente per la raccolta differenziata. Funziona in locale.")
@@ -108,35 +149,14 @@ def barra_laterale(cliente: ClienteAPI) -> str | None:
             st.error(str(errore))
             return None
 
-        # due comuni in un menù a tendina sono due clic per una scelta che si vede tutta:
-        # il controllo a segmenti li mostra entrambi e ne basta uno
-        nomi = [c["nome"] for c in comuni]
-        comune = st.segmented_control("Comune", nomi, default=nomi[0],
-                                      help="Le regole cambiano da comune a comune: "
-                                           "la risposta vale solo per quello scelto.") or nomi[0]
-        scelto = next(c for c in comuni if c["nome"] == comune)
-        st.caption(f"{scelto['gestore']} · {scelto['voci']} voci · {scelto['regole']} regole")
-
+        comune = _selettore_comune(comuni)
         st.divider()
         legenda(cliente.base, comune)
         if st.button("Nuova conversazione", width="stretch"):
-            st.session_state.messaggi = [{"ruolo": "assistente", "testo": BENVENUTO}]
-            st.session_state.contesto = None
-            st.session_state.attende_risposta = False
-            st.session_state.pop("ultima", None)
+            azzera_conversazione()
             st.rerun()
-
-        # in fondo e chiuso: è un pannello per chi sviluppa, non per chi butta la spazzatura
         st.divider()
-        with st.expander("Stato dei servizi"):
-            try:
-                salute = cliente.salute()
-                for servizio in ("database", "qdrant", "ollama"):
-                    st.write(f"{'🟢' if salute[servizio] else '🔴'} {servizio}")
-                st.caption(f"{salute.get('schede_indicizzate', '?')} schede · "
-                           f"modello {salute['modello_visione']}")
-            except ErroreBackend as errore:
-                st.error(str(errore))
+        _pannello_servizi(cliente)
     return comune
 
 

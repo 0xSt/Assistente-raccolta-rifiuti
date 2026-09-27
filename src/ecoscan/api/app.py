@@ -78,27 +78,32 @@ def rotte_stato(app: FastAPI, dip: Dipendenze) -> None:
         return [Destinazione(**d) for d in r.destinazioni(comune)]
 
 
+def con_procedure(r: Risorse, risposta, comune: str) -> RispostaUscita:
+    """La risposta dell'agente più il *come*.
+
+    L'agente non conosce i canali: lavora sui documenti indicizzati, dove il canale non
+    c'è. Sta qui, nel confine HTTP, perché è qui che il relazionale è a portata di mano e
+    perché resta una decisione di presentazione, non di ragionamento.
+
+    Sta **fuori** da `rotte_agente` perché non è una rotta: è la politica che le quattro
+    rotte applicano, e da dentro un registratore di rotte non la si poteva né leggere né
+    provare da sola.
+    """
+    uscita = RispostaUscita.da(risposta)
+    if uscita.destinazioni:
+        uscita.procedure = [ProceduraUscita.da(p)
+                            for p in r.procedure(comune, uscita.destinazioni)]
+    elif uscita.livello_evidenza == 3 and (ripiego := procedure_.di_ripiego(comune)):
+        # "non lo so" è onesto ma inutile: chi ha l'oggetto in mano deve comunque
+        # buttarlo da qualche parte, e il centro di raccolta è dove si chiede
+        uscita.ripiego = ProceduraUscita.da(ripiego)
+    return uscita
+
+
 def rotte_agente(app: FastAPI, dip: Dipendenze) -> None:
     """I quattro modi di parlare con l'agente: dalla foto, scrivendo, dopo un chiarimento,
     correggendolo. Tutti passano da `con_procedure`, perché dire dove va senza dire come ci
     si arriva lascia il lavoro a metà per un terzo del dizionario."""
-
-    def con_procedure(r: Risorse, risposta, comune: str) -> RispostaUscita:
-        """La risposta dell'agente più il *come*.
-
-        L'agente non conosce i canali: lavora sui documenti indicizzati, dove il canale non
-        c'è. Sta qui, nel confine HTTP, perché è qui che il relazionale è a portata di mano
-        e perché resta una decisione di presentazione, non di ragionamento.
-        """
-        uscita = RispostaUscita.da(risposta)
-        if uscita.destinazioni:
-            uscita.procedure = [ProceduraUscita.da(p)
-                                for p in r.procedure(comune, uscita.destinazioni)]
-        elif uscita.livello_evidenza == 3 and (ripiego := procedure_.di_ripiego(comune)):
-            # "non lo so" è onesto ma inutile: chi ha l'oggetto in mano deve comunque
-            # buttarlo da qualche parte, e il centro di raccolta è dove si chiede
-            uscita.ripiego = ProceduraUscita.da(ripiego)
-        return uscita
 
     @app.post(f"{PREFISSO}/analizza", response_model=RispostaUscita, tags=["agente"])
     async def analizza(comune: str = Form(...), foto: UploadFile = File(...),
