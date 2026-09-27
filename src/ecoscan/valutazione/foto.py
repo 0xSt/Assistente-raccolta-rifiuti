@@ -185,14 +185,19 @@ def misure_foto(esiti: list[EsitoFoto]) -> dict[str, float | int | None]:
     con_ideale = [e for e in esiti if e.ideale is not None]
     riconoscimenti = [e.secondi_riconoscimento for e in esiti]
     risposte = [e.secondi_risposta for e in esiti]
+    dalla_foto = round(100 * sum(e.reale.perfetta for e in esiti) / totale, 1)
+    dall_oggetto = round(100 * sum(e.ideale.perfetta for e in con_ideale) / len(con_ideale), 1) \
+        if con_ideale else None
     return {
         "foto": len(esiti),
-        "corrette_dalla_foto": round(100 * sum(e.reale.perfetta for e in esiti) / totale, 1),
+        "corrette_dalla_foto": dalla_foto,
         "contenitore_corretto": round(
             100 * sum(bool(e.reale.contenitore_corretto) for e in esiti) / totale, 1),
-        "corrette_dall_oggetto_vero": round(
-            100 * sum(e.ideale.perfetta for e in con_ideale) / len(con_ideale), 1)
-        if con_ideale else None,
+        "corrette_dall_oggetto_vero": dall_oggetto,
+        # quanti punti di correttezza costa partire da una foto invece che dal nome
+        # dell'oggetto: è il numero che dice se vale la pena della visione
+        "costo_del_riconoscimento": round(dall_oggetto - dalla_foto, 1)
+        if dall_oggetto is not None else None,
         "perse_dalla_visione": sum(e.colpa_della_visione for e in esiti) if con_ideale else None,
         "riconoscimento_p50": percentile(riconoscimenti, 0.5),
         "riconoscimento_p90": percentile(riconoscimenti, 0.9),
@@ -219,9 +224,9 @@ def riepiloga(esiti: list[EsitoFoto]) -> None:
     print(f"  risposte corrette partendo dalla foto:        {m['corrette_dalla_foto']}%")
     print(f"  contenitore corretto (nessuna destinazione sbagliata): {m['contenitore_corretto']}%")
     if m["corrette_dall_oggetto_vero"] is not None:
-        differenza = round(m["corrette_dall_oggetto_vero"] - m["corrette_dalla_foto"], 1)
         print(f"  risposte corrette partendo dall'oggetto vero: {m['corrette_dall_oggetto_vero']}%")
-        print(f"  costo del riconoscimento:                     {differenza} punti "
+        print(f"  costo del riconoscimento:                     "
+              f"{m['costo_del_riconoscimento']} punti "
               f"({m['perse_dalla_visione']} foto perse solo per la visione)")
 
     print("\n## Tempi su questa macchina (secondi)")

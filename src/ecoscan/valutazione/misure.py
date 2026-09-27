@@ -12,7 +12,7 @@ c'era niente da misurare, e la differenza si vede stampata.
 """
 from __future__ import annotations
 
-from ecoscan.valutazione.diagnosi import Esito
+from ecoscan.valutazione.diagnosi import DIAGNOSI_BUONE, Esito
 
 
 def soglie_recall(k: int) -> list[int]:
@@ -80,6 +80,14 @@ def misure(esiti: list[Esito], k: int = 8) -> dict[str, float | int | None]:
     valori["domanda_dovuta"] = _percentuale(sum(1 for e in dovute if e.ha_chiesto), len(dovute))
     valori["domanda_inutile"] = _percentuale(sum(1 for e in inutili if e.ha_chiesto),
                                              len(inutili))
+
+    # Il pass/fail delle regressioni si calcolava dentro la stampa, quindi era l'unico
+    # numero del progetto senza serie storica: ora entra nel JSON e su MLflow come gli
+    # altri. Vale solo dove ci sono regressioni, e altrove resta `None`.
+    regressioni = [e for e in esiti if e.caso.origine == "regressioni"]
+    if regressioni:
+        valori["regressioni_superate"] = sum(1 for e in regressioni
+                                             if e.diagnosi in DIAGNOSI_BUONE)
     return valori
 
 

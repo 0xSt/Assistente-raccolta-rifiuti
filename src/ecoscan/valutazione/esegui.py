@@ -76,7 +76,8 @@ from ecoscan.valutazione.casi import Caso, per_insieme, tutti
 # restano ri-esportate, perche' `esegui` e' il nome con cui il resto del progetto le
 # conosce e un taglio interno non deve diventare un compito per chi lo importa.
 from ecoscan.valutazione.diagnosi import (  # noqa: F401
-    ALTRA_STRADA, ASTENUTO, CANALE_PERSO, CORRETTO, CORRETTO_CON_DOMANDA, DOMANDA_INUTILE,
+    ALTRA_STRADA, ASTENUTO, CANALE_PERSO, CORRETTO, CORRETTO_CON_DOMANDA, DIAGNOSI_BUONE,
+    DOMANDA_INUTILE,
     Esito, MANCATA_DOMANDA, NON_ASTENUTO, RECUPERATO, RECUPERO_FALLITO, SCELTA_SBAGLIATA,
     porta_alla_destinazione,
 )
@@ -187,7 +188,7 @@ class Avanzamento:
         trascorso = time.monotonic() - self.inizio
         per_caso = trascorso / numero
         mancano = per_caso * (totale - numero)
-        segno = "ok" if esito.diagnosi in (CORRETTO, RECUPERATO, ASTENUTO) else "NO"
+        segno = "ok" if esito.diagnosi in DIAGNOSI_BUONE else "NO"
         riga = (f"  [{numero:3}/{totale}] {segno}  {caso.id[:46]:48} "
                 f"{per_caso:.1f} s/caso · {self._resta(mancano)}")
         if self.interattivo:
@@ -264,19 +265,15 @@ def _per_strato(esiti: list[Esito], nome: str, chiave) -> None:
 def riepiloga(esiti: list[Esito], k: int = 8) -> None:
     print(f"\n{'esito':4} {'caso':44} {'pos.':>5}  diagnosi")
     print("-" * 100)
-    buone = (CORRETTO, CORRETTO_CON_DOMANDA, RECUPERATO, ASTENUTO)
-    for e in sorted(esiti, key=lambda e: (e.diagnosi in buone, e.caso.id)):
-        _riga_caso(e, buone)
+    for e in sorted(esiti, key=lambda e: (e.diagnosi in DIAGNOSI_BUONE, e.caso.id)):
+        _riga_caso(e, DIAGNOSI_BUONE)
 
     for insieme, gruppo in per_insieme(esiti, chiave=lambda e: e.caso.origine).items():
         m = misure(gruppo, k)
         # le regressioni si leggono come pass/fail: sono i casi che NON devono tornare
         # indietro, e una percentuale su diciotto casi scelti apposta non stima niente
         if insieme == "regressioni":
-            passati = sum(1 for e in gruppo
-                          if e.diagnosi in (CORRETTO, CORRETTO_CON_DOMANDA, RECUPERATO,
-                                            ASTENUTO))
-            print(f"\n## Regressioni: {passati}/{len(gruppo)} superate")
+            print(f"\n## Regressioni: {m['regressioni_superate']}/{len(gruppo)} superate")
             continue
         print(f"\n## Misure sull'insieme «{insieme}» ({m['casi']} casi)")
         recall = "  ".join(f"@{n} {m[f'recall@{n}']}%" for n in soglie_recall(k)
@@ -373,9 +370,9 @@ def confronta(prima: dict, adesso: list[Esito], esecuzione: dict | None = None,
         vecchio = vecchi.get(e.caso.id)
         if vecchio is None:
             nuovi.append(e)
-        elif e.diagnosi == CORRETTO and vecchio["diagnosi"] != CORRETTO:
+        elif (e.diagnosi in DIAGNOSI_BUONE) and vecchio["diagnosi"] not in DIAGNOSI_BUONE:
             guadagnati.append(e)
-        elif e.diagnosi != CORRETTO and vecchio["diagnosi"] == CORRETTO:
+        elif (e.diagnosi not in DIAGNOSI_BUONE) and vecchio["diagnosi"] in DIAGNOSI_BUONE:
             persi.append((e, vecchio))
 
     for etichetta, valore in misure(adesso, k).items():

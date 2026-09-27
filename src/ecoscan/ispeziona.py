@@ -48,7 +48,8 @@ def riepiloga(voci: list[dict], campione: int = 0) -> None:
     problemi = Counter(p["codice"] for v in voci for p in v.get("problemi", []))
     print("\n## Problemi di qualità")
     for codice, n in problemi.most_common():
-        esempio = next(v for v in voci if any(p["codice"] == codice for p in v["problemi"]))
+        esempio = next(v for v in voci
+                       if any(p["codice"] == codice for p in v.get("problemi", [])))
         print(f"  {n:4d}  {codice:20s} es. {esempio['slug']}")
 
     with_avv = [v for v in voci if v.get("avvertenza")]

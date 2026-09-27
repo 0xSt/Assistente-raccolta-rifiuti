@@ -34,6 +34,13 @@ CORRETTO_CON_DOMANDA = "ha chiesto, come doveva: la destinazione è provvisoria"
 MANCATA_DOMANDA = "doveva chiedere la condizione e ha risposto lo stesso"
 DOMANDA_INUTILE = "ha chiesto una condizione che l'utente aveva già dichiarato"
 
+# Le diagnosi che contano come caso vinto. Esisteva in tre versioni diverse — tre
+# valori nella riga di avanzamento, quattro nel riepilogo, uno solo nel confronto — e
+# lo stesso esito risultava NO mentre l'esecuzione girava e OK quando finiva.
+# `CORRETTO_CON_DOMANDA` è un caso vinto: ha chiesto quando doveva, ed è esattamente il
+# comportamento che il sistema vuole.
+DIAGNOSI_BUONE = (CORRETTO, CORRETTO_CON_DOMANDA, RECUPERATO, ASTENUTO)
+
 # Dove finiscono gli esiti salvati da sé: non versionati (vedi .gitignore)
 
 
