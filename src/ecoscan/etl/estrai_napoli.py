@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import csv
 import json
 import re
 import time
@@ -30,10 +31,9 @@ from urllib.parse import urljoin, urlparse
 import requests
 from bs4 import BeautifulSoup
 
-from ecoscan.etl.trascrizioni import applica as applica_trascrizioni
-from ecoscan.percorsi import CACHE, GREZZO
+from ecoscan.percorsi import CACHE, GREZZO, SORGENTI
 
-from ecoscan.etl.napoli_qualita import normalizza_spazi, problemi_qualita, split_destinazioni
+from ecoscan.etl.testo import normalizza_spazi, problemi_qualita, split_destinazioni
 
 BASE = "https://www.asianapoli.it"
 DIZIONARIO = f"{BASE}/dove-lo-butto/"
@@ -335,6 +335,61 @@ def parse_pagina_frazione(html: str, url: str) -> dict:
 
 # ----------------------------------------------------------------------------- orchestrazione
 
+# ------------------------------------------------- le esclusioni trascritte a mano
+#
+# Trascrizioni manuali: dati presenti nella fonte ma non estraibili in automatico.
+#
+# Le esclusioni di alcune frazioni di Napoli sono pubblicate solo come grafica dentro
+# un'immagine. Sono state lette a occhio e trascritte alla lettera in un CSV versionato.
+#
+# Il CSV registra anche le **assenze verificate**: sapere che una frazione non pubblica
+# esclusioni è un dato, diverso dal non averle ancora cercate.
+#
+# Ogni regola che arriva da qui porta `origine: "trascrizione_manuale"`: è affidabile ma
+# non riproducibile da uno script, e va distinta da ciò che l'estrattore ricava da solo.
+
+TRASCRIZIONE_NAPOLI = SORGENTI / "manuale" / "napoli_esclusioni.csv"
+TIPI = {"escluso", "nota", "assenza_verificata"}
+
+
+def carica_trascrizione(percorso: Path = TRASCRIZIONE_NAPOLI) -> dict[str, dict]:
+    """Restituisce, per nome di frazione: regole trascritte e flag di assenza verificata."""
+    per_frazione: dict[str, dict] = {}
+    if not percorso.is_file():
+        return per_frazione
+    with open(percorso, encoding="utf-8") as fh:
+        for riga in csv.DictReader(fh):
+            frazione = riga["frazione"].strip()
+            tipo = riga["tipo"].strip()
+            if tipo not in TIPI:
+                raise ValueError(f"tipo non riconosciuto nella trascrizione: {tipo!r}")
+            voce = per_frazione.setdefault(frazione, {"regole": [], "assenza_verificata": False,
+                                                      "fonte": riga["fonte"], "data": riga["data"]})
+            if tipo == "assenza_verificata":
+                voce["assenza_verificata"] = True
+                voce["motivo_assenza"] = riga["note"]
+            else:
+                voce["regole"].append({"polarita": tipo, "testo": riga["testo"].strip(),
+                                       "dettaglio": None, "origine": "trascrizione_manuale"})
+    return per_frazione
+
+
+def applica(frazioni: list[dict], trascrizione: dict[str, dict] | None = None) -> list[dict]:
+    """Aggiunge alle frazioni estratte le regole trascritte a mano. Non sostituisce nulla."""
+    trascrizione = carica_trascrizione() if trascrizione is None else trascrizione
+    for fr in frazioni:
+        for regola in fr["regole"]:
+            regola.setdefault("origine", "estrazione")
+        voce = trascrizione.get(fr["nome_frazione"])
+        fr["assenza_esclusioni_verificata"] = bool(voce and voce["assenza_verificata"])
+        if not voce:
+            continue
+        fr["regole"].extend(voce["regole"])
+        if voce["regole"]:
+            fr["trascrizione_manuale"] = {"fonte": voce["fonte"], "data": voce["data"]}
+    return frazioni
+
+
 def estrai(out: Path, f: Fetcher, limite: int | None = None) -> None:
     out.mkdir(parents=True, exist_ok=True)
     urls = scopri_da_sitemap(f)
@@ -396,7 +451,7 @@ def estrai(out: Path, f: Fetcher, limite: int | None = None) -> None:
         if (snap := f.get(url)):
             frazioni.append({**parse_pagina_frazione(snap.html, url), "sha256": snap.sha256,
                              "recuperato_il": snap.recuperato_il, "versione_estrattore": VERSIONE_ESTRATTORE})
-    frazioni = applica_trascrizioni(frazioni)
+    frazioni = applica(frazioni)
     (out / "napoli_frazioni.json").write_text(json.dumps(frazioni, ensure_ascii=False, indent=1), encoding="utf-8")
 
     # Controlli di completezza: falliscono in modo esplicito invece di produrre dati parziali
@@ -449,13 +504,13 @@ def recon(f: Fetcher) -> None:
     print(json.dumps(fr, ensure_ascii=False, indent=1)[:800])
 
 
-def main() -> None:
+def main(argomenti: list[str] | None = None) -> None:
     ap = argparse.ArgumentParser(description="Estrae il dizionario ASIA Napoli nel livello grezzo.")
     ap.add_argument("--out", type=Path, default=GREZZO / "napoli")
     ap.add_argument("--cache", type=Path, default=CACHE / "napoli")
     ap.add_argument("--recon", action="store_true", help="ricognizione: poche pagine, nessuna scrittura")
     ap.add_argument("--limite", type=int, default=None, help="estrai solo le prime N voci")
-    args = ap.parse_args()
+    args = ap.parse_args(argomenti)
     fetcher = Fetcher(args.cache)
     recon(fetcher) if args.recon else estrai(args.out, fetcher, args.limite)
 

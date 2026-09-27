@@ -1,13 +1,15 @@
 """Test del profilo di Torino sui casi reali del Rifiutologo AMIAT 2025 (324 voci)."""
 import pytest
 
-from ecoscan.etl.transform_comune import classifica_parentesi, deduplica
-from ecoscan.etl.transform_torino import PROFILO_TORINO, trasforma_voce
+from ecoscan.etl.trasforma import classifica_parentesi, deduplica
+from ecoscan.etl.profili import PROFILO_TORINO
+from ecoscan.etl.trasforma import trasforma_voce
 
 
 def voce(nome, destinazioni=("rifiuto_non_recuperabile",), slug="s"):
     return trasforma_voce({"slug": slug, "nome_originale": nome,
-                           "destinazioni": list(destinazioni), "avvertenza": None})
+                           "destinazioni": list(destinazioni), "avvertenza": None},
+                          PROFILO_TORINO)
 
 
 @pytest.mark.parametrize("nome, nome_atteso, condizioni", [

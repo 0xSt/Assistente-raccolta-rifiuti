@@ -1,6 +1,18 @@
-"""Funzioni pure per la pulizia delle voci ASIA Napoli.
+"""Il testo delle voci: pulizia, confronto e difetti. Funzioni pure, nessun I/O.
 
-Nessuna dipendenza da rete o HTML: si testano sui valori reali osservati sul sito.
+Si chiamava `napoli_qualita` ed era una bugia: lo importavano l'estrattore di Torino, il
+motore di normalizzazione e quello delle regole. Alcune funzioni nascono davvero dalla
+fonte napoletana — `slugify_wp` riproduce `sanitize_title` di WordPress, `e_placeholder`
+riconosce un testo segnaposto visto su quel sito — ma sono utilizzabili ovunque, ed erano
+l'unico motivo per cui mezza pagina di codice condiviso portava il nome di un comune.
+
+Due gruppi di funzioni:
+
+- **pulizia e confronto** — `normalizza_spazi`, `senza_accenti`, `slugify_wp`,
+  `split_destinazioni`, `chiave_confronto`, `possibili_duplicati`;
+- **difetti** — `problemi_qualita` trova ciò che è rotto *nella fonte*, `difetti` e
+  `motivo` ciò che si è rotto **durante la normalizzazione**, cioè i nomi rimasti
+  sgrammaticati quando la condizione stava in mezzo al nome.
 """
 from __future__ import annotations
 
@@ -107,3 +119,54 @@ def problemi_qualita(record: dict) -> list[dict]:
         out.append({"codice": "indice_incoerente",
                     "dettaglio": f"indice={record['destinazioni_indice']} pagina={record['destinazioni']}"})
     return out
+
+
+# ---------------------------------------------------------------- nomi sgrammaticati
+#
+# Il Transform toglie dal nome tutto cio' che non e' l'oggetto: condizioni, esempi,
+# sinonimi. Quasi sempre il resto e' un nome pulito — "Cartone da pizza pulito" diventa
+# "Cartone da pizza" — ma quando la condizione sta IN MEZZO al nome, il resto puo' essere
+# un frammento di sintassi invece di un oggetto:
+#
+#     "Stovaglie monouso in materiale compostabile"  ->  "Stovaglie in materiale"
+#     "Tovaglioli di carta bagnati o unti di cibo"   ->  "Tovaglioli di carta o di cibo"
+#
+# Non e' un difetto estetico: il nome finisce nel testo indicizzato e nel confronto con
+# l'oggetto riconosciuto, quindi un nome rotto e' un documento che il recupero non trova
+# mai. E' un problema di retrieval travestito da problema di dati.
+#
+# Si riconoscono dalla GRAMMATICA, non dalla lunghezza: togliere meta' del nome e' spesso
+# giusto, e i nomi corti sono spesso sigle legittime (CD, PC). Sono controlli stretti, e su
+# 902 voci ne segnalano cinque: la precisione conta piu' della copertura, perche' un
+# controllo che grida al lupo viene disattivato.
+
+CONTROLLI: dict[str, re.Pattern] = {
+    # "Stovaglie in materiale": il materiale è annunciato e la parola che lo diceva è stata
+    # tolta con la condizione
+    "materiale annunciato e non detto": re.compile(r"\b(in|di)\s+materiale\s*$", re.I),
+    # "Tovaglioli di carta o di cibo": è rimasta la congiunzione di due condizioni
+    "congiunzione seguita da preposizione": re.compile(r"\s[eo]\s+(di|in|da|per|con)\s", re.I),
+    "congiunzione orfana": re.compile(r"^\s*[eo]\s|\s+[eo]\s*$", re.I),
+    # "Giocattolo o elettrico": il primo termine della congiunzione era una condizione
+    # ("di grosse dimensioni") ed e stato tolto, lasciando un oggetto congiunto a un aggettivo
+    "congiunzione seguita da aggettivo": re.compile(
+        r"^\S+\s+[eo]\s+\w+(ico|ica|ale|ato|ata|ito|ita|oso|osa|ivo|iva)\b", re.I),
+    "preposizioni consecutive": re.compile(r"\b(di|in|da|per|con|a)\s+(di|in|da|per|con)\b", re.I),
+    "parola ripetuta": re.compile(r"\b(\w{4,})\b\s+\1\b", re.I),
+    "finisce con una preposizione": re.compile(
+        r"\b(in|di|da|per|con|del|della|dei|delle|al|alla|sul)\s*$", re.I),
+    "spazi doppi": re.compile(r"\s{2,}"),
+}
+
+
+def difetti(nome: str) -> list[str]:
+    """I difetti grammaticali di un nome normalizzato. Lista vuota se il nome è sano."""
+    return [etichetta for etichetta, regex in CONTROLLI.items() if regex.search(nome or "")]
+
+
+def motivo(nome: str) -> str | None:
+    """Il difetto come motivo di revisione, nella forma usata dal Transform."""
+    trovati = difetti(nome)
+    if not trovati:
+        return None
+    return f"nome sgrammaticato dopo la normalizzazione ({', '.join(trovati)}): verificare"

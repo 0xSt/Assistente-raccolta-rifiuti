@@ -1,10 +1,11 @@
 """Test del Transform sui casi reali osservati nelle 584 voci di Napoli (estrazione 12/09/2026)."""
 import pytest
 
-from ecoscan.etl.transform_comune import deduplica, normalizza_nome
-from ecoscan.etl.transform_napoli import PROFILO_NAPOLI, trasforma_voce
-from ecoscan.etl.transform_comune import classifica_parentesi as _classifica
-from ecoscan.etl.transform_comune import separa_voce_composta as _separa
+from ecoscan.etl.trasforma import deduplica, normalizza_nome
+from ecoscan.etl.profili import PROFILO_NAPOLI
+from ecoscan.etl.trasforma import trasforma_voce
+from ecoscan.etl.trasforma import classifica_parentesi as _classifica
+from ecoscan.etl.trasforma import separa_voce_composta as _separa
 
 
 def classifica_parentesi(contenuto):
@@ -17,7 +18,7 @@ def separa_voce_composta(nome):
 
 def voce(nome, destinazioni=("Non Riciclabile",), slug="s", avvertenza=None):
     return trasforma_voce({"slug": slug, "nome_originale": nome, "destinazioni": list(destinazioni),
-                           "avvertenza": avvertenza})
+                           "avvertenza": avvertenza}, PROFILO_NAPOLI)
 
 
 def test_voce_di_prova_scartata():

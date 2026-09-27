@@ -1,7 +1,7 @@
 """Test delle trascrizioni manuali (esclusioni di Napoli lette dalle immagini informative)."""
 import pytest
 
-from ecoscan.etl.trascrizioni import TRASCRIZIONE_NAPOLI, applica, carica_trascrizione
+from ecoscan.etl.estrai_napoli import TRASCRIZIONE_NAPOLI, applica, carica_trascrizione
 
 
 @pytest.fixture(scope="module")

@@ -5,7 +5,7 @@ frasi usano i testi reali osservati nelle schede.
 """
 import pytest
 
-from ecoscan.etl.extract_torino_regole import classifica_frase, estrai, valida
+from ecoscan.etl.estrai_torino import classifica_frase, estrai_regole as estrai, valida_regole as valida
 from ecoscan.percorsi import PDF_TORINO
 
 

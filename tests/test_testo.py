@@ -6,7 +6,7 @@ più numerosi di quelli sui difetti veri.
 """
 import pytest
 
-from ecoscan.etl import qualita_nomi
+from ecoscan.etl import testo as qualita_nomi
 
 
 @pytest.mark.parametrize("nome, difetto", [
@@ -58,7 +58,7 @@ def test_il_motivo_e_nella_forma_usata_dal_transform():
 def test_un_difetto_diventa_un_motivo_di_revisione():
     """Il collegamento che rende il controllo utile: la voce compare fra quelle da
     revisionare di `ecoscan-transform`, invece di restare in un elenco che nessuno guarda."""
-    from ecoscan.etl.transform_comune import trasforma_voce
+    from ecoscan.etl.trasforma import trasforma_voce
     voce = trasforma_voce({"slug": "stoviglie", "destinazioni": ["organico"],
                            "nome_originale": "Stovaglie monouso in materiale compostabile"})
     assert voce.nome.lower().endswith("in materiale")      # la normalizzazione ha mutilato

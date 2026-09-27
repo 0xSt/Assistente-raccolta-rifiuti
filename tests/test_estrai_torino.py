@@ -1,7 +1,7 @@
 """Test di regressione dell'estrattore Torino sul PDF reale (saltati se il PDF non è presente)."""
 import pytest
 
-from ecoscan.etl.extract_torino import estrai, valida
+from ecoscan.etl.estrai_torino import estrai_dizionario as estrai, valida_dizionario as valida
 from ecoscan.percorsi import PDF_TORINO as PDF
 
 pytestmark = pytest.mark.skipif(not PDF.exists(), reason="PDF sorgente non presente in data/sorgenti/")

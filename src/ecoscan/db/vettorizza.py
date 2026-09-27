@@ -240,7 +240,7 @@ def verifica(documenti: list[Documento], qdrant: QdrantClient, vettorizzatore: V
 
 # --------------------------------------------------------------------------- comando
 
-def main() -> None:
+def main(argomenti: list[str] | None = None) -> None:
     ap = argparse.ArgumentParser(description="Indicizza i documenti su Qdrant e prova la ricerca.")
     ap.add_argument("--db", type=Path, default=DB)
     ap.add_argument("--qdrant", help="URL del server oppure percorso per la modalità locale")
@@ -249,7 +249,7 @@ def main() -> None:
     ap.add_argument("--comune", default="Napoli")
     ap.add_argument("--verifica", action="store_true")
     ap.add_argument("-k", type=int, default=5)
-    args = ap.parse_args()
+    args = ap.parse_args(argomenti)
 
     print("Impostazioni: " + " | ".join(f"{k}={v}" for k, v in conf.riepilogo().items()))
     vettorizzatore = VettorizzatoreOllama(args.modello)

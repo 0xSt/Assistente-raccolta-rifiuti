@@ -188,12 +188,12 @@ def registra_caricamento(db: sqlite3.Connection, sorgenti: dict[str, int]) -> No
 
 # --------------------------------------------------------------------------- comando
 
-def main() -> None:
+def main(argomenti: list[str] | None = None) -> None:
     ap = argparse.ArgumentParser(description="Costruisce il database relazionale dai file normalizzati.")
     ap.add_argument("--db", type=Path, default=DB)
     ap.add_argument("--normalizzato", type=Path, default=NORMALIZZATO)
     ap.add_argument("--verifica", action="store_true", help="esegue solo i controlli, senza scrivere")
-    args = ap.parse_args()
+    args = ap.parse_args(argomenti)
 
     destinazioni = leggi_destinazioni()
     voci = [v for comune in ("napoli", "torino")

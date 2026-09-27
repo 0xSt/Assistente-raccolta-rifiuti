@@ -4,7 +4,7 @@ La fixture riproduce la struttura REALE osservata sulla pagina del Vetro (12/09/
 gli ammessi sono <strong> sotto un'immagine, gli esclusi un elenco puntato <ul><li>.
 È la differenza di markup che faceva restituire zero esclusioni alla prima versione.
 """
-from ecoscan.etl.extract_napoli import parse_pagina_frazione
+from ecoscan.etl.estrai_napoli import parse_pagina_frazione
 
 PAGINA_VETRO = """
 <html><body>

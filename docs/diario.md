@@ -29,7 +29,7 @@ Va aggiornato **a ogni cambiamento sostanziale**, non a ogni riga di codice. In 
 
 ---
 
-## Stato attuale (v0.50.1, 25/09/2026)
+## Stato attuale (v0.51.0, 27/09/2026)
 
 | Componente | Stato |
 |---|---|
@@ -87,6 +87,10 @@ Formato: decisione, motivazione, stato.
 | D200 | Il livello di evidenza diventa il **riquadro** in cui la risposta sta: azzurro quando non viene dalla voce dell'oggetto (livello 3, livello 2, livello 1 per categoria), giallo quando la fonte si contraddice | Era una frase in fondo al messaggio, cioè l'ultima cosa che si legge e la prima che si salta; ma "quanto fidarsi" è ciò che decide se andare a controllare, e va visto prima di leggere. Una domanda resta bianca: non è una risposta di cui diffidare | Accettata |
 | D201 | La risposta mostra il **colore del contenitore**, come pallino davanti al nome; dove colore non c'è, l'icona del canale | Il colore è un dato del comune che stava nel database e nessuno mostrava, ed è l'informazione con cui una persona cerca il bidone per strada. Fra i due comuni non coincide — carta blu a Napoli e gialla a Torino, giallo a Napoli è la plastica — quindi è anche la dimostrazione visiva di D7: chi si è trasferito sbaglia con sicurezza. L'icona del canale, dove il colore manca, dice il gesto: sotto casa o in macchina | Accettata |
 | D202 | Lo schermo iniziale offre **quattro oggetti da provare**, scelti perché portano a quattro comportamenti diversi: una domanda, una risposta che cambia col comune, una che non si esaurisce nel contenitore, una in cui l'assistente ammette di non sapere | Uno schermo vuoto non dice cosa si può chiedere, e la scritta di benvenuto lo spiega a chi la legge. Quattro pulsanti lo dimostrano in quattro clic, e insieme sono la dimostrazione del sistema: davanti a chi guarda l'app per la prima volta si mostra da sola invece di aspettare che qualcuno digiti | Accettata |
+| D205 | La catena ETL si esegue con **un comando solo** (`ecoscan-etl`), in cinque fasi; l'ordine corretto mette `ecoscan-regole` **prima** di `ecoscan-carica`, che quindi si lancia una volta sola | La documentazione diceva di lanciare `ecoscan-carica` due volte, "sì, due volte", e la spiegava con la generazione delle regole fra i due passaggi. Verificato: non è un ciclo di dipendenze, perché `ecoscan-regole` controlla le proprie destinazioni contro i file **normalizzati** e non contro il database. Ricostruito in un passaggio solo: 902 voci, 110 regole, 1118 associazioni, identico a prima. Un ordine che si può sbagliare non deve stare in un paragrafo: sta in un comando | Accettata |
+| D206 | I moduli ETL si organizzano **per fase** e non per fonte: `estrai_napoli`, `estrai_torino`, `trasforma`, `regole`, più `profili` e `testo` per ciò che attraversa le fasi | Erano tredici moduli, di cui due da ventidue e quarantacinque righe che contenevano solo un'istanza di `Profilo`, due che aprivano lo stesso PDF con lo stesso scheletro, e uno — `napoli_qualita` — che portava il nome di un comune pur essendo importato da Torino, dal motore comune e dalle regole. Le fasi sono cinque e sono l'unica struttura che la catena ha davvero | Accettata |
+| D207 | La produzione non importa nulla dagli **strumenti diagnostici**, che stanno tutti in `ispeziona.py`, fuori da `etl/` e da `db/`, con un sottocomando per livello | `esegui_transform` importava la lettura del JSONL grezzo da `ispeziona_napoli`: tre righe di `json.loads` che tenevano un modulo da 85 righe sulla strada critica. Gli ispettori attraversano i livelli per natura — guardano il grezzo, il normalizzato e i documenti costruiti dal relazionale — quindi metterli dentro il livello che ispezionano è ciò che ha creato la dipendenza | Accettata |
+| D208 | Tutto ciò che cambia da un comune all'altro sta in `etl/profili.py`, e i motori ricevono un profilo. Vale anche per le **regole di categoria**, che prima avevano due funzioni quasi identiche | Era il solo punto della catena in cui aggiungere una fonte significava scrivere codice invece che dati, ed è proprio la proprietà su cui si regge il requisito di estendibilità. Le due funzioni differivano per la mappa delle destinazioni, la fonte e il modello di riferimento: tre campi. L'uscita dopo l'unificazione è identica byte per byte al file precedente | Accettata |
 | D204 | Nel frontend non restano **espressioni nude**: un'espressione lasciata da sola dev'essere una chiamata di funzione o una stringa di documentazione, e un test lo verifica sull'albero sintattico | Streamlit stampa il valore di ogni espressione lasciata da sola ("magia"). `riquadro(testo) if riquadro else st.markdown(testo)` è un'espressione: nella chat finiva il `DeltaGenerator` restituito, con accanto la documentazione della classe. Non dà errore, non lo vede nessun test sul testo, e il codice sembra giusto a leggerlo: è esattamente il tipo di difetto che vale la pena affidare a un controllo automatico invece che all'occhio | Accettata |
 | D203 | Durante l'attesa si mostrano il **cronometro** e i passaggi che il sistema farà, **senza fingere** di sapere a che punto è | Su CPU una foto sono minuti, e uno spinner con una scritta ferma non distingue "sta lavorando" da "si è piantato". Il backend però risponde una volta sola: inventare un avanzamento a tempo sarebbe una barra di caricamento finta, che è una bugia piccola ma della stessa famiglia di quelle che questo progetto evita altrove. Si dice cosa farà — tre passaggi, che spiegano da soli perché ci mette tanto — e si mostra il tempo, che è l'unica cosa vera che si sappia | Accettata |
 | D198 | La domanda **non** elenca prima i contenitori fra cui cambia la risposta: è una riga e i pulsanti. Le due strade si scrivono dopo, sotto la risposta | Decisione di Stef, dopo aver provato "scarpe vecchie". Sembrava che la posta in gioco spiegasse la domanda; in realtà la anticipava, e davanti a due pulsanti che portano le stesse parole della domanda non c'era niente da spiegare. Sotto la risposta le stesse due strade valgono di più, perché una è quella giusta per l'oggetto che si ha in mano: per questo cade anche la parte di D196 che le nascondeva al secondo turno | Accettata |
@@ -359,6 +363,50 @@ Cose imparate che non sono decisioni, ma che conviene ricordare.
 ---
 
 ## Cronologia
+
+### v0.51.0 — 27/09/2026
+
+**La catena ETL diventa una pipeline.** Tredici moduli sotto `etl/` diventano otto, più
+`ispeziona.py` che esce dal livello che ispezionava; undici comandi diventano sette. Nessun
+cambiamento di comportamento: il database ricostruito ha le stesse 902 voci, le stesse 110
+regole e le stesse 1118 associazioni, e `data/normalizzato/regole.jsonl` è identico byte per
+byte a quello di prima.
+
+**Un comando, e un errore nell'ordine** (D205). La documentazione diceva di lanciare
+`ecoscan-carica` due volte — "sì, due volte" — e lo spiegava con le regole normalizzate che
+si generano fra i due passaggi. Verificandolo si vede che non è un ciclo: `ecoscan-regole`
+controlla le proprie destinazioni contro i file **normalizzati**, non contro il database,
+quindi basta eseguirlo prima. La catena è lineare, e `ecoscan-etl` la esegue in cinque fasi
+— estrazione, normalizza, regole, carica, indicizza — con `--da`, `--a` e `--prova`.
+L'estrazione resta fuori dal percorso abituale: è lenta e il grezzo è versionato.
+
+**Organizzati per fase, non per fonte** (D206). `estrai_napoli.py` assorbe le trascrizioni
+a mano; `estrai_torino.py` fonde i due estrattori che aprivano lo stesso PDF con lo stesso
+scheletro, e diventa `ecoscan-torino [voci|regole]`; `trasforma.py` tiene insieme il motore
+e il suo comando; `regole.py` resta il motore delle regole di categoria. Spariscono
+`transform_napoli.py` e `transform_torino.py`, ventidue e quarantacinque righe che
+contenevano solo un'istanza di `Profilo` ciascuna — e il cui `trasforma_voce` non era usato
+da nessun modulo di produzione, solo dai test.
+
+**La produzione non dipende più dai diagnostici** (D207). `esegui_transform` importava la
+lettura del JSONL grezzo da `ispeziona_napoli`: tre righe di `json.loads` che tenevano un
+modulo da 85 righe sulla strada critica. I tre ispettori (`ecoscan-ispeziona`,
+`ecoscan-nomi`, `ecoscan-documenti`) diventano `ecoscan-ispeziona {grezzo,nomi,documenti}`
+in un modulo di primo livello, perché attraversano i livelli per natura.
+
+**Ciò che cambia da un comune all'altro sta in un posto solo** (D208). `profili.py` raccoglie
+`Profilo`, le due istanze, le tabelle linguistiche e le mappe delle destinazioni delle
+regole. Cade con esse l'ultima coppia di funzioni quasi identiche: `normalizza_napoli` e
+`normalizza_torino` differivano per tre campi, e sono diventate `normalizza(schede,
+sorgente)`. `napoli_qualita.py` diventa `testo.py`, che è quello che era già: lo importavano
+Torino, il motore comune e le regole.
+
+**Ogni comando accetta la propria riga di argomenti** (`main(argomenti)`), così
+l'orchestratore chiama esattamente i comandi che si lancerebbero a mano, invece di
+manipolare `sys.argv` o di duplicarne la logica.
+
+**Test.** 572, invariati nel numero: i file rinominati seguono i moduli
+(`test_trasforma.py`, `test_estrai_torino.py`, `test_regole.py`, `test_testo.py`).
 
 ### v0.50.1 — 25/09/2026
 

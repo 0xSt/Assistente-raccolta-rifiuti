@@ -22,33 +22,9 @@ from collections import Counter
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
-from ecoscan.etl.napoli_qualita import normalizza_spazi
+from ecoscan.etl.profili import SORGENTI_REGOLE, SorgenteRegole
+from ecoscan.etl.testo import normalizza_spazi
 from ecoscan.percorsi import DATI, GREZZO
-
-# Nome della scheda o frazione nella fonte -> destinazione usata nelle voci del comune.
-# None significa: sezione senza una destinazione propria (indice, pagina di servizio).
-DESTINAZIONE_NAPOLI = {
-    "Umido/Organico": "Organico",
-    "Plastica e Metalli": "Plastica e Metalli",
-    "Carta e Cartone": "Carta e Cartoncino",   # le voci usano "Cartoncino", la frazione "Cartone"
-    "Vetro": "Vetro",
-    "Non riciclabile": "Non Riciclabile",
-    "Altri servizi": None,                      # pagina di raccordo, non un contenitore
-}
-
-DESTINAZIONE_TORINO = {
-    "Rifiuto non recuperabile": "rifiuto_non_recuperabile",
-    "Carta e cartone": "carta_e_cartone",
-    "Organico": "organico",
-    "Imballaggi in plastica": "imballaggi_plastica",
-    "Vetro e imballaggi in metallo": "vetro_e_imballaggi_metallo",
-    "Pile": "pile",
-    "Abiti": "abiti",
-    "Farmaci": "farmaci",
-    "Oli esausti": "olio_esausto",
-    "Rifiuti ingombranti": "rifiuti_ingombranti",
-}
-
 
 @dataclass
 class RegolaNormalizzata:
@@ -74,38 +50,31 @@ def _normalizza(regola: dict, comune: str, destinazione: str, fonte: str, riferi
     )
 
 
-def normalizza_napoli(frazioni: list[dict]) -> list[RegolaNormalizzata]:
-    fuori = [f["nome_frazione"] for f in frazioni if f["nome_frazione"] not in DESTINAZIONE_NAPOLI]
+def normalizza(schede: list[dict], sorgente: SorgenteRegole) -> list[RegolaNormalizzata]:
+    """Le regole di una fonte, agganciate alle destinazioni del suo comune.
+
+    Era due funzioni quasi identiche, una per comune. L'unica differenza vera erano la
+    mappa delle destinazioni, la fonte e come si scrive il riferimento: tutte e tre cose
+    che ora stanno nel profilo, cosi' una fonte nuova e' una riga di dati e non una
+    funzione in piu'.
+    """
+    fuori = [s["nome_frazione"] for s in schede if s["nome_frazione"] not in sorgente.destinazioni]
     if fuori:
-        raise SystemExit(f"Frazioni senza corrispondenza con una destinazione: {fuori}. "
-                         "Aggiorna DESTINAZIONE_NAPOLI in normalizza_regole.py")
+        raise SystemExit(f"Sezioni senza corrispondenza con una destinazione: {fuori}. "
+                         f"Aggiorna DESTINAZIONE_{sorgente.comune.upper()} in etl/profili.py")
     regole = []
-    for fr in frazioni:
-        destinazione = DESTINAZIONE_NAPOLI[fr["nome_frazione"]]
-        if destinazione is None:
+    for scheda in schede:
+        destinazione = sorgente.destinazioni[scheda["nome_frazione"]]
+        if destinazione is None:                      # sezione di servizio, non un contenitore
             continue
-        for r in fr["regole"]:
-            regole.append(_normalizza(r, "Napoli", destinazione, "asia_napoli_frazioni",
-                                      fr["url"], fr.get("note", [])))
-    return regole
-
-
-def normalizza_torino(schede: list[dict]) -> list[RegolaNormalizzata]:
-    fuori = [s["nome_frazione"] for s in schede if s["nome_frazione"] not in DESTINAZIONE_TORINO]
-    if fuori:
-        raise SystemExit(f"Schede senza corrispondenza con una destinazione: {fuori}. "
-                         "Aggiorna DESTINAZIONE_TORINO in normalizza_regole.py")
-    regole = []
-    for sc in schede:
-        destinazione = DESTINAZIONE_TORINO[sc["nome_frazione"]]
-        riferimento = f"Rifiutologo AMIAT 2025, pagina {sc['pagina']}"
-        note = list(sc.get("note", []))
-        if sc.get("descrizione"):
-            note.append(sc["descrizione"])
-        for r in sc["regole"]:
+        note = list(scheda.get("note", []))
+        if scheda.get("descrizione"):                 # solo Torino ne ha una
+            note.append(scheda["descrizione"])
+        riferimento = sorgente.riferimento(scheda)
+        for r in scheda["regole"]:
             if not r.get("testo"):
                 continue
-            regole.append(_normalizza(r, "Torino", destinazione, "amiat_rifiutologo_2025",
+            regole.append(_normalizza(r, sorgente.comune, destinazione, sorgente.fonte,
                                       riferimento, note))
     return regole
 
@@ -130,23 +99,22 @@ def destinazioni_delle_voci(percorso: Path) -> set[str]:
             for d in json.loads(riga)["destinazioni"]}
 
 
-def main() -> None:
+def main(argomenti: list[str] | None = None) -> None:
     ap = argparse.ArgumentParser(description="Normalizza le regole di categoria dei due comuni.")
     ap.add_argument("--napoli", type=Path, default=GREZZO / "napoli" / "napoli_frazioni.json")
     ap.add_argument("--torino", type=Path, default=GREZZO / "torino" / "torino_regole.json")
     ap.add_argument("--voci", type=Path, default=DATI / "normalizzato")
     ap.add_argument("--out", type=Path, default=DATI / "normalizzato" / "regole.jsonl")
-    args = ap.parse_args()
+    args = ap.parse_args(argomenti)
 
     regole: list[RegolaNormalizzata] = []
-    if args.napoli.is_file():
-        regole += normalizza_napoli(json.loads(args.napoli.read_text(encoding="utf-8")))
-    else:
-        print(f"NOTA: {args.napoli} non presente, salto Napoli (lancia prima ecoscan-napoli)")
-    if args.torino.is_file():
-        regole += normalizza_torino(json.loads(args.torino.read_text(encoding="utf-8")))
-    else:
-        print(f"NOTA: {args.torino} non presente, salto Torino (lancia prima ecoscan-torino-regole)")
+    comandi = {"Napoli": ("ecoscan-napoli", args.napoli), "Torino": ("ecoscan-torino regole", args.torino)}
+    for comune, (comando, percorso) in comandi.items():
+        if not percorso.is_file():
+            print(f"NOTA: {percorso} non presente, salto {comune} (lancia prima {comando})")
+            continue
+        regole += normalizza(json.loads(percorso.read_text(encoding="utf-8")),
+                             SORGENTI_REGOLE[comune])
 
     voci = {c: destinazioni_delle_voci(args.voci / f"{c.lower()}_voci.jsonl") for c in ("Napoli", "Torino")}
     if all(voci.values()):

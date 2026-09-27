@@ -6,8 +6,8 @@ Le decisioni stanno in CSV versionati e vengono applicate a ogni riesecuzione de
 import pytest
 
 from ecoscan.etl import revisioni as rev
-from ecoscan.etl.esegui_transform import esegui
-from ecoscan.etl.transform_torino import PROFILO_TORINO
+from ecoscan.etl.trasforma import esegui
+from ecoscan.etl.profili import PROFILO_TORINO
 
 
 def grezza(slug, nome, destinazioni=("organico",)):

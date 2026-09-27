@@ -18,45 +18,19 @@ Ogni trasformazione incerta NON viene applicata in silenzio: produce un record c
 """
 from __future__ import annotations
 
+import argparse
+import csv
+import json
 import re
-from collections import defaultdict
-from dataclasses import dataclass, field
+from collections import Counter, defaultdict
+from dataclasses import asdict, dataclass, field
+from pathlib import Path
 
-from ecoscan.etl import qualita_nomi
-from ecoscan.etl.napoli_qualita import chiave_confronto, normalizza_spazi, senza_accenti
-
-# --------------------------------------------------------------------------- profilo
-
-
-@dataclass(frozen=True)
-class Profilo:
-    """Regole specifiche di una fonte. I default valgono per entrambi i comuni."""
-
-    comune: str
-    nomi_da_scartare: frozenset[str] = frozenset()
-    condizioni_extra: tuple[tuple[str, str], ...] = ()      # (nome canonico, pattern) inline
-    locuzioni_extra: tuple[tuple[str, str], ...] = ()       # (pattern, nome canonico)
-    invarianti_extra: frozenset[str] = frozenset()
-    locuzioni_fisse: tuple[str, ...] = ()                   # espressioni da non separare mai
-    # Provenienza della singola voce: senza di essa una risposta di livello 1 non può
-    # mostrare all'utente da dove viene la regola (D129)
-    fonte: str = ""
-    modello_riferimento: str = ""                           # formattato con il record grezzo
-
-    def riferimento(self, record: dict) -> str | None:
-        if not self.modello_riferimento:
-            return None
-        try:
-            testo = self.modello_riferimento.format_map(record)
-        except KeyError:                                     # il grezzo non porta il campo
-            return None
-        return testo or None
-
-    def condizioni_inline(self) -> dict[str, str]:
-        return {**CONDIZIONI_INLINE, **dict(self.condizioni_extra)}
-
-    def locuzioni(self) -> list[tuple[str, str]]:
-        return [*self.locuzioni_extra, *CONDIZIONI_LOCUZIONE]
+from ecoscan.etl import revisioni as rev
+from ecoscan.etl import testo as testo_
+from ecoscan.etl.profili import PROFILI, Profilo
+from ecoscan.etl.testo import chiave_confronto, normalizza_spazi, senza_accenti, slugify_wp
+from ecoscan.percorsi import DATI, GREZZO
 
 # --------------------------------------------------------------------------- nome
 
@@ -135,12 +109,22 @@ CONDIZIONI_LOCUZIONE = [
 def _estrai_condizioni_inline(nome: str, profilo: Profilo) -> tuple[str, list[str]]:
     """Rimuove dal nome le parole-condizione, gestendo la negazione ('non utilizzabili')."""
     trovate, testo = [], nome
-    for canonica, pattern in profilo.condizioni_inline().items():
+    for canonica, pattern in condizioni_inline(profilo).items():
         regex = re.compile(rf"\b(non\s+)?({pattern})\b", re.IGNORECASE)
         if (m := regex.search(testo)):
             trovate.append(("non " if m.group(1) else "") + canonica)
             testo = regex.sub(" ", testo, count=1)
     return _pulisci_congiunzioni(testo), trovate
+
+
+def condizioni_inline(profilo: Profilo) -> dict[str, str]:
+    """Le condizioni valide per questa fonte: quelle comuni piu' le sue."""
+    return {**CONDIZIONI_INLINE, **dict(profilo.condizioni_extra)}
+
+
+def locuzioni(profilo: Profilo) -> list[tuple[str, str]]:
+    """Le locuzioni-condizione: prima quelle della fonte, che sono piu' specifiche."""
+    return [*profilo.locuzioni_extra, *CONDIZIONI_LOCUZIONE]
 
 
 # --------------------------------------------------------------------------- parentesi
@@ -163,10 +147,10 @@ def classifica_parentesi(contenuto: str, profilo: Profilo | None = None) -> tupl
     profilo = profilo or Profilo(comune="?")
     c = normalizza_spazi(contenuto)
     piatto = senza_accenti(c).lower()
-    for pattern, canonica in profilo.locuzioni():
+    for pattern, canonica in locuzioni(profilo):
         if re.fullmatch(pattern, piatto) or re.fullmatch(pattern, c.lower()):
             return "condizione", canonica
-    for canonica, pattern in profilo.condizioni_inline().items():
+    for canonica, pattern in condizioni_inline(profilo).items():
         if re.fullmatch(rf"(non )?{pattern}", piatto):
             return "condizione", ("non " if piatto.startswith("non ") else "") + canonica
     if CODICE.fullmatch(c):
@@ -324,7 +308,7 @@ def _stacca_locuzioni(estratti: Estratti, profilo: Profilo) -> None:
     """Le locuzioni note ("usa e getta", "da cucina") sono condizioni scritte dentro il
     nome: si spostano fra le condizioni e il nome resta l'oggetto."""
     piatto = senza_accenti(estratti.nome).lower()
-    for pattern, canonica in profilo.locuzioni():
+    for pattern, canonica in locuzioni(profilo):
         if m := re.search(pattern, piatto):
             estratti.condizioni.append(canonica)
             estratti.nome = normalizza_spazi(
@@ -370,7 +354,7 @@ def trasforma_voce(record: dict, profilo: Profilo | None = None,
     # Togliere una condizione da IN MEZZO al nome può lasciare un frammento di sintassi
     # invece di un oggetto ("Stovaglie in materiale"). Un nome rotto è un documento che il
     # recupero non trova mai, quindi va segnalato come le altre voci da revisionare.
-    if difetto := qualita_nomi.motivo(nome):
+    if difetto := testo_.motivo(nome):
         estratti.motivi.append(difetto)
 
     return VoceNormalizzata(
@@ -414,3 +398,110 @@ def deduplica(voci: list[VoceNormalizzata]) -> tuple[list[VoceNormalizzata], lis
         principale.alias = list(dict.fromkeys(principale.alias))
         unite.append(principale)
     return unite, conflitti
+
+
+# --------------------------------------------------------------------------- il comando
+
+
+def leggi_grezzo(percorso: Path) -> list[dict]:
+    """Il JSONL del livello grezzo. Stava in `ispeziona_napoli`, cioe' in uno strumento
+    diagnostico da cui la produzione non aveva motivo di dipendere."""
+    if not percorso.is_file():
+        raise SystemExit(f"File non trovato: {percorso}\nLancia prima: uv run ecoscan-napoli")
+    return [json.loads(r) for r in percorso.read_text(encoding="utf-8").splitlines() if r.strip()]
+
+
+def carica_torino(percorso: Path) -> list[dict]:
+    """Il grezzo di Torino è un CSV: lo porta alla stessa forma del JSONL di Napoli.
+
+    Lo slug è derivato dal nome, non dalla posizione: le decisioni di revisione restano
+    valide anche se l'estrazione cambia l'ordine delle voci.
+    """
+    if not percorso.is_file():
+        raise SystemExit(f"File non trovato: {percorso}\nLancia prima: uv run ecoscan-torino")
+    voci, visti = [], Counter()
+    with open(percorso, encoding="utf-8") as fh:
+        for r in csv.DictReader(fh):
+            base = slugify_wp(r["voce_originale"])
+            visti[base] += 1
+            slug = base if visti[base] == 1 else f"{base}-{visti[base]}"
+            voci.append({"slug": slug, "nome_originale": r["voce_originale"],
+                         "destinazioni": r["destinazioni_alternative"].split("|"),
+                         "avvertenza": None, "pagina": r["pagina"]})
+    return voci
+
+
+def esegui(voci_grezze: list[dict], profilo, decisioni: dict[str, list[dict]] | None = None):
+    decisioni = decisioni or {}
+    rev.verifica_slug(decisioni, {r["slug"] for r in voci_grezze}, profilo.comune)
+    trasformate = []
+    for record in voci_grezze:
+        prese = decisioni.get(record["slug"], [])
+        voce = trasforma_voce(record, profilo, separa=not rev.vietata_separazione(prese))
+        if voce is not None and (voce := rev.applica(voce, prese)) is not None:
+            trasformate.append(voce)
+    scartate = len(voci_grezze) - len(trasformate)
+    unite, conflitti = deduplica(trasformate)
+    return unite, conflitti, scartate
+
+
+def rapporto(grezze: list[dict], unite, conflitti, scartate: int, verbose: bool = False) -> None:
+    print(f"Voci grezze: {len(grezze)} | scartate: {scartate} | normalizzate: {len(unite)}")
+    fuse = sum(len(v.slug_uniti) for v in unite)
+    print(f"Voci fuse nella deduplicazione: {fuse}")
+
+    print("\n## Condizioni estratte")
+    for cond, n in Counter(c for v in unite for c in v.condizioni).most_common():
+        print(f"  {n:4d}  {cond}")
+    print(f"  voci con almeno una condizione: {sum(1 for v in unite if v.condizioni)}")
+
+    print(f"\n## Alias: {sum(len(v.alias) for v in unite)} su {sum(1 for v in unite if v.alias)} voci")
+    print(f"## Codici materiale: {sum(1 for v in unite if v.codice_materiale)}")
+
+    print(f"\n## Conflitti (stesso nome e condizioni, destinazioni diverse): {len(conflitti)}")
+    for gruppo in conflitti:
+        print(f"  {gruppo[0].nome} {gruppo[0].condizioni or ''}")
+        for v in gruppo:
+            print(f"      {v.slug}: {' + '.join(v.destinazioni)}")
+
+    risolte = sum(1 for v in unite if any(m.startswith("risolto a mano") for m in v.motivi))
+    da_rev = [v for v in unite if v.da_revisionare]
+    print(f"\n## Risolte da revisioni manuali: {risolte}")
+    print(f"## Da revisionare: {len(da_rev)}")
+    for motivo, n in Counter(m for v in da_rev for m in v.motivi).most_common():
+        print(f"  {n:4d}  {motivo}")
+    if verbose:
+        for v in da_rev:
+            print(f"    {v.nome_originale!r} -> {v.nome!r} cond={v.condizioni} alias={v.alias}")
+
+
+def main(argomenti: list[str] | None = None) -> None:
+    ap = argparse.ArgumentParser(description="Normalizza il livello grezzo di un comune.")
+    ap.add_argument("--comune", choices=["napoli", "torino", "tutti"], default="tutti")
+    ap.add_argument("--file", type=Path, help="sovrascrive il percorso del grezzo")
+    ap.add_argument("--out", type=Path, help="sovrascrive il percorso di uscita")
+    ap.add_argument("--verbose", action="store_true")
+    args = ap.parse_args(argomenti)
+
+    comuni = ["napoli", "torino"] if args.comune == "tutti" else [args.comune]
+    for comune in comuni:
+        print(f"\n{'=' * 20} {comune.upper()}")
+        if comune == "napoli":
+            sorgente = args.file or GREZZO / "napoli" / "napoli_voci.jsonl"
+            grezze = leggi_grezzo(sorgente)
+        else:
+            sorgente = args.file or GREZZO / "torino" / "torino_voci_raw.csv"
+            grezze = carica_torino(sorgente)
+        decisioni = rev.carica(comune)
+        unite, conflitti, scartate = esegui(grezze, PROFILI[comune.capitalize()], decisioni)
+        out = args.out or DATI / "normalizzato" / f"{comune}_voci.jsonl"
+        out.parent.mkdir(parents=True, exist_ok=True)
+        with open(out, "w", encoding="utf-8") as fh:
+            for v in unite:
+                fh.write(json.dumps(asdict(v), ensure_ascii=False) + "\n")
+        rapporto(grezze, unite, conflitti, scartate, args.verbose)
+        print(f"Scritto: {out}")
+
+
+if __name__ == "__main__":
+    main()

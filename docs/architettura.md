@@ -4,7 +4,7 @@ Come è fatto il sistema, come sono legati i file, e perché. È il documento da
 orientarsi; il **[diario](diario.md)** racconta *quando* e *perché* le cose sono cambiate,
 questo dice *com'è adesso*.
 
-Aggiornato alla **v0.50.1**.
+Aggiornato alla **v0.51.0**.
 
 ---
 
@@ -43,36 +43,44 @@ basta a ricostruire il database, e serve Ollama solo per l'indice.
 
 ## 3. La catena ETL
 
+Cinque fasi, ciascuna con un artefatto su disco che è l'ingresso della successiva:
+
 ```
-   fonti pubbliche (PDF AMIAT, sito ASIA)
+   fonti pubbliche (PDF AMIAT, sito ASIA) + trascrizioni a mano
             │
-            ▼  extract_torino · extract_napoli · extract_torino_regole
+            ▼  estrazione    estrai_napoli · estrai_torino
       data/grezzo/                                    ← versionato
             │
-            ▼  esegui_transform   (transform_comune + un Profilo per comune)
+            ▼  normalizza    trasforma (motore + un Profilo per comune)
       data/normalizzato/*_voci.jsonl
             │
-            ▼  normalizza_regole
+            ▼  regole        collega le regole di categoria alle destinazioni
       data/normalizzato/regole.jsonl
             │
-            ▼  carica              (+ db/schema.sql, data/riferimento/destinazioni.csv)
+            ▼  carica        (+ db/schema.sql, data/riferimento/destinazioni.csv)
       data/ecoscan.db
             │
-            ▼  documenti           un testo leggibile per oggetto e per regola
-            │
-            ▼  vettorizza          (+ Ollama per gli embedding)
+            ▼  indicizza     documenti: un testo per oggetto e per regola
+            │                vettorizza: + Ollama per gli embedding
          Qdrant
 ```
 
-Comandi, nell'ordine in cui si lanciano dopo un aggiornamento che tocca i dati:
+Un comando le esegue tutte, nell'ordine:
 
 ```
-uv run ecoscan-transform     uv run ecoscan-carica
-uv run ecoscan-regole        uv run ecoscan-carica     # sì, due volte
-uv run ecoscan-vettorizza                              # il lungo: richiede Ollama
+uv run ecoscan-etl                  # normalizza, regole, carica, indicizza
+uv run ecoscan-etl --da estrazione  # comprese le fonti: rete e PDF, minuti
+uv run ecoscan-etl --prova          # elenca le fasi senza eseguirle
 ```
 
-Il doppio `carica` non è un refuso: le regole normalizzate si generano fra i due passaggi.
+L'estrazione resta fuori dal percorso abituale perché è lenta e perché il livello grezzo è
+versionato: si rifà quando cambia la fonte, non a ogni modifica del codice.
+
+> **Nota storica.** Fino alla v0.50 questa sezione diceva di lanciare `ecoscan-carica`
+> **due volte**, perché le regole si normalizzavano fra i due passaggi. Non era un ciclo di
+> dipendenze: `ecoscan-regole` verifica le proprie destinazioni contro i file
+> **normalizzati**, non contro il database, quindi basta eseguirlo prima di caricare. La
+> catena è lineare, e ora è un comando invece di una riga di prosa da seguire a mano (D205).
 
 **Idee portanti di questa catena**
 
@@ -144,18 +152,15 @@ all'interfaccia:
 
 | File | Responsabilità |
 |---|---|
-| `etl/extract_napoli.py` | Estrae le voci dal dizionario di ASIA (HTML) |
-| `etl/extract_torino.py` | Estrae le voci dal Rifiutologo AMIAT (PDF) |
-| `etl/extract_torino_regole.py` | Estrae le schede delle regole di categoria di Torino |
-| `etl/napoli_qualita.py` | Slug, normalizzazione degli spazi, difetti noti della fonte |
-| `etl/ispeziona_napoli.py` | Lettura e riepilogo del grezzo di Napoli |
-| `etl/transform_comune.py` | Il motore: da voce grezza a voce normalizzata, passaggio per passaggio |
-| `etl/transform_napoli.py` · `etl/transform_torino.py` | I due profili: cosa cambia da una fonte all'altra |
-| `etl/esegui_transform.py` | Il comando che applica il motore e scrive il normalizzato |
-| `etl/normalizza_regole.py` | Le regole di categoria collegate alle destinazioni |
+| `etl/pipeline.py` | La catena in un comando: cinque fasi, nell'ordine, con un intervallo scegliibile |
+| `etl/estrai_napoli.py` | Le voci dal dizionario ASIA (HTML), le pagine frazione e le trascrizioni a mano |
+| `etl/estrai_torino.py` | Il Rifiutologo AMIAT (PDF): voci A-Z dalle pagine 16-22, regole dalle 8-12 |
+| `etl/trasforma.py` | Il motore — da voce grezza a voce normalizzata — e il comando che lo applica |
+| `etl/regole.py` | Le regole di categoria collegate alle destinazioni, una funzione per tutte le fonti |
+| `etl/profili.py` | Cosa cambia da un comune all'altro: `Profilo`, tabelle linguistiche, mappe. Solo dati |
+| `etl/testo.py` | Pulizia, confronto e difetti del testo: slug, spazi, duplicati, nomi sgrammaticati |
 | `etl/revisioni.py` | Applica le decisioni prese a mano, versionate in git |
-| `etl/trascrizioni.py` | Le parti di fonte trascritte a mano, quando l'estrazione non arriva |
-| `etl/qualita_nomi.py` | I nomi rimasti sgrammaticati dopo la normalizzazione diventano motivi di revisione |
+| `ispeziona.py` | Gli strumenti diagnostici sui tre livelli: grezzo, nomi, documenti. Non scrivono |
 | `db/schema.sql` | Lo schema relazionale: 12 tabelle |
 | `db/carica.py` | Costruisce il database, una funzione per tabella |
 | `db/documenti.py` | Costruisce i documenti da indicizzare (oggetto, regola, destinazione) e li arricchisce con dati della fonte: canale, flussi, regole che nominano l'oggetto |

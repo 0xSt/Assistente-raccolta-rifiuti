@@ -7,11 +7,15 @@ import json
 
 import pytest
 
-from ecoscan.etl.normalizza_regole import (
-    DESTINAZIONE_NAPOLI, DESTINAZIONE_TORINO, normalizza_napoli, normalizza_torino,
-    verifica_destinazioni,
-)
+from ecoscan.etl.profili import DESTINAZIONE_NAPOLI, DESTINAZIONE_TORINO, SORGENTI_REGOLE
+from ecoscan.etl.regole import normalizza, verifica_destinazioni
 from ecoscan.percorsi import GREZZO
+
+
+def normalizza_con(comune, schede):
+    """Prima erano due funzioni; ora una sola, che riceve il profilo del comune."""
+    return normalizza(schede, SORGENTI_REGOLE[comune])
+
 
 FRAZIONI_NAPOLI = [
     {"nome_frazione": "Carta e Cartone", "url": "https://x/carta-e-cartone/", "note": ["Piega le scatole"],
@@ -31,7 +35,7 @@ def test_nomi_delle_frazioni_diversi_dalle_destinazioni():
 
 
 def test_normalizza_napoli():
-    regole = normalizza_napoli(FRAZIONI_NAPOLI)
+    regole = normalizza_con("Napoli", FRAZIONI_NAPOLI)
     assert {r.destinazione for r in regole} == {"Carta e Cartoncino", "Organico"}
     carta = next(r for r in regole if r.destinazione == "Carta e Cartoncino")
     assert carta.comune == "Napoli" and carta.origine == "estrazione"
@@ -42,16 +46,16 @@ def test_normalizza_napoli():
 
 def test_pagina_di_raccordo_non_produce_regole():
     # "Altri servizi" non è un contenitore: nessuna destinazione, nessuna regola
-    assert all(r.destinazione is not None for r in normalizza_napoli(FRAZIONI_NAPOLI))
+    assert all(r.destinazione is not None for r in normalizza_con("Napoli", FRAZIONI_NAPOLI))
 
 
 def test_frazione_sconosciuta_ferma_tutto():
     with pytest.raises(SystemExit, match="senza corrispondenza"):
-        normalizza_napoli([{"nome_frazione": "Frazione Nuova", "url": "", "note": [], "regole": []}])
+        normalizza_con("Napoli", [{"nome_frazione": "Frazione Nuova", "url": "", "note": [], "regole": []}])
 
 
 def test_verifica_destinazioni_smaschera_un_collegamento_sbagliato():
-    regole = normalizza_napoli(FRAZIONI_NAPOLI)
+    regole = normalizza_con("Napoli", FRAZIONI_NAPOLI)
     voci_corrette = {"Napoli": {"Carta e Cartoncino", "Organico", "Vetro"}}
     verifica_destinazioni(regole, voci_corrette)  # non solleva
     with pytest.raises(SystemExit, match="assenti dalle voci"):
@@ -65,7 +69,7 @@ torino = pytest.mark.skipif(not REGOLE_TORINO.is_file(), reason="regole di Torin
 @torino
 def test_torino_tutte_le_schede_collegate():
     schede = json.loads(REGOLE_TORINO.read_text(encoding="utf-8"))
-    regole = normalizza_torino(schede)
+    regole = normalizza_con("Torino", schede)
     assert len(regole) == 60
     assert {r.polarita for r in regole} == {"ammesso", "escluso", "nota"}
     carta = [r for r in regole if r.destinazione == "carta_e_cartone"]
@@ -77,5 +81,5 @@ def test_torino_tutte_le_schede_collegate():
 @torino
 def test_celle_non_spezzate():
     # separare "Giornali, riviste, libri, quaderni" perderebbe le qualificazioni: resta intera
-    regole = normalizza_torino(json.loads(REGOLE_TORINO.read_text(encoding="utf-8")))
+    regole = normalizza_con("Torino", json.loads(REGOLE_TORINO.read_text(encoding="utf-8")))
     assert any(r.testo == "Giornali, riviste, libri, quaderni" for r in regole)

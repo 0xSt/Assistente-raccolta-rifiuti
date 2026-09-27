@@ -4,7 +4,7 @@ Assistente per la raccolta differenziata che gira interamente in locale. L'utent
 
 Progetto universitario. Comuni del prototipo: **Napoli** (ASIA) e **Torino** (AMIAT).
 
-## Stato attuale (v0.50.1)
+## Stato attuale (v0.51.0)
 
 Il quadro completo è in [docs/diario.md](docs/diario.md).
 
@@ -56,16 +56,25 @@ Serve solo [uv](https://docs.astral.sh/uv/): scarica Python e le dipendenze da s
 ```bash
 uv sync                         # prepara l'ambiente da uv.lock
 
-uv run ecoscan-torino           # Torino, dizionario A-Z: metti prima il PDF in data/sorgenti/
-uv run ecoscan-torino-regole    # Torino, regole di categoria dalle pagine 8-12
+uv run ecoscan-etl              # TUTTA la catena, nell'ordine: normalizza -> regole -> carica -> indicizza
+uv run ecoscan-etl --da estrazione     # comprese le fonti (rete e PDF: minuti)
+uv run ecoscan-etl --a carica          # si ferma prima dell'indicizzazione
+uv run ecoscan-etl --prova             # dice cosa farebbe, senza farlo
+
+# le singole fasi, se serve lanciarne una sola
+uv run ecoscan-torino           # Torino: voci e regole dal PDF (metti prima il PDF in data/sorgenti/)
+uv run ecoscan-torino voci      # solo il dizionario A-Z
 uv run ecoscan-napoli --recon   # Napoli: ricognizione, poche pagine
 uv run ecoscan-napoli           # Napoli: estrazione completa (584 voci)
-uv run ecoscan-ispeziona        # riepiloga il grezzo di Napoli già estratto
 uv run ecoscan-transform        # normalizza le voci dei due comuni -> data/normalizzato/
 uv run ecoscan-regole           # normalizza le regole di categoria e le collega alle destinazioni
 uv run ecoscan-carica           # ricostruisce data/ecoscan.db dai file normalizzati
 uv run ecoscan-carica --verifica # solo i controlli di coerenza, senza scrivere
-uv run ecoscan-documenti        # mostra i documenti da indicizzare (per leggerli)
+
+# ispezione: non scrivono niente
+uv run ecoscan-ispeziona grezzo     # riepiloga il grezzo di Napoli già estratto
+uv run ecoscan-ispeziona nomi       # i nomi rimasti sgrammaticati dopo la normalizzazione
+uv run ecoscan-ispeziona documenti  # mostra i documenti da indicizzare (per leggerli)
 
 ollama pull embeddinggemma      # una volta sola, serve per i vettori
 docker compose up -d qdrant mlflow   # solo i servizi di supporto, per sviluppare
@@ -73,7 +82,6 @@ docker compose up -d qdrant mlflow   # solo i servizi di supporto, per sviluppar
                                 # MLflow:  http://localhost:5000
 uv run ecoscan-vettorizza       # indicizza i documenti su Qdrant
 uv run ecoscan-vettorizza --verifica   # controlla che l'indicizzazione sia corretta
-uv run ecoscan-nomi             # elenca i nomi rimasti sgrammaticati dopo la normalizzazione
 uv run ecoscan-valuta --senza-modello  # il tetto: recall@k sui casi, senza Ollama (secondi)
 uv run ecoscan-valuta           # recupero + scelta; --salva / --confronta per due esecuzioni
                                 # ogni caso lascia una traccia su MLflow (--senza-tracce la salta)
@@ -141,17 +149,15 @@ Qdrant sta in modalità `server` o `in-process`.
 
 | Modulo | Cosa fa |
 |---|---|
-| `etl/extract_torino.py` | Legge l'elenco A-Z del Rifiutologo: destinazioni dai marcatori vettoriali |
-| `etl/extract_torino_regole.py` | Legge le schede per frazione (pagine 8-12): ammessi ed esclusi |
-| `etl/extract_napoli.py` | Scarica e legge il dizionario ASIA e le pagine frazione |
-| `etl/napoli_qualita.py` | Pulizia dei testi e rilevamento dei difetti delle voci di Napoli |
-| `etl/trascrizioni.py` | Dati leggibili solo a occhio (testo dentro immagini) e assenze verificate |
-| `etl/ispeziona_napoli.py` | Riepilogo del grezzo di Napoli, senza riscaricare nulla |
-| `etl/transform_comune.py` | Motore del Transform: condizioni, alias, deduplicazione |
-| `etl/transform_napoli.py`, `etl/transform_torino.py` | Regole specifiche di ciascun comune (`Profilo`) |
+| `etl/pipeline.py` | La catena completa in un comando solo, nell'ordine giusto (`ecoscan-etl`) |
+| `etl/estrai_napoli.py` | Scarica e legge il dizionario ASIA, le pagine frazione e le trascrizioni a mano |
+| `etl/estrai_torino.py` | Legge il Rifiutologo AMIAT: le voci A-Z e le regole di categoria |
+| `etl/trasforma.py` | Motore della normalizzazione — condizioni, alias, deduplicazione — e il suo comando |
+| `etl/regole.py` | Collega le regole di categoria alle destinazioni dei comuni |
+| `etl/profili.py` | Cosa cambia da un comune all'altro: `Profilo`, tabelle e mappe. Solo dati |
+| `etl/testo.py` | Pulizia, confronto e difetti del testo delle voci. Funzioni pure |
 | `etl/revisioni.py` | Decisioni manuali, applicate a ogni riesecuzione |
-| `etl/esegui_transform.py` | Comando che mette insieme Transform, profili e revisioni |
-| `etl/normalizza_regole.py` | Collega le regole di categoria alle destinazioni dei comuni |
+| `ispeziona.py` | Gli strumenti di ispezione: grezzo, nomi, documenti (`ecoscan-ispeziona`) |
 | `agente/tipi.py` | Riconoscimento, candidato, scelta, risposta |
 | `agente/modelli.py` | Modello di visione: interfaccia e implementazione Ollama |
 | `agente/recupero.py` | L'interfaccia `Recupero` e `RecuperoQdrant`: candidati per livello di evidenza; scelta della variante |
