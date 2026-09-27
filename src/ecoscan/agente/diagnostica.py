@@ -22,34 +22,34 @@ COLORI = {"rosso": (220, 20, 20), "verde": (20, 160, 60), "blu": (30, 60, 200)}
 # e una domanda sulla POSIZIONE no: servono a distinguere "vede" da "ha tirato a indovinare".
 
 
+def _blocco(tipo: bytes, dati: bytes) -> bytes:
+    """Un blocco PNG: lunghezza, tipo, dati, CRC dei due precedenti."""
+    corpo = tipo + dati
+    return struct.pack(">I", len(dati)) + corpo + struct.pack(">I", zlib.crc32(corpo))
+
+
+def _png(riga: bytes, lato: int) -> bytes:
+    """Un PNG quadrato a partire da una riga di pixel, ripetuta.
+
+    Le due immagini di prova differiscono solo nella riga: il formato — intestazione a
+    8 bit RGB, blocchi IHDR/IDAT/IEND — era scritto due volte identico, e un formato
+    binario duplicato e' un formato che prima o poi diverge in un punto solo.
+    """
+    intestazione = struct.pack(">IIBBBBB", lato, lato, 8, 2, 0, 0, 0)  # 8 bit, RGB
+    return (b"\x89PNG\r\n\x1a\n" + _blocco(b"IHDR", intestazione)
+            + _blocco(b"IDAT", zlib.compress(riga * lato)) + _blocco(b"IEND", b""))
+
+
 def png_tinta_unita(colore: tuple[int, int, int], lato: int = 256) -> bytes:
     """Un PNG valido, di un solo colore. Il contenuto è noto: è questo che lo rende utile."""
-    riga = b"\x00" + bytes(colore) * lato          # filtro 0 + pixel RGB
-    grezzo = riga * lato
-
-    def blocco(tipo: bytes, dati: bytes) -> bytes:
-        corpo = tipo + dati
-        return struct.pack(">I", len(dati)) + corpo + struct.pack(">I", zlib.crc32(corpo))
-
-    intestazione = struct.pack(">IIBBBBB", lato, lato, 8, 2, 0, 0, 0)  # 8 bit, RGB
-    return (b"\x89PNG\r\n\x1a\n" + blocco(b"IHDR", intestazione)
-            + blocco(b"IDAT", zlib.compress(grezzo)) + blocco(b"IEND", b""))
+    return _png(b"\x00" + bytes(colore) * lato, lato)      # filtro 0 + pixel RGB
 
 
 def png_due_meta(sinistra: tuple[int, int, int], destra: tuple[int, int, int],
                  lato: int = 256) -> bytes:
     """Metà di un colore e metà di un altro: verifica che il modello colga anche la posizione."""
     meta = lato // 2
-    riga = b"\x00" + bytes(sinistra) * meta + bytes(destra) * (lato - meta)
-    grezzo = riga * lato
-
-    def blocco(tipo: bytes, dati: bytes) -> bytes:
-        corpo = tipo + dati
-        return struct.pack(">I", len(dati)) + corpo + struct.pack(">I", zlib.crc32(corpo))
-
-    intestazione = struct.pack(">IIBBBBB", lato, lato, 8, 2, 0, 0, 0)
-    return (b"\x89PNG\r\n\x1a\n" + blocco(b"IHDR", intestazione)
-            + blocco(b"IDAT", zlib.compress(grezzo)) + blocco(b"IEND", b""))
+    return _png(b"\x00" + bytes(sinistra) * meta + bytes(destra) * (lato - meta), lato)
 
 
 def _chiedi(url: str, corpo: dict, timeout: int = 60) -> dict:
@@ -78,14 +78,18 @@ def capacita_modello(base: str, modello: str) -> list[str]:
     return dati.get("capabilities") or []
 
 
-def _domanda_con_immagine(url_chat: str, modello: str, immagine: bytes, domanda: str) -> str:
+def _domanda_con_immagine(url_chat: str, modello: str, immagine: bytes, domanda: str,
+                          timeout: int = 600) -> str:
+    """Una domanda a Ollama su un'immagine. Temperatura zero: una diagnosi che cambia
+    risposta a ogni lancio non diagnostica niente."""
     import base64
+
     dati = _chiedi(url_chat, {
         "model": modello, "stream": False, "keep_alive": conf.OLLAMA_KEEP_ALIVE,
         "options": {"temperature": 0.0},
         "messages": [{"role": "user", "content": domanda,
                       "images": [base64.b64encode(immagine).decode()]}],
-    }, timeout=600)
+    }, timeout=timeout)
     return dati["message"]["content"].strip()
 
 
@@ -110,21 +114,15 @@ def scalini(modello: str, url_chat: str, foto: bytes,
     dimensione dell'immagine, non il modello né i prompt. Se restano tutte assurde, la
     dimensione non c'entra.
     """
-    import base64
-
     from ecoscan.agente.immagini import informazioni, prepara
 
     esiti = []
     for lato in lati:
         ridotta = prepara(foto, lato_max=lato)
-        dati = _chiedi(url_chat, {
-            "model": modello, "stream": False, "keep_alive": conf.OLLAMA_KEEP_ALIVE,
-            "options": {"temperature": 0.0},
-            "messages": [{"role": "user",
-                          "content": "In una frase, che oggetto è ritratto in questa immagine?",
-                          "images": [base64.b64encode(ridotta).decode()]}],
-        }, timeout=900)
-        esiti.append((lato, str(informazioni(ridotta)), dati["message"]["content"].strip()))
+        risposta = _domanda_con_immagine(
+            url_chat, modello, ridotta,
+            "In una frase, che oggetto è ritratto in questa immagine?", timeout=900)
+        esiti.append((lato, str(informazioni(ridotta)), risposta))
     return esiti
 
 

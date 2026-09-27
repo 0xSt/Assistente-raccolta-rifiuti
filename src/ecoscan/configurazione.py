@@ -18,6 +18,12 @@ def _testo(nome: str, default: str) -> str:
     return valore or default
 
 
+def _booleano(nome: str, default: bool = True) -> bool:
+    """Un interruttore da variabile d'ambiente. Spento con "no", "0" o "false"."""
+    valore = os.environ.get(nome, "").strip().lower()
+    return default if not valore else valore not in ("no", "0", "false")
+
+
 def _intero(nome: str, default: int) -> int:
     valore = os.environ.get(nome, "").strip()
     if not valore:
@@ -50,22 +56,22 @@ LATO_MAX_IMMAGINE = _intero("ECOSCAN_LATO_MAX_IMMAGINE", 1024)
 # EmbeddingGemma prevede prefissi diversi per documenti e interrogazioni. Alcune versioni di
 # Ollama però li applicano già da sé: in quel caso i nostri li duplicherebbero, peggiorando
 # il recupero. L'interruttore serve a misurare quale delle due configurazioni funziona.
-PREFISSI_EMBEDDING = _testo("ECOSCAN_PREFISSI_EMBEDDING", "si").lower() not in ("no", "0", "false")
+PREFISSI_EMBEDDING = _booleano("ECOSCAN_PREFISSI_EMBEDDING")
 # Arricchimento dei documenti con dati della fonte (canale, flussi, regole che nominano
 # l'oggetto). Si spegne per misurare quanto vale: `ECOSCAN_ARRICCHIMENTO=no` e si rivettorizza.
-ARRICCHIMENTO = _testo("ECOSCAN_ARRICCHIMENTO", "si").lower() not in ("no", "0", "false")
+ARRICCHIMENTO = _booleano("ECOSCAN_ARRICCHIMENTO")
 # Dove il frontend trova il backend. In Docker diventa il nome del servizio.
 API = _testo("ECOSCAN_API", "http://localhost:8000/api/v1")
 # Tracciamento su MLflow. Non è mai bloccante: se il server non risponde, le risposte
 # continuano ad arrivare e i dati semplicemente non vengono registrati.
 MLFLOW = _testo("ECOSCAN_MLFLOW", "http://localhost:5000")
 MLFLOW_ESPERIMENTO = _testo("ECOSCAN_MLFLOW_ESPERIMENTO", "ecoscan-chat")
-MLFLOW_ATTIVO = _testo("ECOSCAN_MLFLOW_ATTIVO", "si").lower() not in ("no", "0", "false")
+MLFLOW_ATTIVO = _booleano("ECOSCAN_MLFLOW_ATTIVO")
 # Secondi di attesa prima di rinunciare: un tracciamento non bloccante fallisce in fretta
 MLFLOW_ATTESA = _intero("ECOSCAN_MLFLOW_ATTESA", 3)
 # Le foto delle richieste si salvano come allegati delle tracce; con "no" resta solo
 # l'impronta (D124)
-MLFLOW_FOTO = _testo("ECOSCAN_MLFLOW_FOTO", "si").lower() not in ("no", "0", "false")
+MLFLOW_FOTO = _booleano("ECOSCAN_MLFLOW_FOTO")
 # Dopo un guasto di MLflow si riprova solo dopo questi secondi: riprovare a ogni richiesta
 # rallenterebbe tutte le risposte mentre il server è spento
 MLFLOW_RIPROVA = _intero("ECOSCAN_MLFLOW_RIPROVA", 60)

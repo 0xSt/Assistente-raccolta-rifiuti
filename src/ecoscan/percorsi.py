@@ -46,6 +46,11 @@ carica_impostazioni()
 DATI = RADICE / "data"
 SORGENTI = DATI / "sorgenti"
 GREZZO = DATI / "grezzo"
+NORMALIZZATO = DATI / "normalizzato"
 CACHE = DATI / "cache"
+# Il database era definito in tre moduli diversi con la stessa riga: un percorso
+# scritto piu' volte e' un percorso che prima o poi ne diventa due.
+DB = DATI / "ecoscan.db"
+VALUTAZIONE = DATI / "valutazione"
 SCHEMA_SQL = Path(__file__).resolve().parent / "db" / "schema.sql"
 PDF_TORINO = SORGENTI / "Rifiutologo_AMIAT_2025_x_sito.pdf"

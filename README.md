@@ -157,6 +157,7 @@ Qdrant sta in modalità `server` o `in-process`.
 | `etl/profili.py` | Cosa cambia da un comune all'altro: `Profilo`, tabelle e mappe. Solo dati |
 | `etl/testo.py` | Pulizia, confronto e difetti del testo delle voci. Funzioni pure |
 | `etl/revisioni.py` | Decisioni manuali, applicate a ogni riesecuzione |
+| `archivio.py` | JSONL, JSON e apertura del database: la lettura dei file in un posto solo |
 | `ispeziona.py` | Gli strumenti di ispezione: grezzo, nomi, documenti (`ecoscan-ispeziona`) |
 | `agente/tipi.py` | Riconoscimento, candidato, scelta, risposta |
 | `agente/modelli.py` | Modello di visione: interfaccia e implementazione Ollama |

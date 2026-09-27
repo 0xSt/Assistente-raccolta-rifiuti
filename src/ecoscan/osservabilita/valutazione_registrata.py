@@ -50,7 +50,7 @@ from contextlib import contextmanager
 from pathlib import Path
 
 from ecoscan import configurazione as conf
-from ecoscan.percorsi import DATI
+from ecoscan.percorsi import VALUTAZIONE
 
 registro = logging.getLogger(__name__)
 
@@ -58,8 +58,8 @@ ESPERIMENTO = "ecoscan-valutazione"
 # L'archivio di ripiego, dentro i dati del progetto e non versionato: SQLite per i
 # metadati (il file store è in "maintenance mode" dalla 3.x e viene rifiutato) e una
 # cartella accanto per gli allegati. È un archivio MLflow vero: `mlflow ui` lo apre.
-RIPIEGO = DATI / "valutazione" / "mlflow-locale.db"
-RIPIEGO_ALLEGATI = DATI / "valutazione" / "mlflow-locale-artefatti"
+RIPIEGO = VALUTAZIONE / "mlflow-locale.db"
+RIPIEGO_ALLEGATI = VALUTAZIONE / "mlflow-locale-artefatti"
 
 
 def nome_valido(chiave: str) -> str:

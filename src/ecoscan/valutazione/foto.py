@@ -46,20 +46,20 @@ Uso:
 from __future__ import annotations
 
 import argparse
-import json
 import math
 import time
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 
+from ecoscan.archivio import da_jsonl
 from ecoscan.agente.agente import Agente
 from ecoscan.agente.tipi import Riconoscimento, Risposta
-from ecoscan.percorsi import DATI
+from ecoscan.percorsi import VALUTAZIONE
 from ecoscan.valutazione.casi import Caso
-from ecoscan.valutazione.esegui import Esito
+from ecoscan.valutazione.esegui import Esito, salva_sempre
 
-CARTELLA = DATI / "valutazione" / "foto"
+CARTELLA = VALUTAZIONE / "foto"
 ETICHETTE = CARTELLA / "foto.jsonl"
 IMMAGINI = CARTELLA / "immagini"
 
@@ -123,12 +123,7 @@ def leggi_etichette(percorso: Path | None = None) -> list[Foto]:
         raise SystemExit(
             f"Etichette mancanti: {percorso}\n"
             "Una riga per foto: file, comune, oggetto, destinazioni_attese.")
-    foto = []
-    for riga in percorso.read_text(encoding="utf-8").splitlines():
-        if riga.strip():
-            campi = {k: v for k, v in json.loads(riga).items() if k in Foto.__annotations__}
-            foto.append(Foto(**campi))
-    return foto
+    return da_jsonl(Foto, percorso)
 
 
 def _esito(caso: Caso, risposta: Risposta) -> Esito:
@@ -270,20 +265,13 @@ def main() -> None:
     esecuzione = {"data": datetime.now().isoformat(timespec="minutes"), "k": args.k,
                   "modalita": "foto", "casi": {"foto": len(foto)},
                   "configurazione": agente.configurazione()}
-    # come per `ecoscan-valuta`: l'esito si salva sempre, perché venti foto sono
-    # mezz'ora di CPU e non devono dipendere dall'essersi ricordati di un'opzione
-    from ecoscan.valutazione.esegui import ESECUZIONI
-    quando = esecuzione["data"].replace(":", "").replace("-", "")
-    for percorso in filter(None, [args.salva, ESECUZIONI / f"{quando}-foto.json"]):
-        percorso.parent.mkdir(parents=True, exist_ok=True)
-        percorso.write_text(json.dumps(
-            {"esecuzione": esecuzione, "misure": misure_foto(esiti),
+    corpo = {"esecuzione": esecuzione, "misure": misure_foto(esiti),
              "esiti": {e.foto.file: {"riconosciuto": e.riconosciuto,
                                      "destinazioni": e.reale.destinazioni,
                                      "corretta": e.reale.perfetta,
                                      "colpa_della_visione": e.colpa_della_visione,
-                                     "secondi": e.secondi_totali} for e in esiti}},
-            ensure_ascii=False, indent=2), encoding="utf-8")
+                                     "secondi": e.secondi_totali} for e in esiti}}
+    for percorso in salva_sempre(corpo, esecuzione, args.salva):
         print(f"Esito salvato in {percorso}")
 
     if not args.senza_mlflow:

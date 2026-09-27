@@ -23,14 +23,9 @@ import sqlite3
 from collections import Counter
 from pathlib import Path
 
+from ecoscan.archivio import leggi_jsonl
 from ecoscan.etl.testo import difetti, possibili_duplicati
-from ecoscan.percorsi import DATI, GREZZO
-
-
-def leggi_jsonl(percorso: Path, comando: str) -> list[dict]:
-    if not percorso.is_file():
-        raise SystemExit(f"File non trovato: {percorso}\nLancia prima: uv run {comando}")
-    return [json.loads(r) for r in percorso.read_text(encoding="utf-8").splitlines() if r.strip()]
+from ecoscan.percorsi import DB, GREZZO, NORMALIZZATO
 
 
 # ============================================================ il grezzo di Napoli
@@ -96,15 +91,12 @@ def nomi(args) -> None:
     comuni = [args.comune] if args.comune else ["napoli", "torino"]
     totale, sospette = 0, 0
     for comune in comuni:
-        percorso = DATI / "normalizzato" / f"{comune}_voci.jsonl"
+        percorso = NORMALIZZATO / f"{comune}_voci.jsonl"
         if not percorso.is_file():
             print(f"{percorso} non trovato: lancia prima uv run ecoscan-transform")
             continue
         print(f"\n{'=' * 20} {comune.upper()}")
-        for riga in percorso.read_text(encoding="utf-8").splitlines():
-            if not riga.strip():
-                continue
-            voce = json.loads(riga)
+        for voce in leggi_jsonl(percorso):
             totale += 1
             if trovati := difetti(voce["nome"]):
                 sospette += 1
@@ -172,7 +164,7 @@ def main(argomenti: list[str] | None = None) -> None:
     n.add_argument("--comune", choices=["napoli", "torino"], help="limita a un comune")
 
     d = sotto.add_parser("documenti", help="costruisce e mostra i documenti da indicizzare")
-    d.add_argument("--db", type=Path, default=DATI / "ecoscan.db")
+    d.add_argument("--db", type=Path, default=DB)
     d.add_argument("--comune")
     d.add_argument("--tipo", choices=["oggetto", "regola", "destinazione"])
     d.add_argument("--cerca", help="solo i documenti il cui testo contiene questa parola")

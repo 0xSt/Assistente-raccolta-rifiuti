@@ -66,9 +66,10 @@ from datetime import datetime
 from pathlib import Path
 
 from ecoscan import configurazione as conf
+from ecoscan.archivio import salva_json
 from ecoscan.agente.agente import Agente, Richiesta
 from ecoscan.agente.tipi import Candidato
-from ecoscan.percorsi import DATI
+from ecoscan.percorsi import VALUTAZIONE
 from ecoscan.valutazione.casi import Caso, per_insieme, tutti
 
 # Le diagnosi possibili, nell'ordine in cui conviene leggerle
@@ -90,7 +91,7 @@ MANCATA_DOMANDA = "doveva chiedere la condizione e ha risposto lo stesso"
 DOMANDA_INUTILE = "ha chiesto una condizione che l'utente aveva già dichiarato"
 
 # Dove finiscono gli esiti salvati da sé: non versionati (vedi .gitignore)
-ESECUZIONI = DATI / "valutazione" / "esecuzioni"
+ESECUZIONI = VALUTAZIONE / "esecuzioni"
 
 
 @dataclass
@@ -700,12 +701,7 @@ def main() -> None:
         confronta(json.loads(args.confronta.read_text(encoding="utf-8")), esiti,
                   esecuzione, args.k)
 
-    # L'esito si salva **sempre**, anche senza `--salva`: una misura costa minuti di CPU e
-    # non deve dipendere dall'essersi ricordati di un'opzione. `--salva` serve a darle un
-    # nome che si ricorda, per i confronti.
-    salvati = [_salva(esiti, esecuzione, args.k, args.salva)] if args.salva else []
-    salvati.append(_salva(esiti, esecuzione, args.k, _percorso_automatico(esecuzione)))
-    for percorso in salvati:
+    for percorso in salva_sempre(come_json(esiti, esecuzione, args.k), esecuzione, args.salva):
         print(f"Esito salvato in {percorso}")
 
     if registrazione is not None:
@@ -748,17 +744,22 @@ def _esegui_registrando(agente: Agente, casi: list[Caso], con_modello: bool,
         return esiti, avanzamento.fine(), apertura
 
 
-def _percorso_automatico(esecuzione: dict) -> Path:
+def percorso_automatico(esecuzione: dict) -> Path:
     """Un nome che ordina da sé: data, ora e modalità."""
     quando = str(esecuzione.get("data", "")).replace(":", "").replace("-", "")
     return ESECUZIONI / f"{quando}-{esecuzione.get('modalita', 'valutazione')}.json"
 
 
-def _salva(esiti: list[Esito], esecuzione: dict, k: int, percorso: Path) -> Path:
-    percorso.parent.mkdir(parents=True, exist_ok=True)
-    percorso.write_text(json.dumps(come_json(esiti, esecuzione, k), ensure_ascii=False,
-                                   indent=2), encoding="utf-8")
-    return percorso
+def salva_sempre(corpo: dict, esecuzione: dict, scelto: Path | None) -> list[Path]:
+    """Scrive l'esito, con il nome scelto se c'è e comunque con quello automatico.
+
+    L'esito si salva **sempre**, anche senza `--salva`: una misura costa minuti di CPU e
+    non deve dipendere dall'essersi ricordati di un'opzione. `--salva` serve a darle un
+    nome che si ricorda, per i confronti.
+    """
+    percorsi = ([scelto] if scelto else []) + [percorso_automatico(esecuzione)]
+    return [salva_json(p, corpo) for p in percorsi]
+
 
 
 class _ModelloAssente:

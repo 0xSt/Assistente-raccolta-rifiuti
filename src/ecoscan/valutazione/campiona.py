@@ -52,11 +52,11 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from ecoscan.percorsi import DATI
+from ecoscan.archivio import apri_database
+from ecoscan.percorsi import DB, VALUTAZIONE
 from ecoscan.valutazione.casi import CARTELLA, tutti
 
-DB = DATI / "ecoscan.db"
-BOZZA = DATI / "valutazione" / "bozza.jsonl"
+BOZZA = VALUTAZIONE / "bozza.jsonl"
 
 INTERROGAZIONE = """
 SELECT c.nome AS comune, v.nome AS voce, d.nome AS destinazione, d.canale AS canale
@@ -92,11 +92,8 @@ class Voce:
 
 
 def voci_dal_database(percorso: Path | None = None) -> list[Voce]:
-    percorso = percorso or DB
-    if not percorso.is_file():
-        raise SystemExit(f"Database non trovato: {percorso}\nLancia prima: uv run ecoscan-carica")
     voci: dict[tuple[str, str], Voce] = {}
-    with sqlite3.connect(f"file:{percorso}?mode=ro", uri=True) as db:
+    with apri_database(percorso) as db:
         db.row_factory = sqlite3.Row
         for riga in db.execute(INTERROGAZIONE):
             voce = voci.setdefault((riga["comune"], riga["voce"]),

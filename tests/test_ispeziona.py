@@ -3,7 +3,8 @@ import json
 
 import pytest
 
-from ecoscan.ispeziona import leggi_jsonl, riepiloga
+from ecoscan.archivio import esigi_jsonl
+from ecoscan.ispeziona import riepiloga
 
 VOCI = [
     {"slug": "armadio", "nome_originale": "Armadio", "destinazioni": ["Ecopunto Ingombranti", "Numero Verde Gratuito"],
@@ -23,9 +24,9 @@ def test_riepilogo_non_esplode(capsys):
 def test_carica_jsonl(tmp_path):
     f = tmp_path / "v.jsonl"
     f.write_text("\n".join(json.dumps(v, ensure_ascii=False) for v in VOCI) + "\n", encoding="utf-8")
-    assert len(leggi_jsonl(f, "ecoscan-napoli")) == 2
+    assert len(esigi_jsonl(f, "ecoscan-napoli")) == 2
 
 
 def test_file_mancante_messaggio_chiaro(tmp_path):
     with pytest.raises(SystemExit, match="ecoscan-napoli"):
-        leggi_jsonl(tmp_path / "assente.jsonl", "ecoscan-napoli")
+        esigi_jsonl(tmp_path / "assente.jsonl", "ecoscan-napoli")

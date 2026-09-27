@@ -44,10 +44,11 @@ import json
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
+from ecoscan.archivio import da_jsonl
 from ecoscan.agente.tipi import Riconoscimento
-from ecoscan.percorsi import DATI
+from ecoscan.percorsi import VALUTAZIONE
 
-CARTELLA = DATI / "valutazione" / "casi"
+CARTELLA = VALUTAZIONE / "casi"
 # l'ordine in cui si leggono, che è anche l'ordine in cui conviene guardarli
 INSIEMI = ("regressioni", "campione", "assenti", "chiarimenti")
 
@@ -124,18 +125,9 @@ class Caso:
 
 
 def leggi(percorso: Path) -> list[Caso]:
-    """Legge un file di casi. L'origine, se non dichiarata nella riga, è il nome del file:
-    così l'insieme a cui un caso appartiene non può divergere da dove il caso sta."""
-    if not percorso.is_file():
-        return []
-    casi = []
-    for riga in percorso.read_text(encoding="utf-8").splitlines():
-        if not riga.strip():
-            continue
-        campi = {k: v for k, v in json.loads(riga).items() if k in Caso.__annotations__}
-        campi.setdefault("origine", percorso.stem)
-        casi.append(Caso(**campi))
-    return casi
+    """Legge un file di casi. L'origine è il nome del file: così l'insieme a cui un caso
+    appartiene non può divergere da dove il caso sta."""
+    return da_jsonl(Caso, percorso, origine=percorso.stem)
 
 
 def tutti(cartella: Path | None = None) -> list[Caso]:

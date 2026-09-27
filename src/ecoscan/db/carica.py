@@ -16,29 +16,21 @@ from __future__ import annotations
 
 import argparse
 import csv
-import json
 import sqlite3
 from collections import defaultdict
 from datetime import datetime, UTC
 from pathlib import Path
 
+from ecoscan.archivio import leggi_jsonl
 from ecoscan.etl import revisioni as rev
-from ecoscan.percorsi import DATI, RADICE, SCHEMA_SQL
+from ecoscan.percorsi import DATI, DB, NORMALIZZATO, RADICE, SCHEMA_SQL
 
-DB = DATI / "ecoscan.db"
-NORMALIZZATO = DATI / "normalizzato"
 DESTINAZIONI_CSV = DATI / "riferimento" / "destinazioni.csv"
 GESTORI = {"Napoli": "ASIA Napoli", "Torino": "AMIAT"}
 VERSIONE_CARICAMENTO = "carica-0.1"
 
 
 # --------------------------------------------------------------------------- lettura
-
-def leggi_jsonl(percorso: Path) -> list[dict]:
-    if not percorso.is_file():
-        return []
-    return [json.loads(r) for r in percorso.read_text(encoding="utf-8").splitlines() if r.strip()]
-
 
 def leggi_destinazioni(percorso: Path = DESTINAZIONI_CSV) -> list[dict]:
     if not percorso.is_file():

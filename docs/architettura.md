@@ -161,6 +161,7 @@ all'interfaccia:
 | `etl/testo.py` | Pulizia, confronto e difetti del testo: slug, spazi, duplicati, nomi sgrammaticati |
 | `etl/revisioni.py` | Applica le decisioni prese a mano, versionate in git |
 | `ispeziona.py` | Gli strumenti diagnostici sui tre livelli: grezzo, nomi, documenti. Non scrivono |
+| `archivio.py` | Leggere e scrivere i file del progetto: JSONL, JSON, apertura del database |
 | `db/schema.sql` | Lo schema relazionale: 12 tabelle |
 | `db/carica.py` | Costruisce il database, una funzione per tabella |
 | `db/documenti.py` | Costruisce i documenti da indicizzare (oggetto, regola, destinazione) e li arricchisce con dati della fonte: canale, flussi, regole che nominano l'oggetto |

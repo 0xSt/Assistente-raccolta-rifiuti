@@ -22,7 +22,6 @@ from __future__ import annotations
 import argparse
 import json
 import re
-import sqlite3
 import time
 import urllib.error
 import urllib.request
@@ -33,10 +32,10 @@ from collections.abc import Iterable, Sequence
 from qdrant_client import QdrantClient, models
 
 from ecoscan import configurazione as conf
+from ecoscan.archivio import apri_database
 from ecoscan.db.documenti import Documento, costruisci
-from ecoscan.percorsi import DATI
+from ecoscan.percorsi import DATI, DB
 
-DB = DATI / "ecoscan.db"
 QDRANT_LOCALE = DATI / "qdrant"
 COLLEZIONE = "documenti"
 NOME_VETTORE = "denso"
@@ -145,10 +144,7 @@ def indicizza(qdrant: QdrantClient, documenti: Iterable[Documento], vettorizzato
 
 
 def documenti_dal_database(percorso: Path | None = None) -> list[Documento]:
-    percorso = percorso or DB
-    if not percorso.is_file():
-        raise SystemExit(f"Database non trovato: {percorso}\nLancia prima: uv run ecoscan-carica")
-    with sqlite3.connect(percorso) as db:
+    with apri_database(percorso) as db:
         return costruisci(db)
 
 

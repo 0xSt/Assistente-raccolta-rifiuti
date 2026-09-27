@@ -139,7 +139,7 @@ def etichetta(nome: str, etichette: dict | None = None) -> str:
     if scritta := contenitore(nome, etichette).get("etichetta"):
         return scritta
     leggibile = nome.replace("_", " ").strip()
-    return leggibile[:1].upper() + leggibile[1:] if leggibile else nome
+    return maiuscola(leggibile) if leggibile else nome
 
 
 def segno(nome: str, etichette: dict | None = None) -> str:
