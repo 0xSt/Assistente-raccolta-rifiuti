@@ -21,10 +21,10 @@ BENVENUTO = (
     "Se vuoi, aggiungi un dettaglio: \"è vuota\", \"è unto\"."
 )
 
-# Quattro esempi da cui partire, scelti perché portano a **quattro comportamenti diversi**:
-# uno schermo vuoto non dice cosa si può chiedere, e quattro pulsanti lo dimostrano in
-# quattro clic (D202). Valgono in entrambi i comuni, e il secondo è il caso che rende visibile la
-# ragione per cui l'app esiste — la stessa cosa, due comuni, due contenitori (D7).
+# Quattro esempi da cui partire: uno schermo vuoto non dice cosa si può chiedere, e questi
+# quattro lo dimostrano in quattro clic perché portano a **comportamenti diversi** (D202).
+# Il secondo rende visibile la ragione per cui l'app esiste: stessa cosa, due comuni, due
+# contenitori (D7).
 ESEMPI = (
     ("cartone della pizza", "ti fa una domanda"),
     ("bicchiere di vetro", "cambia col comune"),
@@ -267,13 +267,9 @@ def pulsanti_chiarimento(cliente: ClienteAPI, etichette: dict[str, dict]) -> Non
 
 
 def esempi(cliente: ClienteAPI, etichette: dict[str, dict]) -> None:
-    """Quattro oggetti da provare, finché la conversazione non è cominciata.
+    """I pulsanti di `ESEMPI`, finché la conversazione non è cominciata.
 
-    Uno schermo vuoto non dice che cosa si può chiedere, e la scritta di benvenuto lo spiega
-    a parole a chi la legge. I quattro pulsanti lo dimostrano in quattro clic, e sono scelti
-    perché portano a **comportamenti diversi**: una domanda, una risposta che cambia col
-    comune, una che non si esaurisce nel contenitore, una in cui l'assistente ammette di non
-    sapere. Spariscono al primo messaggio: servono a partire, non a restare.
+    Spariscono al primo messaggio: servono a partire, non a restare.
     """
     if len(st.session_state.messaggi) > 1 or st.session_state.attende_risposta:
         return
@@ -354,7 +350,7 @@ def principale() -> None:
     comune = barra_laterale(cliente)
     if not comune:
         st.stop()
-    # i pulsanti di esempio partono da un callback, dove `comune` non arriva come argomento
+    # nello stato, perché `esempi()` lo legge da lì invece di riceverlo come argomento
     st.session_state.comune = comune
 
     etichette = etichette_destinazioni(cliente.base, comune)

@@ -28,7 +28,6 @@ class ClienteAPI:
     def __post_init__(self) -> None:
         self.base = (self.base or conf.API).rstrip("/")
 
-    # ------------------------------------------------------------------ interno
 
     def _esito(self, risposta: requests.Response):
         if risposta.status_code >= 400:
@@ -53,7 +52,6 @@ class ClienteAPI:
                 "riprova, oppure controlla che Ollama sia acceso."
             ) from errore
 
-    # ------------------------------------------------------------------ rotte
 
     def comuni(self) -> list[dict]:
         return self._chiedi("GET", "/comuni", ATTESA_BREVE)
@@ -83,7 +81,7 @@ class ClienteAPI:
                             json={"contesto": contesto, "oggetto": oggetto})
 
     def domanda(self, comune: str, oggetto: str, testo: str | None = None) -> dict:
-        """L'utente scrive il nome dell'oggetto invece di fotografarlo: nessun modello di
-        visione di mezzo, quindi l'attesa è breve."""
+        """L'utente scrive il nome dell'oggetto invece di fotografarlo: niente visione, ma
+        il modello viene interrogato una volta per livello, quindi l'attesa resta lunga."""
         return self._chiedi("POST", "/domanda", ATTESA_LUNGA,
                             json={"comune": comune, "oggetto": oggetto, "testo": testo})

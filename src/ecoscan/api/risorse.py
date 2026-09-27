@@ -57,7 +57,6 @@ class Risorse:
         if chiudi:
             chiudi()
 
-    # ------------------------------------------------------------------ stato
 
     def comuni(self) -> list[dict]:
         righe = self.db.execute("""

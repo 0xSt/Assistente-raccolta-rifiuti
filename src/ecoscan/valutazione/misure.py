@@ -62,17 +62,15 @@ def misure(esiti: list[Esito], k: int = 8) -> dict[str, float | int | None]:
     valori["livello_atteso"] = _percentuale(
         sum(1 for e in livelli if e.livello_corretto), len(livelli))
 
-    # D) le due astensioni, da leggere in coppia: tacere sempre non è prudenza, è mutismo
+    # C) le due astensioni
     valori["astensione_corretta"] = _percentuale(
         sum(1 for e in negativi if e.contenitore_corretto),
         len([e for e in negativi if e.valutata_la_scelta]))
     valori["astensione_a_sproposito"] = _percentuale(
         sum(1 for e in con_scelta if not e.destinazioni), len(con_scelta))
 
-    # C) le due domande, da leggere in coppia come le astensioni: chiedere sempre e non
-    # chiedere mai sono due difetti opposti, e un numero solo li confonderebbe
-    # il denominatore sono i casi in cui la domanda era **giudicabile**: la scelta
-    # eseguita, e la risposta arrivata dalla voce che il caso aveva in mente
+    # D) le due domande. Il denominatore sono i casi in cui la domanda era **giudicabile**:
+    # scelta eseguita, e risposta arrivata dalla voce che il caso aveva in mente
     dovute = [e for e in esiti
               if e.caso.chiarimento_atteso is True and e.chiarimento_corretto is not None]
     inutili = [e for e in esiti
@@ -81,9 +79,7 @@ def misure(esiti: list[Esito], k: int = 8) -> dict[str, float | int | None]:
     valori["domanda_inutile"] = _percentuale(sum(1 for e in inutili if e.ha_chiesto),
                                              len(inutili))
 
-    # Il pass/fail delle regressioni si calcolava dentro la stampa, quindi era l'unico
-    # numero del progetto senza serie storica: ora entra nel JSON e su MLflow come gli
-    # altri. Vale solo dove ci sono regressioni, e altrove resta `None`.
+    # E) le regressioni superate: esiste solo dove ci sono casi di regressione
     regressioni = [e for e in esiti if e.caso.origine == "regressioni"]
     if regressioni:
         valori["regressioni_superate"] = sum(1 for e in regressioni

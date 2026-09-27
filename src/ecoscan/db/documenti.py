@@ -201,33 +201,32 @@ def testo_oggetto(nome: str, varianti: list[Variante], alias: list[str],
 
 # --------------------------------------------------------- arricchimento dalla fonte
 
-"""Perché arricchire, e perché *non* con un modello.
-
-I documenti oggetto sono corti — 65 caratteri di media — e questo è il caso in cui
-l'espansione del documento aiuta di più: più parole, più modi di arrivarci. La tentazione è
-farle scrivere a un modello ("descrivi un bicchiere di vetro"), ed è una cattiva idea qui
-per due motivi.
-
-Il primo è di verità: a Napoli il bicchiere di vetro **non è riciclabile**, e qualunque
-modello, descrivendolo, direbbe il contrario — perché è vero quasi ovunque. Quella frase
-finirebbe nel testo indicizzato e nell'elenco che legge il modello di scelta, cioè
-esattamente dove il progetto ha deciso che la regola arriva solo dai dati (D9).
-
-Il secondo è di discriminazione: descritti da un modello, "Bicchiere di vetro" e "Bottiglia
-in vetro" diventano *più simili fra loro*, e vanno in contenitori diversi. Il difetto che
-questo sistema deve combattere non è la povertà semantica, è la confusione fra vicini.
-
-L'arricchimento dalla fonte fa lo stesso lavoro con dati che ci sono già:
-
-- il **canale**, quando non è la raccolta ordinaria: è il gesto che l'utente deve compiere,
-  e la ragione per cui "Numero Verde Gratuito" da solo non dice niente;
-- i **flussi di materiale** della destinazione, ma solo le parole che il testo non ha già:
-  è ciò che dà a "Numero Verde Gratuito" la parola "ingombranti";
-- le **regole di categoria che nominano l'oggetto**. È la parte che vale di più, perché
-  *allontana* i vicini invece di avvicinarli: al bicchiere di vetro di Napoli aggancia
-  "Nel contenitore Vetro NON va: Bicchieri", che è esattamente la frase per cui quella voce
-  non sta nel vetro.
-"""
+# Perché arricchire, e perché *non* con un modello.
+#
+# I documenti oggetto sono corti — 65 caratteri di media — e questo è il caso in cui
+# l'espansione del documento aiuta di più: più parole, più modi di arrivarci. La tentazione è
+# farle scrivere a un modello ("descrivi un bicchiere di vetro"), ed è una cattiva idea qui
+# per due motivi.
+#
+# Il primo è di verità: a Napoli il bicchiere di vetro **non è riciclabile**, e qualunque
+# modello, descrivendolo, direbbe il contrario — perché è vero quasi ovunque. Quella frase
+# finirebbe nel testo indicizzato e nell'elenco che legge il modello di scelta, cioè
+# esattamente dove il progetto ha deciso che la regola arriva solo dai dati (D9).
+#
+# Il secondo è di discriminazione: descritti da un modello, "Bicchiere di vetro" e "Bottiglia
+# in vetro" diventano *più simili fra loro*, e vanno in contenitori diversi. Il difetto che
+# questo sistema deve combattere non è la povertà semantica, è la confusione fra vicini.
+#
+# L'arricchimento dalla fonte fa lo stesso lavoro con dati che ci sono già:
+#
+# - il **canale**, quando non è la raccolta ordinaria: è il gesto che l'utente deve compiere,
+#   e la ragione per cui "Numero Verde Gratuito" da solo non dice niente;
+# - i **flussi di materiale** della destinazione, ma solo le parole che il testo non ha già:
+#   è ciò che dà a "Numero Verde Gratuito" la parola "ingombranti";
+# - le **regole di categoria che nominano l'oggetto**. È la parte che vale di più, perché
+#   *allontana* i vicini invece di avvicinarli: al bicchiere di vetro di Napoli aggancia
+#   "Nel contenitore Vetro NON va: Bicchieri", che è esattamente la frase per cui quella voce
+#   non sta nel vetro.
 
 # Preposizioni e articoli: non dicono nulla sull'oggetto. Duplicano l'elenco di
 # `agente/recupero.py` invece di importarlo perché il livello dei dati non dipende da
