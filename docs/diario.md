@@ -29,7 +29,7 @@ Va aggiornato **a ogni cambiamento sostanziale**, non a ogni riga di codice. In 
 
 ---
 
-## Stato attuale (v0.51.0, 27/09/2026)
+## Stato attuale (v0.52.0, 27/09/2026)
 
 | Componente | Stato |
 |---|---|
@@ -91,6 +91,11 @@ Formato: decisione, motivazione, stato.
 | D206 | I moduli ETL si organizzano **per fase** e non per fonte: `estrai_napoli`, `estrai_torino`, `trasforma`, `regole`, più `profili` e `testo` per ciò che attraversa le fasi | Erano tredici moduli, di cui due da ventidue e quarantacinque righe che contenevano solo un'istanza di `Profilo`, due che aprivano lo stesso PDF con lo stesso scheletro, e uno — `napoli_qualita` — che portava il nome di un comune pur essendo importato da Torino, dal motore comune e dalle regole. Le fasi sono cinque e sono l'unica struttura che la catena ha davvero | Accettata |
 | D207 | La produzione non importa nulla dagli **strumenti diagnostici**, che stanno tutti in `ispeziona.py`, fuori da `etl/` e da `db/`, con un sottocomando per livello | `esegui_transform` importava la lettura del JSONL grezzo da `ispeziona_napoli`: tre righe di `json.loads` che tenevano un modulo da 85 righe sulla strada critica. Gli ispettori attraversano i livelli per natura — guardano il grezzo, il normalizzato e i documenti costruiti dal relazionale — quindi metterli dentro il livello che ispezionano è ciò che ha creato la dipendenza | Accettata |
 | D208 | Tutto ciò che cambia da un comune all'altro sta in `etl/profili.py`, e i motori ricevono un profilo. Vale anche per le **regole di categoria**, che prima avevano due funzioni quasi identiche | Era il solo punto della catena in cui aggiungere una fonte significava scrivere codice invece che dati, ed è proprio la proprietà su cui si regge il requisito di estendibilità. Le due funzioni differivano per la mappa delle destinazioni, la fonte e il modello di riferimento: tre campi. L'uscita dopo l'unificazione è identica byte per byte al file precedente | Accettata |
+| D209 | La lettura dei file del progetto sta in un modulo solo, `archivio.py`, con **due politiche dichiarate** sul file assente: `leggi_jsonl` lo tratta come insieme vuoto, `esigi_jsonl` si ferma e dice quale comando lo produce | La riga di `json.loads` era scritta quattro volte e il messaggio d'errore sul database mancante tre, parola per parola. Quello che **non** si condivide è la politica: chi costruisce non deve fallire perché un comune non è ancora stato estratto, chi misura non deve produrre un riepilogo di zero righe — una risposta sbagliata travestita da risposta. Prima la differenza esisteva per caso, ora ha due nomi | Accettata |
+| D210 | La valutazione si divide in tre moduli per **natura del codice** e non per argomento: `diagnosi.py` (il verdetto su un esito), `misure.py` (funzioni pure da esiti a numeri), `esegui.py` (il comando, che stampa e salva) | `esegui.py` era di 779 righe e mescolava tre cose che si provano in modi diversi: le prime due si testano senza toccare nulla, la terza ha bisogno di file e di stampa. `esegui` ri-esporta i nomi pubblici, quindi chi importava `from valutazione.esegui import misure` continua a funzionare | Accettata |
+| D211 | Le **diagnosi buone** sono definite una volta sola, in `DIAGNOSI_BUONE` | Erano tre definizioni divergenti in tre punti dello stesso file: la riga di avanzamento diceva OK solo per `CORRETTO`, il riepilogo ne ammetteva quattro, il pass/fail delle regressioni un insieme diverso ancora. Lo stesso esito risultava OK in un punto e NO in un altro, e nessuno dei tre era dichiaratamente il criterio | Accettata |
+| D212 | **Ogni numero che si stampa è una misura**: nasce in `misure()` o `misure_foto()`, quindi finisce nel JSON e su MLflow | Il costo del riconoscimento e il pass/fail delle regressioni erano calcolati dentro la stampa: erano gli unici due numeri del progetto senza serie storica, cioè quelli di cui non si poteva dire se una modifica li avesse migliorati. Un numero che non si può confrontare con quello di ieri non serve a decidere | Accettata |
+| D213 | Una ristrutturazione a comportamento invariato si difende con un'**istantanea del comportamento**, non con i test: si fotografa ciò che il sistema produce prima, si rifotografa dopo ogni fase, e `diff` è la prova | I test dicono che i casi previsti continuano a valere; non dicono niente sui casi che nessuno ha previsto, che in una riscrittura sono la maggioranza. L'istantanea copre tutto ciò che è deterministico e non chiede né Ollama né Qdrant: il database ricostruito, gli 875 documenti indicizzabili con testo e payload, i messaggi della presentazione su otto casi fissi, le misure su otto esiti costruiti a mano. È uno strumento di lavoro e sta fuori dal repo | Accettata |
 | D204 | Nel frontend non restano **espressioni nude**: un'espressione lasciata da sola dev'essere una chiamata di funzione o una stringa di documentazione, e un test lo verifica sull'albero sintattico | Streamlit stampa il valore di ogni espressione lasciata da sola ("magia"). `riquadro(testo) if riquadro else st.markdown(testo)` è un'espressione: nella chat finiva il `DeltaGenerator` restituito, con accanto la documentazione della classe. Non dà errore, non lo vede nessun test sul testo, e il codice sembra giusto a leggerlo: è esattamente il tipo di difetto che vale la pena affidare a un controllo automatico invece che all'occhio | Accettata |
 | D203 | Durante l'attesa si mostrano il **cronometro** e i passaggi che il sistema farà, **senza fingere** di sapere a che punto è | Su CPU una foto sono minuti, e uno spinner con una scritta ferma non distingue "sta lavorando" da "si è piantato". Il backend però risponde una volta sola: inventare un avanzamento a tempo sarebbe una barra di caricamento finta, che è una bugia piccola ma della stessa famiglia di quelle che questo progetto evita altrove. Si dice cosa farà — tre passaggi, che spiegano da soli perché ci mette tanto — e si mostra il tempo, che è l'unica cosa vera che si sappia | Accettata |
 | D198 | La domanda **non** elenca prima i contenitori fra cui cambia la risposta: è una riga e i pulsanti. Le due strade si scrivono dopo, sotto la risposta | Decisione di Stef, dopo aver provato "scarpe vecchie". Sembrava che la posta in gioco spiegasse la domanda; in realtà la anticipava, e davanti a due pulsanti che portano le stesse parole della domanda non c'era niente da spiegare. Sotto la risposta le stesse due strade valgono di più, perché una è quella giusta per l'oggetto che si ha in mano: per questo cade anche la parte di D196 che le nascondeva al secondo turno | Accettata |
@@ -363,6 +368,63 @@ Cose imparate che non sono decisioni, ma che conviene ricordare.
 ---
 
 ## Cronologia
+
+### v0.52.0 — 27/09/2026
+
+**Ristrutturazione della codebase, esclusa la catena ETL.** Sette fasi, un commit
+ciascuna, nessun cambiamento di funzionalità: 572 test verdi a ogni passo e un'istantanea
+del comportamento identica dalla prima all'ultima (D213). L'unica uscita che cambia è
+voluta, e sta nella fase dei difetti.
+
+**La rete di sicurezza prima di toccare il codice** (D213). Uno script fotografa ciò che il
+sistema produce senza chiedere modelli: conteggi e impronta di ogni tabella del database,
+testo e payload degli 875 documenti indicizzabili, i messaggi della presentazione su otto
+casi fissi, le misure su otto esiti costruiti a mano. `diff` fra il prima e il dopo è la
+prova che "non è cambiato niente" invece dell'affermazione.
+
+**Fase 1 — codice morto verificato.** Rimosso solo ciò di cui si è verificato che nessuno
+lo usa: funzioni mai chiamate, un ramo raggiungibile da nessuna condizione, argomenti
+sempre passati con lo stesso valore.
+
+**Fase 2 — duplicazioni a comportamento identico.** Nasce `archivio.py` (D209): la riga di
+`json.loads` era scritta in quattro moduli e il messaggio d'errore sul database mancante in
+tre, identici. Le due politiche sul file assente, che prima si distinguevano per caso, ora
+hanno due nomi — `leggi_jsonl` e `esigi_jsonl`. Il salvataggio JSON e l'apertura del
+database in sola lettura seguono la stessa strada.
+
+**Fase 3 — funzioni con troppe responsabilità.** Estrazioni locali dove una funzione
+faceva tre cose: `salute()` nell'API, la costruzione dei documenti, il riquadro del
+frontend, la diagnostica delle immagini. Nessuna astrazione nuova: funzioni piccole con un
+nome, nello stesso modulo.
+
+**Fase 4 — la valutazione si divide in tre** (D210). `esegui.py` passa da 779 a 542 righe:
+`diagnosi.py` tiene il verdetto su un esito, `misure.py` le funzioni pure che portano dagli
+esiti ai numeri, `esegui.py` il comando che stampa e salva. I nomi pubblici restano
+importabili da `esegui`, quindi niente si rompe fuori.
+
+**I difetti che lo studio ha fatto emergere.** Tre correzioni, in un commit loro perché
+questa è l'unica parte che cambia l'uscita: `ispeziona` sollevava `KeyError` su una voce
+senza la chiave `problemi`; le diagnosi buone erano definite tre volte in modo divergente,
+e lo stesso esito risultava OK in un punto e NO in un altro (D211); il costo del
+riconoscimento e il pass/fail delle regressioni erano calcolati dentro la stampa, quindi
+erano i due soli numeri senza serie storica, e ora sono misure (D212).
+
+**Fase 5 — commenti che dicevano il falso.** La docstring di `cliente.domanda` diceva "l'attesa
+è breve" mentre il codice passa `ATTESA_LUNGA`; un commento del frontend parlava di un
+callback che non esiste più; trenta righe di prosa in `documenti.py` stavano in una stringa
+nuda a livello di modulo, che non è una docstring e nessuno legge con `help()` — è la stessa
+espressione nuda che D204 vieta nel frontend.
+
+**Fase 6 — lessico interno.** `Scelta.scheda_id` chiamava "scheda" un documento, e le schede
+non esistono dalla v0.43.0; `Riconoscimento.query` e `query_oggetto` chiamavano "query" ciò
+che le docstring intorno chiamano già "formulazione". Diventano `scelto_id`,
+`formulazione_estesa`, `formulazione_base`. Restano invariati i nomi che sono un contratto
+verso fuori: la rotta `/domanda`, i campi JSON, la collezione Qdrant e il prefisso `"query"`
+di EmbeddingGemma, che è del modello e non nostro.
+
+**Non toccato di proposito.** La catena ETL, riorganizzata nella v0.51.0. E `vettorizza.verifica`,
+che resta una funzione lunga: è una lista di controlli e si legge meglio in fila che spezzata
+in cinque funzioni chiamate una volta sola.
 
 ### v0.51.0 — 27/09/2026
 
