@@ -189,7 +189,7 @@ class ModelloOllama:
     def scegli(self, riconoscimento: Riconoscimento, candidati: Sequence[Candidato],
                testo_utente: str | None = None) -> Scelta:
         if not candidati:
-            return Scelta(scheda_id=None, motivo="nessun candidato da valutare")
+            return Scelta(scelto_id=None, motivo="nessun candidato da valutare")
         contenuto = "\n\n".join([
             prompt_.carica("scelta").testo,
             _descrizione_oggetto(riconoscimento, testo_utente),
@@ -200,7 +200,7 @@ class ModelloOllama:
         tipo = (dati.get("tipo_corrispondenza") or "").strip()
         motivo = dati.get("motivo") or ""
         if not 1 <= numero <= len(candidati):
-            return Scelta(scheda_id=None, tipo_corrispondenza=tipo or "nessuna",
+            return Scelta(scelto_id=None, tipo_corrispondenza=tipo or "nessuna",
                           motivo=motivo or "nessuna voce corrisponde")
-        return Scelta(scheda_id=candidati[numero - 1].id, tipo_corrispondenza=tipo,
+        return Scelta(scelto_id=candidati[numero - 1].id, tipo_corrispondenza=tipo,
                       motivo=motivo, chiarimento=_chiarimento(dati.get("chiarimento")))

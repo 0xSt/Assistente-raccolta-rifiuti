@@ -33,7 +33,12 @@ TIPI = ("oggetto", "regola", "destinazione")
 
 @dataclass
 class Variante:
-    """Un modo di essere dell'oggetto e dove va di conseguenza."""
+    """Una variante come sta nel relazionale: porta con sé gli identificativi della voce.
+
+    Omonima di `agente.tipi.Variante`, che è la stessa cosa vista dal ragionamento, senza
+    le chiavi del database. Restano due classi perché i due livelli non si importano a
+    vicenda (le regole di dipendenza in docs/architettura.md).
+    """
 
     condizioni: list[str]
     destinazioni: list[str]

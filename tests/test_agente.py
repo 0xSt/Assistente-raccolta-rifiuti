@@ -63,8 +63,8 @@ def test_i_materiali_nella_domanda_estesa_si_fermano_a_due():
     l'oggetto diventa una parola su cinque e la ricerca si sposta sui materiali."""
     r = Riconoscimento(oggetto="microonde",
                        materiali=["acciaio inossidabile", "vetro", "plastica", "metallo"])
-    assert r.query == "microonde acciaio inossidabile vetro"
-    assert "plastica" not in r.query and "metallo" not in r.query
+    assert r.formulazione_estesa == "microonde acciaio inossidabile vetro"
+    assert "plastica" not in r.formulazione_estesa and "metallo" not in r.formulazione_estesa
 
 
 def test_le_essenziali_entrano_anche_con_molti_sinonimi():
@@ -207,7 +207,7 @@ def test_la_corrispondenza_per_solo_materiale_viene_scartata(ambiente):
     class DichiaraSoloMateriale(ModelloFinto):
         def scegli(self, riconoscimento, candidati, testo_utente=None):
             self.chiamate_scelta += 1
-            return Scelta(scheda_id=candidati[0].id if candidati else None,
+            return Scelta(scelto_id=candidati[0].id if candidati else None,
                           tipo_corrispondenza="solo_materiale", motivo="entrambi di plastica")
 
     modello = DichiaraSoloMateriale(Riconoscimento(oggetto="sandalo", confidenza=0.9))
@@ -219,8 +219,8 @@ def test_cascata_dal_livello_1_al_2(ambiente):
         def scegli(self, riconoscimento, candidati, testo_utente=None):
             self.chiamate_scelta += 1
             if self.chiamate_scelta == 1:
-                return Scelta(scheda_id=None, tipo_corrispondenza="nessuna", motivo="nessun oggetto")
-            return Scelta(scheda_id=candidati[0].id, tipo_corrispondenza="categoria",
+                return Scelta(scelto_id=None, tipo_corrispondenza="nessuna", motivo="nessun oggetto")
+            return Scelta(scelto_id=candidati[0].id, tipo_corrispondenza="categoria",
                           motivo="regola di categoria")
 
     modello = SoloAlSecondoGiro(Riconoscimento(oggetto="carta", confidenza=0.9))
@@ -273,7 +273,7 @@ def test_il_documento_che_nomina_l_oggetto_vince_sul_generico(ambiente):
             self.chiamate_scelta += 1
             generici = [c for c in candidati if "pizza" not in (c.nome or "").lower()]
             bersaglio = generici[0] if generici else candidati[0]
-            return Scelta(scheda_id=bersaglio.id, tipo_corrispondenza="categoria",
+            return Scelta(scelto_id=bersaglio.id, tipo_corrispondenza="categoria",
                           motivo="voce generica")
 
     modello = SceglieIlGenerico(Riconoscimento(oggetto="cartone da pizza", confidenza=0.9))
@@ -586,21 +586,21 @@ def test_gli_omonimi_si_riconoscono_dai_documenti_non_dalla_domanda():
 def test_la_condizione_della_voce_ha_la_precedenza_sul_materiale():
     """È più specifica: riguarda proprio il documento scelto, non la famiglia di omonimi."""
     domanda, opzioni = Agente._chiarimento(["pulito", "unto"], ["plastica", "vetro"],
-                                           Scelta(scheda_id=None), gia_chiesto=False)
+                                           Scelta(scelto_id=None), gia_chiesto=False)
     assert opzioni == ["pulito", "unto"] and "l'oggetto è" in domanda
 
 
 def test_la_domanda_sul_materiale_chiede_di_che_materiale_e():
     """Classificare "vetro" a parola produrrebbe "com'è l'oggetto: vetro oppure plastica?"."""
     domanda, opzioni = Agente._chiarimento([], ["plastica", "vetro"],
-                                           Scelta(scheda_id=None), gia_chiesto=False)
+                                           Scelta(scelto_id=None), gia_chiesto=False)
     assert "di che materiale è" in domanda
     assert opzioni == ["plastica", "vetro"]
 
 
 def test_dopo_una_domanda_non_se_ne_fa_un_altra():
     assert Agente._chiarimento(["pulito", "unto"], ["plastica", "vetro"],
-                               Scelta(scheda_id=None), gia_chiesto=True) == (None, [])
+                               Scelta(scelto_id=None), gia_chiesto=True) == (None, [])
 
 
 def test_la_risposta_sul_materiale_finisce_nei_materiali_non_nello_stato():

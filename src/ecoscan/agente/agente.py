@@ -167,14 +167,14 @@ class Agente:
             span.uscita({**asdict(scelta), "scartata_dall_agente": scartata})
         if not scartata:
             return scelta
-        return Scelta(scheda_id=None, tipo_corrispondenza=scelta.tipo_corrispondenza,
+        return Scelta(scelto_id=None, tipo_corrispondenza=scelta.tipo_corrispondenza,
                       motivo=scelta.motivo or f"scartata: {scelta.tipo_corrispondenza}")
 
     def _prova_livello(self, richiesta: Richiesta,
                        livello: int) -> tuple[list[Candidato], Scelta]:
         trovati = self.recupera(richiesta, livello)
         if not trovati:
-            return [], Scelta(scheda_id=None, motivo=f"nessun candidato al livello {livello}")
+            return [], Scelta(scelto_id=None, motivo=f"nessun candidato al livello {livello}")
         return trovati, self._scegli(richiesta, trovati, livello)
 
     @staticmethod
@@ -363,7 +363,7 @@ class Agente:
             trovati, scelta = self._prova_livello(richiesta, livello)
             tutti.extend(trovati)
             if scelta.valida:
-                scelto = next(c for c in trovati if c.id == scelta.scheda_id)
+                scelto = next(c for c in trovati if c.id == scelta.scelto_id)
                 return self._componi(scelto, scelta, trovati, richiesta), tutti
         return None, tutti
 
@@ -439,8 +439,7 @@ class Agente:
     def continua(self, contesto: dict, risposta_utente: str) -> Risposta:
         """Secondo giro dopo un chiarimento: si riparte dal riconoscimento già fatto.
 
-        `gia_chiesto` impedisce di riproporre la stessa domanda: l'utente ha risposto, e
-        ripetergliela lo lascerebbe in un giro senza uscita.
+        `gia_chiesto` impedisce a `_chiarimento` di riproporre la stessa domanda.
         """
         # un contesto di un client precedente a questa versione non ha l'identificativo:
         # il turno diventa l'inizio di una conversazione nuova, invece di fallire

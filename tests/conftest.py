@@ -60,10 +60,10 @@ class ModelloFinto:
         self.chiamate_scelta += 1
         self.candidati_visti.append(list(candidati))
         if not candidati or self.indice_scelto == 0 or self.indice_scelto > len(candidati):
-            return Scelta(scheda_id=None, tipo_corrispondenza="nessuna",
+            return Scelta(scelto_id=None, tipo_corrispondenza="nessuna",
                           motivo="nessun documento corrisponde")
         scelto = candidati[self.indice_scelto - 1]
-        return Scelta(scheda_id=scelto.id, tipo_corrispondenza="stesso_oggetto",
+        return Scelta(scelto_id=scelto.id, tipo_corrispondenza="stesso_oggetto",
                       motivo="somiglia", chiarimento=self.chiarimento)
 
 
@@ -78,9 +78,9 @@ class SceglieIlDocumento(ModelloFinto):
         self.chiamate_scelta += 1
         for candidato in candidati:
             if self.parola in candidato.testo.lower():
-                return Scelta(scheda_id=candidato.id, tipo_corrispondenza="stesso_oggetto",
+                return Scelta(scelto_id=candidato.id, tipo_corrispondenza="stesso_oggetto",
                               motivo=f"contiene {self.parola}")
-        return Scelta(scheda_id=None, tipo_corrispondenza="nessuna", motivo="non trovato")
+        return Scelta(scelto_id=None, tipo_corrispondenza="nessuna", motivo="non trovato")
 
 
 DESTINAZIONI = [

@@ -21,10 +21,10 @@ class Riconoscimento:
     confidenza: float = 0.0
     note: str | None = None
 
-    MATERIALI_NELLA_QUERY = 2
+    MATERIALI_NELLA_FORMULAZIONE = 2
 
     @property
-    def query(self) -> str:
+    def formulazione_estesa(self) -> str:
         """Formulazione estesa: oggetto, materiali e stato insieme.
 
         I materiali si fermano a due. Il modello di visione ne elenca volentieri quattro
@@ -33,11 +33,11 @@ class Riconoscimento:
         parola su cinque e la ricerca si sposta sui materiali. Due bastano a dare il
         contesto senza annegarlo.
         """
-        materiali = self.materiali[:self.MATERIALI_NELLA_QUERY]
+        materiali = self.materiali[:self.MATERIALI_NELLA_FORMULAZIONE]
         return " ".join(filter(None, [self.oggetto, *materiali, self.stato])).strip()
 
     @property
-    def query_oggetto(self) -> str:
+    def formulazione_base(self) -> str:
         """Solo l'oggetto e il suo stato.
 
         Serve perché i materiali, messi nella stessa domanda, trascinano la ricerca verso
@@ -70,7 +70,7 @@ class Riconoscimento:
         senza di loro la ricerca su una parola sola restituisce parole che le somigliano
         soltanto nella forma ("Salse", "Sdraio", "Scaldabagno").
         """
-        essenziali = [self.query_oggetto]
+        essenziali = [self.formulazione_base]
         if self.categoria:
             # "sandalo" da solo è ambiguo e recupera rumore ("Salse", "Sdraio"); "sandalo
             # calzatura" dà al modello di embedding il contesto che gli manca
@@ -84,8 +84,8 @@ class Riconoscimento:
             essenziali.append(f"{self.oggetto} {self.materiali[0]}")
 
         aggiuntive = [*self.sinonimi]
-        if self.materiali and self.query != self.query_oggetto:
-            aggiuntive.append(self.query)
+        if self.materiali and self.formulazione_estesa != self.formulazione_base:
+            aggiuntive.append(self.formulazione_estesa)
 
         scelte = [*self.pulisci(essenziali)]
         for domanda in self.pulisci(aggiuntive):
@@ -190,14 +190,14 @@ STESSO_OGGETTO = "stesso_oggetto"
 class Scelta:
     """L'esito della scelta vincolata: un candidato reale, oppure nessuno."""
 
-    scheda_id: str | None          # id del documento scelto
+    scelto_id: str | None          # id del documento scelto
     tipo_corrispondenza: str = ""   # stesso_oggetto | sinonimo | categoria | solo_materiale | nessuna
     motivo: str = ""
     chiarimento: str | None = None
 
     @property
     def valida(self) -> bool:
-        return self.scheda_id is not None and self.tipo_corrispondenza not in TIPI_NON_VALIDI
+        return self.scelto_id is not None and self.tipo_corrispondenza not in TIPI_NON_VALIDI
 
 
 @dataclass

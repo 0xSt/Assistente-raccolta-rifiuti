@@ -126,11 +126,10 @@ def rotte_agente(app: FastAPI, dip: Dipendenze) -> None:
 
     @app.post(f"{PREFISSO}/domanda", response_model=RispostaUscita, tags=["agente"])
     def domanda(dati: Domanda, r: Risorse = Depends(dip.correnti)) -> RispostaUscita:
-        """Una domanda scritta, senza foto: "dove butto la carta stagnola?".
+        """Una domanda scritta, senza foto: "dove butto la carta stagnola?"
 
-        Salta il modello di visione, che è il passaggio lento, e parte dall'oggetto detto
-        dall'utente come se l'avesse riconosciuto lui: chi scrive il nome dell'oggetto lo sa
-        meglio di qualunque modello che guardi una fotografia.
+        Nessun modello di visione di mezzo; il resto della cascata è identico a `/analizza`
+        (il perché sta in `Agente.domanda`).
         """
         dip.controlla_comune(r, dati.comune)
         return con_procedure(r, r.agente.domanda(dati.comune, dati.oggetto, dati.testo),
