@@ -24,6 +24,11 @@ from PIL import Image
 
 from ecoscan import configurazione as conf
 
+# Qualita' JPEG: 85 e' il punto in cui il file smette di calare sensibilmente e gli
+# artefatti non sono ancora visibili. Non e' un parametro perche' nessuno ha mai avuto
+# motivo di cambiarla, e un parametro mai passato e' una promessa che nessuno mantiene.
+QUALITA = 85
+
 
 @dataclass(frozen=True)
 class Informazioni:
@@ -44,7 +49,7 @@ def informazioni(dati: bytes) -> Informazioni:
                             immagine.mode, len(dati))
 
 
-def prepara(dati: bytes, lato_max: int | None = None, qualita: int = 85) -> bytes:
+def prepara(dati: bytes, lato_max: int | None = None) -> bytes:
     """Restituisce un JPEG RGB con il lato lungo non superiore a `lato_max`.
 
     Se l'immagine è già più piccola non viene ingrandita: interpolare pixel inventati non
@@ -56,5 +61,5 @@ def prepara(dati: bytes, lato_max: int | None = None, qualita: int = 85) -> byte
         if max(immagine.size) > lato_max:
             immagine.thumbnail((lato_max, lato_max), Image.LANCZOS)
         uscita = io.BytesIO()
-        immagine.save(uscita, format="JPEG", quality=qualita, optimize=True)
+        immagine.save(uscita, format="JPEG", quality=QUALITA, optimize=True)
         return uscita.getvalue()

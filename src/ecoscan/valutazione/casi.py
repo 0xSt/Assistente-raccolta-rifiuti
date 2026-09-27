@@ -123,7 +123,7 @@ class Caso:
         return bool(self.destinazioni_attese) or self.livello_atteso == 3
 
 
-def leggi(percorso: Path, origine: str | None = None) -> list[Caso]:
+def leggi(percorso: Path) -> list[Caso]:
     """Legge un file di casi. L'origine, se non dichiarata nella riga, è il nome del file:
     così l'insieme a cui un caso appartiene non può divergere da dove il caso sta."""
     if not percorso.is_file():
@@ -133,7 +133,7 @@ def leggi(percorso: Path, origine: str | None = None) -> list[Caso]:
         if not riga.strip():
             continue
         campi = {k: v for k, v in json.loads(riga).items() if k in Caso.__annotations__}
-        campi.setdefault("origine", origine or percorso.stem)
+        campi.setdefault("origine", percorso.stem)
         casi.append(Caso(**campi))
     return casi
 
@@ -145,7 +145,7 @@ def tutti(cartella: Path | None = None) -> list[Caso]:
     discusso a mano, e la sua attesa è quella di cui rispondiamo.
     """
     cartella = cartella or CARTELLA
-    casi = [c for insieme in INSIEMI for c in leggi(cartella / f"{insieme}.jsonl", insieme)]
+    casi = [c for insieme in INSIEMI for c in leggi(cartella / f"{insieme}.jsonl")]
     visti, unici = set(), []
     for caso in casi:
         if caso.valido and caso.id not in visti:

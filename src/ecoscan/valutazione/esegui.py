@@ -437,7 +437,6 @@ def misure(esiti: list[Esito], k: int = 8) -> dict[str, float | int | None]:
 
 
 ETICHETTE = {
-    "recupero": "recupero (il documento giusto è fra i candidati)",
     "contenitore_corretto": "contenitore corretto (nessuna destinazione sbagliata)",
     "copertura": "copertura delle alternative attese",
     "risposte_perfette": "risposte perfette (contenitore giusto e nulla di perso)",
@@ -521,7 +520,7 @@ def riepiloga(esiti: list[Esito], k: int = 8) -> None:
         if recall:
             print(f"  recall:                                          {recall}")
         for chiave, etichetta in ETICHETTE.items():
-            if chiave != "recupero" and m.get(chiave) is not None:
+            if m.get(chiave) is not None:
                 print(f"  {etichetta:48} {m[chiave]}%")
 
     _per_strato([e for e in esiti if not e.caso.negativo], "comune", lambda e: e.caso.comune)

@@ -128,27 +128,30 @@ INIZI_DI_CLAUSOLA = ("solo ", "non ha ", "contenitore ", "contenitori ", "privat
 # Anche le quantità sono clausole: "se è piccole quantità" non è italiano,
 # "ma solo in piccole quantità" sì.
 INIZI_DI_QUANTITA = ("piccole ", "grandi ", "grosse ")
+# I contenitori sono la clausola con l'articolo: "solo i contenitori vuoti".
+INIZI_DI_CONTENITORE = ("contenitore ", "contenitori ")
+INIZI_DI_CLAUSOLA_O_QUANTITA = INIZI_DI_CLAUSOLA + INIZI_DI_QUANTITA
 
 
 def _clausola(condizione: str) -> str:
     minuscola = condizione.lower()
     if minuscola.startswith(INIZI_DI_QUANTITA):
         return f"solo in {condizione}"
-    if minuscola.startswith(("contenitore ", "contenitori ")):
+    if minuscola.startswith(INIZI_DI_CONTENITORE):
         return f"solo i {condizione}"
     return condizione
 
 
 def _clausole_di(v: Variante) -> list[str]:
-    inizi = INIZI_DI_CLAUSOLA + INIZI_DI_QUANTITA
-    return [_clausola(c) for c in v.condizioni if c.lower().startswith(inizi)]
+    return [_clausola(c) for c in v.condizioni
+            if c.lower().startswith(INIZI_DI_CLAUSOLA_O_QUANTITA)]
 
 
 def _frase_variante(v: Variante) -> str:
     dove = _elenco([leggibile(d) for d in v.destinazioni])
-    inizi = INIZI_DI_CLAUSOLA + INIZI_DI_QUANTITA
     clausole = _clausole_di(v)
-    aggettivi = [c for c in v.condizioni if not c.lower().startswith(inizi)]
+    aggettivi = [c for c in v.condizioni
+                 if not c.lower().startswith(INIZI_DI_CLAUSOLA_O_QUANTITA)]
 
     if not aggettivi:
         frase = f"di norma va in {dove}"
@@ -481,6 +484,3 @@ def documenti_destinazione(db: sqlite3.Connection) -> list[Documento]:
 
 def costruisci(db: sqlite3.Connection) -> list[Documento]:
     return [*documenti_oggetto(db), *documenti_regola(db), *documenti_destinazione(db)]
-
-
-# --------------------------------------------------------------------------- comando

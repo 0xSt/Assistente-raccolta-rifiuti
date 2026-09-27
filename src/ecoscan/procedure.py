@@ -101,7 +101,7 @@ def per(comune: str, canale: str, destinazione: str | None = None) -> Procedura 
     return specifica or next((p for p in candidate if not p.destinazione), None)
 
 
-def per_canali(comune: str, canali: list, con_ordinario: bool = False) -> list[Procedura]:
+def per_canali(comune: str, canali: list) -> list[Procedura]:
     """Le procedure dei canali indicati, dalla più comoda alla più faticosa.
 
     L'ordine è il messaggio: chi legge deve trovare per prima l'alternativa che può fare da
@@ -120,7 +120,7 @@ def per_canali(comune: str, canali: list, con_ordinario: bool = False) -> list[P
         visti.add((canale, destinazione))
         if (procedura := per(comune, canale, destinazione)) is not None and procedura not in trovate:
             trovate.append(procedura)
-    if not con_ordinario and any(p.canale != ORDINARIO for p in trovate):
+    if any(p.canale != ORDINARIO for p in trovate):
         trovate = [p for p in trovate if p.canale != ORDINARIO]
     return sorted(trovate, key=lambda p: (p.sforzo, p.canale))
 

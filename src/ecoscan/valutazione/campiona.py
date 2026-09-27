@@ -140,7 +140,7 @@ def campiona(voci: list[Voce], n: int, semina: int, escludi: set[str] | None = N
     estratte: list[Voce] = []
     for chiave, quota in quote(strati, n).items():
         gruppo = sorted(strati[chiave], key=lambda v: v.nome)   # ordine stabile prima di estrarre
-        estratte.extend(generatore.sample(gruppo, min(quota, len(gruppo))))
+        estratte.extend(generatore.sample(gruppo, quota))
     return sorted(estratte, key=lambda v: (v.comune, v.nome))
 
 

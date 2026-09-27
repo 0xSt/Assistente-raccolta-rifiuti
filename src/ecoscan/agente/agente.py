@@ -297,7 +297,7 @@ class Agente:
             tipo_corrispondenza=self._corrispondenza_verificata(
                 scelto, scelta.tipo_corrispondenza, richiesta),
             motivo=motivo,
-            candidati=candidati, riconoscimento=richiesta.riconoscimento,
+            riconoscimento=richiesta.riconoscimento,
             contraddizione=scelto.contraddizione,
         )
 
@@ -362,7 +362,7 @@ class Agente:
         for livello in (1, 2):
             trovati, scelta = self._prova_livello(richiesta, livello)
             tutti.extend(trovati)
-            if scelta.scheda_id is not None:
+            if scelta.valida:
                 scelto = next(c for c in trovati if c.id == scelta.scheda_id)
                 return self._componi(scelto, scelta, trovati, richiesta), tutti
         return None, tutti
