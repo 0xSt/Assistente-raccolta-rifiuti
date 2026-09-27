@@ -185,6 +185,8 @@ Qdrant sta in modalità `server` o `in-process`.
 | `db/documenti.py` | Costruzione dei documenti da indicizzare: oggetto, regola, destinazione |
 | `valutazione/casi.py` | I tre insiemi di casi: cos'è un caso, come si legge e si scrive |
 | `valutazione/campiona.py` | Estrazione stratificata di voci dal database (`ecoscan-campiona`) |
+| `valutazione/diagnosi.py` | `Esito` e le diagnosi: in quale passaggio è nato l'errore |
+| `valutazione/misure.py` | Le metriche, funzioni pure sugli esiti |
 | `valutazione/esegui.py` | Recupero, scelta, diagnosi e confronto (`ecoscan-valuta`) |
 | `valutazione/foto.py` | Valutazione end-to-end sulle foto e tempi (`ecoscan-valuta-foto`) |
 | `osservabilita/valutazione_registrata.py` | Ogni esecuzione della valutazione come run di MLflow |

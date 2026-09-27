@@ -212,6 +212,8 @@ Le rotte: `/salute`, `/comuni`, `/destinazioni`, `/analizza`, `/continua`, `/cor
 | `osservabilita/valutazione_registrata.py` | Ogni esecuzione della valutazione come run MLflow, in un esperimento suo |
 | `valutazione/casi.py` | Cos'è un caso e i tre insiemi (regressioni, campione, assenti) |
 | `valutazione/campiona.py` | `ecoscan-campiona`: estrazione stratificata dal database, con seme fisso |
+| `valutazione/diagnosi.py` | `Esito` e le undici diagnosi: dove è nato l'errore di un caso |
+| `valutazione/misure.py` | Dagli esiti ai numeri: recall, le due risposte, le astensioni, le domande |
 | `valutazione/esegui.py` | `ecoscan-valuta`: recall@k come tetto, diagnosi, confronto fra esecuzioni. Vedi [valutazione.md](valutazione.md) |
 | `valutazione/foto.py` | `ecoscan-valuta-foto`: end-to-end dalla foto, costo della visione, tempi su CPU |
 

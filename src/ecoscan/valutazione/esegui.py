@@ -61,7 +61,6 @@ import argparse
 import json
 import sys
 import time
-from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 
@@ -72,174 +71,18 @@ from ecoscan.agente.tipi import Candidato
 from ecoscan.percorsi import VALUTAZIONE
 from ecoscan.valutazione.casi import Caso, per_insieme, tutti
 
-# Le diagnosi possibili, nell'ordine in cui conviene leggerle
-CORRETTO = "corretto"
-CANALE_PERSO = "contenitore giusto, manca un'alternativa"
-SCELTA_SBAGLIATA = "il documento c'era, non è stato scelto"
-RECUPERO_FALLITO = "il documento non è stato recuperato"
-ALTRA_STRADA = "corretto per un'altra strada"
-# Senza modello non si misura la risposta, solo il tetto: chiamarlo "corretto" farebbe
-# leggere come una risposta giusta ciò che è soltanto un documento trovato.
-RECUPERATO = "documento recuperato (la risposta non è stata valutata)"
-# I casi negativi hanno una coppia di diagnosi tutta loro: il successo è il silenzio.
-ASTENUTO = "astensione corretta: nessuna regola del comune copre l'oggetto"
-NON_ASTENUTO = "ha risposto invece di astenersi"
-# La domanda ha una coppia sua, per lo stesso motivo delle astensioni: chiedere sempre e
-# non chiedere mai sono due difetti opposti, e un numero solo li confonderebbe.
-CORRETTO_CON_DOMANDA = "ha chiesto, come doveva: la destinazione è provvisoria"
-MANCATA_DOMANDA = "doveva chiedere la condizione e ha risposto lo stesso"
-DOMANDA_INUTILE = "ha chiesto una condizione che l'utente aveva già dichiarato"
+# `diagnosi` e `misure` stanno in due moduli loro: sono la parte pura della valutazione —
+# nessun argparse, nessun MLflow, nessuna stampa — e si leggono e si provano da sole. Qui
+# restano ri-esportate, perche' `esegui` e' il nome con cui il resto del progetto le
+# conosce e un taglio interno non deve diventare un compito per chi lo importa.
+from ecoscan.valutazione.diagnosi import (  # noqa: F401
+    ALTRA_STRADA, ASTENUTO, CANALE_PERSO, CORRETTO, CORRETTO_CON_DOMANDA, DOMANDA_INUTILE,
+    Esito, MANCATA_DOMANDA, NON_ASTENUTO, RECUPERATO, RECUPERO_FALLITO, SCELTA_SBAGLIATA,
+    porta_alla_destinazione,
+)
+from ecoscan.valutazione.misure import ETICHETTE, _percentuale, misure, soglie_recall  # noqa: F401
 
-# Dove finiscono gli esiti salvati da sé: non versionati (vedi .gitignore)
 ESECUZIONI = VALUTAZIONE / "esecuzioni"
-
-
-@dataclass
-class Esito:
-    """Come è andato un caso."""
-
-    caso: Caso
-    recuperato: bool                       # recall@k: il documento giusto era fra i candidati
-    destinazioni: list[str] = field(default_factory=list)
-    livello: int | None = None
-    candidati: int = 0
-    posizione: int | None = None           # dove stava il primo documento giusto (1-based)
-    valutata_la_scelta: bool = True
-    raggiungibili: list[str] = field(default_factory=list)   # dove portano i candidati trovati
-    chiarimento: str | None = None         # la domanda fatta all'utente, se c'è stata
-    opzioni: list[str] = field(default_factory=list)         # le risposte possibili
-    scelto: str | None = None              # quale voce ha risposto
-
-    @property
-    def contenitore_corretto(self) -> bool | None:
-        """Nessuna destinazione proposta è fuori dalle attese, e qualcosa è stato proposto.
-
-        È la metrica che protegge l'utente: un contenitore sbagliato manda una persona a
-        buttare il vetro nell'organico, mentre un'alternativa mancante gli fa solo fare più
-        strada. `None` quando la scelta non è stata valutata.
-
-        Per un caso negativo il senso si rovescia: è corretto proprio il non rispondere.
-        """
-        if not self.valutata_la_scelta:
-            return None
-        if self.caso.negativo:
-            return not self.destinazioni
-        return bool(self.destinazioni) and set(self.destinazioni) <= set(self.caso.destinazioni_attese)
-
-    @property
-    def copertura(self) -> float | None:
-        """Quante delle destinazioni attese sono state dette, fra 0 e 1.
-
-        Distingue "va all'isola ecologica" da "va all'isola ecologica **oppure** chiami il
-        numero verde e te lo vengono a prendere". Non si applica ai casi negativi, che non
-        hanno attese.
-        """
-        if not self.valutata_la_scelta or self.caso.negativo:
-            return None
-        attese = set(self.caso.destinazioni_attese)
-        return len(set(self.destinazioni) & attese) / len(attese)
-
-    @property
-    def ha_chiesto(self) -> bool:
-        return bool(self.chiarimento)
-
-    @property
-    def dalla_voce_attesa(self) -> bool | None:
-        """La risposta è arrivata dalla voce che il caso aveva in mente.
-
-        `None` quando non c'è modo di dirlo: un caso senza `voce_fonte`, o un esito senza
-        documento scelto.
-        """
-        if not (self.caso.voce_fonte and self.scelto):
-            return None
-        return self.scelto in self.caso.voce_fonte
-
-    @property
-    def chiarimento_corretto(self) -> bool | None:
-        """Ha chiesto quando doveva, e taciuto quando non serviva.
-
-        `None` quando il caso non lo verifica, quando la scelta non è stata eseguita, o
-        quando **ha risposto un'altra voce**. L'ultimo caso è il difetto di attribuzione
-        scoperto il 25/09: su undici mancate domande, dieci erano risposte arrivate da una
-        voce diversa — «Barattolo in vetro» al posto di «Contenitori creme», «Tende in
-        stoffa» al posto di «Pantofole di stoffa». Lì la domanda non era nemmeno in gioco:
-        la voce scelta aveva una variante sola e nulla da chiedere. Contarle come domande
-        mancate dava la colpa al chiarimento di un difetto della **scelta**.
-        """
-        if self.caso.chiarimento_atteso is None or not self.valutata_la_scelta:
-            return None
-        if self.dalla_voce_attesa is False:
-            return None
-        return self.ha_chiesto == self.caso.chiarimento_atteso
-
-    @property
-    def provvisoria(self) -> bool:
-        """La risposta è accompagnata da una domanda che era dovuta.
-
-        Non si misura come definitiva: l'agente ha detto "probabilmente X, ma dimmi Y", e
-        pretendere che X sia già la risposta completa significherebbe punirlo per aver
-        fatto la cosa giusta. Il caso si giudica sulla domanda, non sulla destinazione.
-        """
-        return bool(self.caso.chiarimento_atteso) and self.chiarimento_corretto is True
-
-    @property
-    def perfetta(self) -> bool:
-        """Contenitore giusto e nessuna alternativa persa: il vecchio `risposta_corretta`.
-
-        Serve al confronto fra esecuzioni, che deve avere una nozione binaria di "caso
-        vinto" per poter dire quanti se ne guadagnano e quanti se ne perdono.
-        """
-        return bool(self.contenitore_corretto) and (self.copertura is None or self.copertura == 1.0)
-
-    @property
-    def livello_corretto(self) -> bool | None:
-        """`None` quando non lo sappiamo, non `False`.
-
-        Senza modello il livello non viene mai determinato, e confrontare `None` con
-        l'atteso dava `False` per ogni caso: la misura riportava 0% di livelli corretti su
-        un'esecuzione in cui il livello non era stato misurato affatto. Una metrica che
-        mente è peggio di una metrica che manca, perché la si legge.
-        """
-        if self.caso.livello_atteso is None or not self.valutata_la_scelta:
-            return None
-        return self.livello == self.caso.livello_atteso
-
-    @property
-    def diagnosi(self) -> str:
-        if self.caso.negativo:
-            if not self.valutata_la_scelta:
-                return RECUPERATO if self.recuperato else ASTENUTO
-            return ASTENUTO if self.contenitore_corretto else NON_ASTENUTO
-        if not self.valutata_la_scelta:
-            return RECUPERATO if self.recuperato else RECUPERO_FALLITO
-        if self.chiarimento_corretto is False:
-            return MANCATA_DOMANDA if self.caso.chiarimento_atteso else DOMANDA_INUTILE
-        if self.provvisoria:
-            return CORRETTO_CON_DOMANDA
-        if self.perfetta:
-            return CORRETTO if self.recuperato else ALTRA_STRADA
-        if self.contenitore_corretto:
-            return CANALE_PERSO
-        return SCELTA_SBAGLIATA if self.recuperato else RECUPERO_FALLITO
-
-    @property
-    def mancate(self) -> list[str]:
-        """Le destinazioni attese che la risposta non ha detto: il dettaglio del canale perso."""
-        return [d for d in self.caso.destinazioni_attese if d not in self.destinazioni]
-
-    @property
-    def di_troppo(self) -> list[str]:
-        """Le destinazioni proposte che non erano attese: il dettaglio del contenitore sbagliato."""
-        return [d for d in self.destinazioni if d not in self.caso.destinazioni_attese]
-
-
-def porta_alla_destinazione(candidato: Candidato, attese: list[str]) -> bool:
-    """Il documento porta a una delle destinazioni attese?
-
-    Basta una destinazione in comune: un oggetto con più varianti ne offre parecchie, e
-    quale sia quella giusta lo decide la condizione, non il recupero.
-    """
-    return bool(set(candidato.destinazioni) & set(attese))
 
 
 def valuta_caso(agente: Agente, caso: Caso, con_modello: bool = True,
@@ -368,86 +211,6 @@ class Avanzamento:
 
 
 # --------------------------------------------------------------------------- riepilogo
-
-def soglie_recall(k: int) -> list[int]:
-    """I punti in cui si legge la curva del recall: il primo, la metà, il massimo.
-
-    Si derivano da `k` invece di essere fissi, altrimenti lanciare con `-k 20` produrrebbe
-    una curva che si ferma a 8 e non direbbe nulla su ciò che si sta provando.
-    """
-    return sorted({1, max(2, k // 2), k})
-
-
-def _percentuale(quanti: int, su: int) -> float | None:
-    return round(100 * quanti / su, 1) if su else None
-
-
-def misure(esiti: list[Esito], k: int = 8) -> dict[str, float | int | None]:
-    """I numeri che riassumono un'esecuzione.
-
-    Ogni numero ha il **suo** denominatore, e vale `None` quando non è stato misurato:
-    le percentuali della scelta si calcolano sui casi in cui la scelta è stata eseguita, le
-    astensioni sui soli casi negativi, il recall sui soli casi con un'attesa. Un numero che
-    manca si nota; un numero calcolato su un denominatore sbagliato no.
-    """
-    positivi = [e for e in esiti if not e.caso.negativo]
-    negativi = [e for e in esiti if e.caso.negativo]
-    con_scelta = [e for e in positivi if e.valutata_la_scelta and not e.provvisoria]
-    coperture = [e.copertura for e in con_scelta if e.copertura is not None]
-    livelli = [e for e in esiti if e.livello_corretto is not None]
-
-    valori: dict[str, float | int | None] = {"casi": len(esiti)}
-
-    # A) la curva del recall: dove arriva il tetto, e se allargare k servirebbe
-    for n in soglie_recall(k):
-        valori[f"recall@{n}"] = _percentuale(
-            sum(1 for e in positivi if e.posizione and e.posizione <= n), len(positivi))
-    # `recupero` resta la percentuale di casi in cui il documento c'era, comunque sia
-    # ordinato: coincide con l'ultimo punto della curva, ma non dipende da `posizione`
-    valori["recupero"] = _percentuale(sum(1 for e in positivi if e.recuperato),
-                                      len(positivi))
-
-    # B) i due errori della risposta, separati
-    valori["contenitore_corretto"] = _percentuale(
-        sum(1 for e in con_scelta if e.contenitore_corretto), len(con_scelta))
-    valori["copertura"] = round(100 * sum(coperture) / len(coperture), 1) if coperture else None
-    valori["risposte_perfette"] = _percentuale(
-        sum(1 for e in con_scelta if e.perfetta), len(con_scelta))
-    valori["livello_atteso"] = _percentuale(
-        sum(1 for e in livelli if e.livello_corretto), len(livelli))
-
-    # D) le due astensioni, da leggere in coppia: tacere sempre non è prudenza, è mutismo
-    valori["astensione_corretta"] = _percentuale(
-        sum(1 for e in negativi if e.contenitore_corretto),
-        len([e for e in negativi if e.valutata_la_scelta]))
-    valori["astensione_a_sproposito"] = _percentuale(
-        sum(1 for e in con_scelta if not e.destinazioni), len(con_scelta))
-
-    # C) le due domande, da leggere in coppia come le astensioni: chiedere sempre e non
-    # chiedere mai sono due difetti opposti, e un numero solo li confonderebbe
-    # il denominatore sono i casi in cui la domanda era **giudicabile**: la scelta
-    # eseguita, e la risposta arrivata dalla voce che il caso aveva in mente
-    dovute = [e for e in esiti
-              if e.caso.chiarimento_atteso is True and e.chiarimento_corretto is not None]
-    inutili = [e for e in esiti
-               if e.caso.chiarimento_atteso is False and e.chiarimento_corretto is not None]
-    valori["domanda_dovuta"] = _percentuale(sum(1 for e in dovute if e.ha_chiesto), len(dovute))
-    valori["domanda_inutile"] = _percentuale(sum(1 for e in inutili if e.ha_chiesto),
-                                             len(inutili))
-    return valori
-
-
-ETICHETTE = {
-    "contenitore_corretto": "contenitore corretto (nessuna destinazione sbagliata)",
-    "copertura": "copertura delle alternative attese",
-    "risposte_perfette": "risposte perfette (contenitore giusto e nulla di perso)",
-    "livello_atteso": "livello di evidenza atteso",
-    "astensione_corretta": "astensione corretta (sui casi non coperti)",
-    "astensione_a_sproposito": "astensione a sproposito (sui casi coperti)",
-    "domanda_dovuta": "domanda fatta quando serviva (condizione non dichiarata)",
-    "domanda_inutile": "domanda fatta quando NON serviva (condizione dichiarata)",
-}
-
 
 def _riga_caso(e: Esito, buone: tuple[str, ...]) -> None:
     segno = "OK" if e.diagnosi in buone else "  "
