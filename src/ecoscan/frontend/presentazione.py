@@ -404,6 +404,51 @@ def nota_fonte(risposta: dict) -> str:
     return " · ".join(p for p in (livello, provenienza(fonte, riferimento)) if p)
 
 
+def nota_esecuzione(risposta: dict, secondi: float | None = None) -> str:
+    """Il comune a cui la risposta si riferisce, e quanto ci ha messo.
+
+    **Il comune** perché appena in chat ci sono risposte di comuni diversi — ed è
+    esattamente ciò che si vuole mostrare, visto che la stessa cosa cambia contenitore — non
+    si distingue più a quale delle due si riferisca un messaggio salito di qualche riga. Il
+    selettore dice dove si è *adesso*, non dov'era la risposta di prima.
+
+    **Il tempo** perché su CPU sono minuti, e nasconderlo non lo accorcia. Dichiararlo rende
+    il costo dell'esecuzione locale una caratteristica misurata invece di un difetto
+    imbarazzato, ed è lo stesso numero che la valutazione riporta come p50.
+    """
+    pezzi = [(risposta.get("comune") or "").strip()]
+    if secondi is not None:
+        pezzi.append(f"risposto in {secondi:.0f} s")
+    return " · ".join(p for p in pezzi if p)
+
+
+def strade(risposta: dict, etichette: dict[str, str] | None = None) -> str:
+    """Tutte le strade possibili, per chi alla domanda non sa rispondere.
+
+    Davanti a «è pulito o unto?» l'utente che non lo sa resta fermo: i due pulsanti non
+    hanno una terza via, e chiudere la conversazione è l'unica uscita. Mostrare **entrambi i
+    rami** non risponde alla sua domanda — nessuno può farlo al posto suo — ma gli dà ciò
+    che gli serve davvero, cioè la regola: guardando l'oggetto capirà da sé in quale ramo
+    sta.
+
+    Vale solo quando i rami si leggono dalle varianti del documento scelto, cioè per le
+    domande sulla **condizione**. Per quelle sul materiale i rami stanno in voci diverse, e
+    ricostruirli qui significherebbe indovinare quale voce risponde a quale materiale: è
+    proprio il genere di deduzione che questo progetto tiene fuori dalla presentazione. Chi
+    ha l'oggetto in mano, del resto, il materiale lo vede.
+    """
+    varianti = varianti_di(risposta)
+    if len(varianti) < 2:
+        return ""
+    righe = []
+    for variante in varianti:
+        condizione = variante.get("condizione")
+        premessa = condizioni_.premessa([condizione]) if condizione else ""
+        righe.append(f"- {maiuscola(premessa) if premessa else 'Negli altri casi'} → "
+                     f"**{dove_va(variante, etichette)}**")
+    return "\n".join(["Dipende, e le possibilità sono queste:", *righe])
+
+
 def messaggio(risposta: dict, etichette: dict[str, str] | None = None,
               risposto: str | None = None) -> str:
     """Il messaggio dell'assistente: una domanda, oppure una risposta.

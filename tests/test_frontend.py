@@ -498,3 +498,52 @@ def test_le_due_strade_si_imparano_dopo_la_risposta():
     risposto = dict(DOMANDA, chiarimento=None)
     assert "Se invece è pulito: **Carta e cartone**." in \
         presentazione.messaggio(risposto, ETICHETTE, risposto="unto")
+
+
+# --------------------------------------------- il comune e il tempo, sotto la risposta
+
+def test_la_risposta_dichiara_a_quale_comune_si_riferisce():
+    """Appena in chat ci sono risposte di due comuni — che è proprio ciò che si vuole
+    mostrare — il selettore dice dove si è adesso, non dov'era la risposta di prima."""
+    risposta = dict(DOMANDA, comune="Torino", chiarimento=None)
+    assert presentazione.nota_esecuzione(risposta) == "Torino"
+    assert presentazione.nota_esecuzione(risposta, 41.6) == "Torino · risposto in 42 s"
+
+
+def test_il_tempo_si_dichiara_anche_sotto_una_domanda():
+    """Anche una domanda è costata quell'attesa: tacerla lì la farebbe sembrare gratuita."""
+    assert "risposto in 8 s" in presentazione.nota_esecuzione(dict(DOMANDA, comune="Napoli"), 8)
+
+
+def test_senza_comune_non_si_scrive_un_separatore_vuoto():
+    assert presentazione.nota_esecuzione({}, 3) == "risposto in 3 s"
+    assert presentazione.nota_esecuzione({}) == ""
+
+
+# ------------------------------------------------------- «non lo so»: tutte le strade
+
+def test_chi_non_sa_rispondere_vede_tutti_i_rami():
+    """Due pulsanti senza terza via lasciano come unica mossa chiudere la conversazione.
+    I rami non rispondono al posto suo: gli danno la regola per decidere da sé."""
+    testo = presentazione.strade(DOMANDA, CONTENITORI)
+    assert testo.startswith("Dipende, e le possibilità sono queste:")
+    assert "🟡 Carta e cartone" in testo and "🟤 Organico" in testo
+    assert "pulito" in testo and "unto" in testo
+
+
+def test_le_strade_si_mostrano_solo_quando_si_leggono_dalle_varianti():
+    """Per le domande sul materiale i rami stanno in voci diverse: ricostruirli sarebbe
+    indovinare quale voce risponde a quale materiale, e qui non si indovina."""
+    materiale = {"livello_evidenza": 1, "oggetto": "bicchiere",
+                 "chiarimento": "Per rispondere con certezza devo sapere di che materiale è: "
+                                "plastica oppure vetro?",
+                 "opzioni": ["plastica", "vetro"], "scelto_id": "c1",
+                 "candidati": [{"id": "c1", "nome": "Bicchiere di vetro", "varianti": []}]}
+    assert presentazione.strade(materiale, CONTENITORI) == ""
+
+
+def test_le_strade_non_sono_la_risposta_gia_data():
+    """Non deve diventare un modo di farsi dare una destinazione senza rispondere: le due
+    righe sono simmetriche, nessuna delle due è marcata come quella buona."""
+    testo = presentazione.strade(DOMANDA, CONTENITORI)
+    assert "✓" not in testo and "va in" not in testo

@@ -164,6 +164,10 @@ def barra_laterale(cliente: ClienteAPI) -> str | None:
 # la risposta sta: quanto fidarsi si vede prima di leggere (D200).
 RIQUADRO = {presentazione.INCERTO: st.info, presentazione.ATTENZIONE: st.warning}
 
+# La terza via davanti a un chiarimento. Non è fra le `opzioni` che manda il backend perché
+# non è una risposta alla domanda: è il modo di uscire dalla domanda senza rispondere.
+NON_LO_SO = "non lo so"
+
 
 def mostra_messaggio(messaggio: dict) -> None:
     with st.chat_message("user" if messaggio["ruolo"] == "utente" else "assistant"):
@@ -180,15 +184,18 @@ def mostra_messaggio(messaggio: dict) -> None:
             RIQUADRO.get(messaggio.get("tono") or "", st.markdown)(testo)
         if nota := messaggio.get("nota"):
             st.caption(nota)
+        if meta := messaggio.get("meta"):
+            st.caption(meta)
 
 
 def aggiungi_risposta(risposta: dict, etichette: dict[str, dict],
-                      risposto: str | None = None) -> None:
+                      risposto: str | None = None, secondi: float | None = None) -> None:
     st.session_state.messaggi.append({
         "ruolo": "assistente",
         "riconoscimento": presentazione.frase_riconoscimento(risposta),
         "testo": presentazione.messaggio(risposta, etichette, risposto),
         "nota": presentazione.nota_fonte(risposta),
+        "meta": presentazione.nota_esecuzione(risposta, secondi),
         "tono": presentazione.tono(risposta),
     })
     # il contesto si conserva SEMPRE: serve al chiarimento, ma anche a correggere
@@ -202,7 +209,7 @@ FASI_FOTO = ("guardo la foto", "cerco nel dizionario del comune", "scelgo fra le
 FASI_TESTO = ("cerco nel dizionario del comune", "scelgo fra le voci trovate")
 
 
-def attendi(azione, argomenti: tuple, fasi: tuple[str, ...]) -> dict:
+def attendi(azione, argomenti: tuple, fasi: tuple[str, ...]) -> tuple[dict, float]:
     """Esegue la chiamata mostrando che il tempo passa, e cosa sta succedendo (D203).
 
     Su CPU una foto sono minuti, e uno spinner con una scritta ferma non distingue "sta
@@ -228,8 +235,11 @@ def attendi(azione, argomenti: tuple, fasi: tuple[str, ...]) -> dict:
                 time.sleep(0.4)
                 stato.update(label=f"Ci penso da {int(time.monotonic() - inizio)}s… {elenco}")
             risposta = lavoro.result()
-        stato.update(label=f"Fatto in {int(time.monotonic() - inizio)}s", state="complete")
-    return risposta
+        secondi = time.monotonic() - inizio
+        stato.update(label=f"Fatto in {secondi:.0f}s", state="complete")
+    # il tempo esce di qui e finisce sotto la risposta: il riquadro dell'attesa si chiude,
+    # e con lui sparirebbe l'unico posto in cui quel numero era scritto
+    return risposta, secondi
 
 
 def chiedi(etichette: dict[str, dict], azione, *argomenti, risposto: str | None = None,
@@ -240,7 +250,8 @@ def chiedi(etichette: dict[str, dict], azione, *argomenti, risposto: str | None 
     è la parola che la risposta riprenderà in apertura ("Ok, unto: …").
     """
     try:
-        aggiungi_risposta(attendi(azione, argomenti, fasi), etichette, risposto)
+        risposta, secondi = attendi(azione, argomenti, fasi)
+        aggiungi_risposta(risposta, etichette, risposto, secondi)
     except ErroreBackend as errore:
         st.session_state.messaggi.append({"ruolo": "assistente", "testo": f"⚠️ {errore}",
                                           "tono": presentazione.ATTENZIONE})
@@ -252,18 +263,32 @@ def pulsanti_chiarimento(cliente: ClienteAPI, etichette: dict[str, dict]) -> Non
     Le condizioni sono note (vengono dalle varianti del documento), quindi non c'è motivo
     di far indovinare all'utente come si scrivono. Il pulsante manda a /continua lo stesso
     testo che avrebbe scritto: il backend non cambia.
+
+    **«Non lo so» è una via d'uscita, non una risposta.** Chi non sa se il cartone è unto
+    non ha modo di proseguire: due pulsanti senza terza via lasciano come unica mossa
+    chiudere la conversazione. Il terzo pulsante mostra tutti i rami e **non chiama il
+    backend** — la risposta non dipende da altri dati, dipende da un'informazione che ha
+    solo l'utente — e lascia la domanda aperta, così dopo aver letto la regola può ancora
+    rispondere.
     """
     ultima = st.session_state.get("ultima") or {}
     opzioni = ultima.get("opzioni") or []
     if not (st.session_state.attende_risposta and opzioni):
         return
-    colonne = st.columns(min(len(opzioni), 4))
-    for colonna, opzione in zip(colonne, opzioni, strict=False):
-        if colonna.button(opzione.capitalize(), key=f"opzione-{opzione}", width="stretch"):
-            st.session_state.messaggi.append({"ruolo": "utente", "testo": opzione})
-            chiedi(etichette, cliente.continua, st.session_state.contesto, opzione,
-                   risposto=opzione)
-            st.rerun()
+    tutte = presentazione.strade(ultima, etichette)
+    voci = [*opzioni, NON_LO_SO] if tutte else list(opzioni)
+    colonne = st.columns(min(len(voci), 4))
+    for colonna, voce in zip(colonne, voci, strict=False):
+        if not colonna.button(presentazione.maiuscola(voce), key=f"opzione-{voce}",
+                              width="stretch"):
+            continue
+        st.session_state.messaggi.append({"ruolo": "utente", "testo": voce})
+        if voce == NON_LO_SO:
+            st.session_state.messaggi.append({"ruolo": "assistente", "testo": tutte,
+                                              "tono": presentazione.INCERTO})
+        else:
+            chiedi(etichette, cliente.continua, st.session_state.contesto, voce, risposto=voce)
+        st.rerun()
 
 
 def esempi(cliente: ClienteAPI, etichette: dict[str, dict]) -> None:
