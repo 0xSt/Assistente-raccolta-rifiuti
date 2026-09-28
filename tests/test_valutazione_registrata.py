@@ -88,3 +88,41 @@ def test_un_server_irraggiungibile_dice_anche_come_accenderlo(monkeypatch, capsy
     uscita = capsys.readouterr().out
     assert "non raggiungibile" in uscita and "docker compose up -d mlflow" in uscita
     assert "mlflow ui --backend-store-uri" in uscita
+
+
+def test_il_tracciatore_scrive_nello_stesso_archivio_della_run(monkeypatch, tmp_path):
+    """Misura e tracce nello stesso posto, altrimenti la run dice un numero e le tracce che
+    lo spiegano stanno altrove. E `attivo=True` a prescindere da `ECOSCAN_MLFLOW_ATTIVO`:
+    le tracce di una valutazione non sono osservabilità facoltativa (D184)."""
+    monkeypatch.setattr(vr.conf, "MLFLOW_ATTIVO", False)
+    monkeypatch.setattr(vr.conf, "MLFLOW_ATTESA", 1)
+
+    class AgenteFinto:
+        tracciatore = None
+
+        def configurazione(self):
+            return {"modello_visione": "finto"}
+
+    agente = AgenteFinto()
+    with vr.registrazione("prova", indirizzo="http://127.0.0.1:1",
+                          ripiego=tmp_path / "locale.db") as apertura:
+        vr.traccia_dentro(apertura, agente, salva_foto=True)
+
+    assert agente.tracciatore.indirizzo == apertura.indirizzo
+    assert agente.tracciatore.esperimento == apertura.esperimento
+    assert agente.tracciatore.attivo is True
+    assert agente.tracciatore.salva_foto is True
+    assert agente.tracciatore.parametri == {"modello_visione": "finto"}
+
+
+def test_la_run_e_ancora_aperta_dentro_il_blocco(monkeypatch, tmp_path):
+    """È l'invariante su cui si regge tutto il resto: `log_params` fuori da una run ne apre
+    un'altra da sé, quindi scrivere le misure dopo il blocco le separerebbe dalle tracce."""
+    monkeypatch.setattr(vr.conf, "MLFLOW_ATTESA", 1)
+    import mlflow
+
+    with vr.registrazione("prova", indirizzo="http://127.0.0.1:1",
+                          ripiego=tmp_path / "locale.db") as apertura:
+        attiva = mlflow.active_run()
+        assert attiva is not None and attiva.info.run_id == apertura.identificativo
+    assert mlflow.active_run() is None

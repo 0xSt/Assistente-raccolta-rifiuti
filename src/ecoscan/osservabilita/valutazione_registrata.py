@@ -199,6 +199,24 @@ def registrazione(nome: str, indirizzo: str | None = None, esperimento: str = ES
         yield Registrazione(info, mlflow, dove, esperimento, run.info.run_id)
 
 
+def traccia_dentro(apertura: Registrazione, agente, salva_foto: bool = False) -> None:
+    """Fa scrivere all'agente una traccia per caso **dentro la run aperta**.
+
+    Il tracciatore punta allo stesso archivio della run — che può essere quello locale, se
+    il server non risponde — altrimenti misura e tracce finirebbero in due posti diversi.
+
+    `attivo=True` e non `conf.MLFLOW_ATTIVO`: come per la misura, le tracce di una
+    valutazione non sono osservabilità facoltativa (D184). Chi valuta le foto passa
+    `salva_foto=True`, perché lì la foto è il dato che spiega la traccia.
+    """
+    from ecoscan.osservabilita.tracciamento import Tracciatore
+
+    tracciatore = Tracciatore(indirizzo=apertura.indirizzo, esperimento=apertura.esperimento,
+                              attivo=True, salva_foto=salva_foto)
+    tracciatore.configura(agente.configurazione())
+    agente.tracciatore = tracciatore
+
+
 def registra(esecuzione: dict, misure: dict, esito_completo: dict | None = None,
              indirizzo: str | None = None, esperimento: str = ESPERIMENTO,
              ripiego: Path | None = None) -> bool:

@@ -101,3 +101,54 @@ def test_una_foto_mancante_si_ferma_subito(tmp_path):
     """Meglio un errore in testa all'esecuzione che venti minuti di CPU e poi un buco."""
     with pytest.raises(SystemExit):
         una_foto().dati(tmp_path)
+
+
+# ------------------------------------------------------- una traccia per ogni foto
+
+def test_ogni_foto_apre_la_sua_traccia_con_la_foto_allegata(ambiente, tmp_path):
+    """Senza la traccia, una riga "VIS" nel riepilogo è un'accusa senza prove: non si sa
+    che cosa il modello abbia visto né quali documenti siano usciti.
+
+    I due giri stanno nella **stessa** traccia: sono la stessa foto vista in due modi.
+    """
+    from ecoscan.agente.agente import Agente
+    from tests.conftest import ModelloFinto
+    from tests.test_valutazione import TracciatoreFinto
+
+    (tmp_path / "giornale.jpg").write_bytes(b"\xff\xd8\xff-finta")
+    tracciatore = TracciatoreFinto()
+    agente = Agente(ambiente.recupero, ModelloFinto(), k=8, tracciatore=tracciatore)
+    prova = vf.Foto(file="giornale.jpg", comune="Torino", oggetto="giornale",
+                    destinazioni_attese=["carta_e_cartone"])
+
+    vf.valuta_foto(agente, prova, cartella=tmp_path, sessione="prova")
+
+    assert len(tracciatore.turni) == 1, "una traccia per foto, non una per giro"
+    nome, sessione, ingressi = tracciatore.turni[0]
+    assert (nome, sessione) == ("valutazione-foto", "prova")
+    assert ingressi["file"] == "giornale.jpg" and ingressi["oggetto_vero"] == "giornale"
+    assert ingressi["foto"], "la foto deve entrare nella traccia"
+    uscita = tracciatore.uscite[-1]
+    assert uscita["riconosciuto"] and "secondi" in uscita
+
+
+def test_la_traccia_della_foto_porta_i_tag_su_cui_si_filtra(ambiente, tmp_path):
+    """Si aprono le sole foto sbagliate, o le sole perse per la visione: sono tag, non
+    attributi, perché è sui tag che l'interfaccia di MLflow filtra."""
+    from ecoscan.agente.agente import Agente
+    from tests.conftest import ModelloFinto
+    from tests.test_valutazione import TracciatoreFinto
+
+    (tmp_path / "giornale.jpg").write_bytes(b"\xff\xd8\xff-finta")
+    tracciatore = TracciatoreFinto()
+    agente = Agente(ambiente.recupero, ModelloFinto(), k=8, tracciatore=tracciatore)
+    prova = vf.Foto(file="giornale.jpg", comune="Torino", oggetto="giornale",
+                    destinazioni_attese=["carta_e_cartone"])
+
+    vf.valuta_foto(agente, prova, cartella=tmp_path)
+
+    tag = tracciatore.etichette[0]
+    assert tag["foto"] == "giornale.jpg" and tag["comune"] == "Torino"
+    assert tag["oggetto"] == "giornale" and tag["riconosciuto"]
+    assert tag["corretta"] in ("si", "no") and tag["colpa_della_visione"] in ("si", "no")
+    assert tag["atteso"] == "carta_e_cartone"

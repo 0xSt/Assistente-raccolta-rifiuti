@@ -29,7 +29,7 @@ Va aggiornato **a ogni cambiamento sostanziale**, non a ogni riga di codice. In 
 
 ---
 
-## Stato attuale (v0.52.0, 27/09/2026)
+## Stato attuale (v0.52.1, 27/09/2026)
 
 | Componente | Stato |
 |---|---|
@@ -96,6 +96,8 @@ Formato: decisione, motivazione, stato.
 | D211 | Le **diagnosi buone** sono definite una volta sola, in `DIAGNOSI_BUONE` | Erano tre definizioni divergenti in tre punti dello stesso file: la riga di avanzamento diceva OK solo per `CORRETTO`, il riepilogo ne ammetteva quattro, il pass/fail delle regressioni un insieme diverso ancora. Lo stesso esito risultava OK in un punto e NO in un altro, e nessuno dei tre era dichiaratamente il criterio | Accettata |
 | D212 | **Ogni numero che si stampa è una misura**: nasce in `misure()` o `misure_foto()`, quindi finisce nel JSON e su MLflow | Il costo del riconoscimento e il pass/fail delle regressioni erano calcolati dentro la stampa: erano gli unici due numeri del progetto senza serie storica, cioè quelli di cui non si poteva dire se una modifica li avesse migliorati. Un numero che non si può confrontare con quello di ieri non serve a decidere | Accettata |
 | D213 | Una ristrutturazione a comportamento invariato si difende con un'**istantanea del comportamento**, non con i test: si fotografa ciò che il sistema produce prima, si rifotografa dopo ogni fase, e `diff` è la prova | I test dicono che i casi previsti continuano a valere; non dicono niente sui casi che nessuno ha previsto, che in una riscrittura sono la maggioranza. L'istantanea copre tutto ciò che è deterministico e non chiede né Ollama né Qdrant: il database ricostruito, gli 875 documenti indicizzabili con testo e payload, i messaggi della presentazione su otto casi fissi, le misure su otto esiti costruiti a mano. È uno strumento di lavoro e sta fuori dal repo | Accettata |
+| D214 | Anche la **valutazione sulle foto** apre una traccia per foto, con l'immagine allegata, e i due giri (reale e ideale) stanno nella **stessa** traccia | `ecoscan-valuta-foto` registrava la run e null'altro: il riepilogo diceva `VIS` accanto a una foto senza poter mostrare che cosa il modello avesse visto né quali documenti fossero usciti — un'accusa senza prove, proprio sulla misura che costa mezz'ora di CPU. Due tracce separate per i due giri costringerebbero ad accoppiarle a mano per attribuire la colpa, che è l'unica domanda per cui il secondo giro esiste | Accettata |
+| D215 | La run di valutazione resta **aperta fino alla scrittura delle misure**, non solo durante l'esecuzione dei casi | `log_params` fuori da una run ne apre un'altra da sé: le misure finivano in una run e le tracce che le spiegano in un'altra, e il link stampato era quello della run senza numeri. La forma è ora la stessa nei due comandi, in un contesto solo | Accettata |
 | D204 | Nel frontend non restano **espressioni nude**: un'espressione lasciata da sola dev'essere una chiamata di funzione o una stringa di documentazione, e un test lo verifica sull'albero sintattico | Streamlit stampa il valore di ogni espressione lasciata da sola ("magia"). `riquadro(testo) if riquadro else st.markdown(testo)` è un'espressione: nella chat finiva il `DeltaGenerator` restituito, con accanto la documentazione della classe. Non dà errore, non lo vede nessun test sul testo, e il codice sembra giusto a leggerlo: è esattamente il tipo di difetto che vale la pena affidare a un controllo automatico invece che all'occhio | Accettata |
 | D203 | Durante l'attesa si mostrano il **cronometro** e i passaggi che il sistema farà, **senza fingere** di sapere a che punto è | Su CPU una foto sono minuti, e uno spinner con una scritta ferma non distingue "sta lavorando" da "si è piantato". Il backend però risponde una volta sola: inventare un avanzamento a tempo sarebbe una barra di caricamento finta, che è una bugia piccola ma della stessa famiglia di quelle che questo progetto evita altrove. Si dice cosa farà — tre passaggi, che spiegano da soli perché ci mette tanto — e si mostra il tempo, che è l'unica cosa vera che si sappia | Accettata |
 | D198 | La domanda **non** elenca prima i contenitori fra cui cambia la risposta: è una riga e i pulsanti. Le due strade si scrivono dopo, sotto la risposta | Decisione di Stef, dopo aver provato "scarpe vecchie". Sembrava che la posta in gioco spiegasse la domanda; in realtà la anticipava, e davanti a due pulsanti che portano le stesse parole della domanda non c'era niente da spiegare. Sotto la risposta le stesse due strade valgono di più, perché una è quella giusta per l'oggetto che si ha in mano: per questo cade anche la parte di D196 che le nascondeva al secondo turno | Accettata |
@@ -368,6 +370,24 @@ Cose imparate che non sono decisioni, ma che conviene ricordare.
 ---
 
 ## Cronologia
+
+### v0.52.1 — 28/09/2026
+
+**Le foto lasciano le loro tracce** (D214). `ecoscan-valuta-foto` registrava la run con le
+misure e nient'altro: il `VIS` accanto a una foto sbagliata diceva che la colpa era del
+riconoscimento, senza poter mostrare che cosa il modello avesse visto. Ora ogni foto apre
+una traccia dentro la run — immagine allegata, span del riconoscimento, documenti usciti,
+scelta — e i due giri stanno nella stessa traccia, perché è di quel confronto che si vuole
+leggere la storia. Sui tag si filtra: `corretta=no` per le sole foto sbagliate,
+`colpa_della_visione=si` per quelle perse solo per il riconoscimento. Nuovo `--senza-tracce`,
+come in `ecoscan-valuta`.
+
+**La run resta aperta fino alle misure** (D215). Difetto che valeva per entrambi i comandi:
+la run si chiudeva alla fine dei casi e le misure si scrivevano dopo, ma `log_params` fuori
+da una run ne apre un'altra da sé — le misure finivano in una run, le tracce in un'altra, e
+il link stampato portava a quella senza numeri. Ora l'esecuzione e la scrittura stanno nello
+stesso contesto, in tutti e due i comandi, e `traccia_dentro` è l'unico punto in cui il
+tracciatore viene agganciato a una run.
 
 ### v0.52.0 — 27/09/2026
 

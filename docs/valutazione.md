@@ -501,6 +501,13 @@ e la media di dieci foto veloci e una lenta descrive una situazione che non è c
 nessuno. Il percentile usa il metodo del rango più vicino, quindi il numero pubblicato è
 sempre un tempo davvero cronometrato.
 
+**Le tracce.** Come `ecoscan-valuta`, ogni foto lascia la **sua traccia** dentro la run,
+con l'immagine allegata, lo span del riconoscimento, i documenti usciti e la scelta. I due
+giri — reale e ideale — stanno nella stessa traccia: sono la stessa foto vista in due modi,
+e separarli costringerebbe ad accoppiarli a mano per capire di chi è la colpa. Sui tag si
+filtra: `corretta=no` apre le sole foto sbagliate, `colpa_della_visione=si` quelle perse
+solo per il riconoscimento. Con `--senza-tracce` restano le sole misure.
+
 Le etichette stanno in `data/valutazione/foto/foto.jsonl` (versionate: dicono cosa il
 sistema deve saper fare); le immagini in `data/valutazione/foto/immagini/` e **non sono
 versionate**. Il file contiene già venti righe pronte, con le attese ricavate dal database:

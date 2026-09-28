@@ -61,6 +61,8 @@ import argparse
 import json
 import sys
 import time
+from collections.abc import Iterator
+from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
 
@@ -449,59 +451,55 @@ def main() -> None:
         print("Su CPU la scelta richiede qualche secondo per caso.", flush=True)
 
     esecuzione = descrizione_esecuzione(agente, casi, args.k, con_modello)
-    esiti, durata, registrazione = _esegui_registrando(agente, casi, con_modello, esecuzione,
-                                                       args)
-    print(f"Eseguiti {len(casi)} casi in {durata:.0f} s "
-          f"({durata / max(len(casi), 1):.1f} s per caso).")
-    riepiloga(esiti, args.k)
+    with _esecuzione_registrata(agente, casi, con_modello, esecuzione, args) as aperta:
+        esiti, durata, registrazione = aperta
+        print(f"Eseguiti {len(casi)} casi in {durata:.0f} s "
+              f"({durata / max(len(casi), 1):.1f} s per caso).")
+        riepiloga(esiti, args.k)
 
-    if args.confronta:
-        if not args.confronta.is_file():
-            raise SystemExit(f"Esito da confrontare non trovato: {args.confronta}")
-        confronta(json.loads(args.confronta.read_text(encoding="utf-8")), esiti,
-                  esecuzione, args.k)
+        if args.confronta:
+            if not args.confronta.is_file():
+                raise SystemExit(f"Esito da confrontare non trovato: {args.confronta}")
+            confronta(json.loads(args.confronta.read_text(encoding="utf-8")), esiti,
+                      esecuzione, args.k)
 
-    for percorso in salva_sempre(come_json(esiti, esecuzione, args.k), esecuzione, args.salva):
-        print(f"Esito salvato in {percorso}")
+        for percorso in salva_sempre(come_json(esiti, esecuzione, args.k), esecuzione,
+                                     args.salva):
+            print(f"Esito salvato in {percorso}")
 
-    if registrazione is not None:
-        registrazione.scrivi(esecuzione, misure(esiti, args.k),
-                             come_json(esiti, esecuzione, args.k))
-        registrazione.riferisci(tracce=len(esiti))
+        if registrazione is not None:
+            registrazione.scrivi(esecuzione, misure(esiti, args.k),
+                                 come_json(esiti, esecuzione, args.k))
+            registrazione.riferisci(tracce=0 if args.senza_tracce else len(esiti))
 
 
-def _esegui_registrando(agente: Agente, casi: list[Caso], con_modello: bool,
-                        esecuzione: dict, args) -> tuple[list[Esito], float, object]:
+@contextmanager
+def _esecuzione_registrata(agente: Agente, casi: list[Caso], con_modello: bool,
+                           esecuzione: dict, args) -> Iterator[tuple[list[Esito], float, object]]:
     """Esegue i casi dentro una run aperta, così ogni caso lascia la sua traccia.
 
-    La run si apre **prima**: una traccia creata mentre una run è in corso le resta
-    agganciata, e nell'interfaccia si aprono dalla run stessa. Registrare alla fine
-    lascerebbe le tracce nell'esperimento senza legame con la misura che le ha prodotte.
-
-    Il tracciatore punta allo stesso archivio della run — che può essere quello locale, se
-    il server non risponde — altrimenti misura e tracce finirebbero in due posti diversi.
+    La run si apre **prima** e resta aperta fino alla scrittura delle misure. Prima:
+    perché una traccia creata mentre una run è in corso le resta agganciata, e
+    nell'interfaccia si aprono dalla run stessa. Fino alla fine: perché `log_params` fuori
+    da una run ne apre un'altra da sé, e misure e tracce finirebbero in due run diverse —
+    che è esattamente ciò che questo comando vuole evitare.
     """
     avanzamento = Avanzamento(len(casi))
     if args.senza_mlflow:
         esiti = esegui(agente, casi, con_modello=con_modello, avanzamento=avanzamento)
-        return esiti, avanzamento.fine(), None
+        yield esiti, avanzamento.fine(), None
+        return
 
-    from ecoscan.osservabilita.tracciamento import Tracciatore
-    from ecoscan.osservabilita.valutazione_registrata import ESPERIMENTO, registrazione
+    from ecoscan.osservabilita.valutazione_registrata import registrazione, traccia_dentro
 
     sessione = f"valutazione {esecuzione['data']}"
     with registrazione(sessione) as apertura:
         if not args.senza_tracce:
-            # `attivo=True` e non `conf.MLFLOW_ATTIVO`: come per la misura, le tracce di una
-            # valutazione non sono osservabilità facoltativa (D184). Le foto non servono:
-            # qui non ce ne sono, i casi partono dal riconoscimento.
-            tracciatore = Tracciatore(indirizzo=apertura.indirizzo, esperimento=ESPERIMENTO,
-                                      attivo=True, salva_foto=False)
-            tracciatore.configura(agente.configurazione())
-            agente.tracciatore = tracciatore
+            # niente foto: qui non ce ne sono, i casi partono dal riconoscimento
+            traccia_dentro(apertura, agente, salva_foto=False)
         esiti = esegui(agente, casi, con_modello=con_modello, avanzamento=avanzamento,
                        sessione=sessione)
-        return esiti, avanzamento.fine(), apertura
+        yield esiti, avanzamento.fine(), apertura
 
 
 def percorso_automatico(esecuzione: dict) -> Path:

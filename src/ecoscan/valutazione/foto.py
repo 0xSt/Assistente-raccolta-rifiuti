@@ -38,9 +38,16 @@ Le immagini stanno in `data/valutazione/foto/immagini/` e **non sono versionate*
 foto di casa, pesano, e il progetto non ne ha bisogno per funzionare. Le etichette sì,
 perché descrivono cosa il sistema deve saper fare.
 
+**Le tracce.** Come in `ecoscan-valuta`, ogni foto lascia una traccia dentro la run, con
+l'immagine allegata: la percentuale dice quante foto vanno male, la traccia dice *perché
+quella* — che cosa ha visto il modello, quali documenti sono usciti, che cosa ha scelto. I
+due giri stanno nella stessa traccia, perché è di quel confronto che si vuole leggere la
+storia.
+
 Uso:
   uv run ecoscan-valuta-foto
   uv run ecoscan-valuta-foto --solo-reale      # salta il secondo giro, se hai fretta
+  uv run ecoscan-valuta-foto --senza-tracce    # solo le misure, nessuna traccia per foto
   uv run ecoscan-valuta-foto --salva esiti/foto-v0.43.json
 """
 from __future__ import annotations
@@ -48,6 +55,8 @@ from __future__ import annotations
 import argparse
 import math
 import time
+from collections.abc import Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
@@ -55,6 +64,7 @@ from pathlib import Path
 from ecoscan.archivio import da_jsonl
 from ecoscan.agente.agente import Agente
 from ecoscan.agente.tipi import Riconoscimento, Risposta
+from ecoscan.osservabilita.tracciamento import CATENA, LLM
 from ecoscan.percorsi import VALUTAZIONE
 from ecoscan.valutazione.casi import Caso
 from ecoscan.valutazione.esegui import Esito, salva_sempre
@@ -141,28 +151,68 @@ def _esito(caso: Caso, risposta: Risposta) -> Esito:
 
 
 def valuta_foto(agente: Agente, foto: Foto, con_ideale: bool = True,
-                cartella: Path | None = None) -> EsitoFoto:
+                cartella: Path | None = None, sessione: str | None = None) -> EsitoFoto:
+    """Esegue i due giri su una foto, dentro una traccia tutta sua.
+
+    La traccia è la stessa che si registra per una conversazione vera, con la foto
+    allegata: le percentuali dicono quante foto vanno male, la traccia dice *perché quella
+    foto* — che cosa ha visto il modello di visione, quali documenti sono usciti, che cosa
+    ha scelto. Senza, una riga "VIS" nel riepilogo resta un'accusa senza prove.
+
+    I due giri stanno nella **stessa** traccia: sono la stessa foto vista in due modi, e
+    separarli costringerebbe ad accoppiarli a mano per capire di chi è la colpa.
+    """
     immagine = foto.dati(cartella)
+    allegata = agente.tracciatore.allegato(immagine)
+    ingressi = {"foto": allegata, "file": foto.file, "comune": foto.comune,
+                "oggetto_vero": foto.oggetto, "testo_utente": foto.testo_utente,
+                "destinazioni_attese": foto.destinazioni_attese}
 
-    inizio = time.monotonic()
-    riconoscimento = agente.modello.riconosci(immagine, foto.testo_utente)
-    secondi_riconoscimento = round(time.monotonic() - inizio, 2)
+    with agente.tracciatore.turno("valutazione-foto", sessione or "foto", ingressi) as radice:
+        with agente.tracciatore.span("riconoscimento", LLM, {
+                "modello": agente.modello.nome, "foto": allegata,
+                "testo_utente": foto.testo_utente}) as span:
+            inizio = time.monotonic()
+            riconoscimento = agente.modello.riconosci(immagine, foto.testo_utente)
+            secondi_riconoscimento = round(time.monotonic() - inizio, 2)
+            span.uscita(riconoscimento)
 
-    inizio = time.monotonic()
-    risposta = agente.rispondi(riconoscimento, foto.comune, foto.testo_utente)
-    secondi_risposta = round(time.monotonic() - inizio, 2)
+        inizio = time.monotonic()
+        risposta = agente.rispondi(riconoscimento, foto.comune, foto.testo_utente)
+        secondi_risposta = round(time.monotonic() - inizio, 2)
 
-    ideale = None
-    if con_ideale:
-        # stesso percorso, riconoscimento dichiarato: la confidenza massima è la stessa
-        # convenzione dei casi (il riconoscimento è un dato, non un'ipotesi)
-        vero = Riconoscimento(oggetto=foto.oggetto, confidenza=1.0)
-        ideale = _esito(foto.caso, agente.rispondi(vero, foto.comune, foto.testo_utente))
+        ideale = None
+        if con_ideale:
+            # stesso percorso, riconoscimento dichiarato: la confidenza massima è la stessa
+            # convenzione dei casi (il riconoscimento è un dato, non un'ipotesi)
+            vero = Riconoscimento(oggetto=foto.oggetto, confidenza=1.0)
+            with agente.tracciatore.span("giro_ideale", CATENA,
+                                         {"oggetto_vero": foto.oggetto}) as span:
+                senza_visione = agente.rispondi(vero, foto.comune, foto.testo_utente)
+                span.uscita({"destinazioni": senza_visione.destinazioni,
+                             "livello": senza_visione.livello_evidenza})
+            ideale = _esito(foto.caso, senza_visione)
 
-    return EsitoFoto(foto=foto, riconosciuto=riconoscimento.oggetto or "(non riconosciuto)",
-                     reale=_esito(foto.caso, risposta), ideale=ideale,
-                     secondi_riconoscimento=secondi_riconoscimento,
-                     secondi_risposta=secondi_risposta)
+        esito = EsitoFoto(
+            foto=foto, riconosciuto=riconoscimento.oggetto or "(non riconosciuto)",
+            reale=_esito(foto.caso, risposta), ideale=ideale,
+            secondi_riconoscimento=secondi_riconoscimento, secondi_risposta=secondi_risposta)
+
+        radice.uscita({"riconosciuto": esito.riconosciuto,
+                       "destinazioni": esito.reale.destinazioni,
+                       "livello": esito.reale.livello, "diagnosi": esito.reale.diagnosi,
+                       "corretta": esito.reale.perfetta,
+                       "colpa_della_visione": esito.colpa_della_visione,
+                       "secondi": esito.secondi_totali})
+        # sui tag l'interfaccia di MLflow filtra: è così che dopo una valutazione si aprono
+        # le sole tracce delle foto sbagliate, o le sole perse per la visione
+        agente.tracciatore.etichetta(
+            radice, foto=foto.file, comune=foto.comune, oggetto=foto.oggetto,
+            riconosciuto=esito.riconosciuto, diagnosi=esito.reale.diagnosi,
+            corretta="si" if esito.reale.perfetta else "no",
+            colpa_della_visione="si" if esito.colpa_della_visione else "no",
+            atteso=" · ".join(foto.destinazioni_attese) or "(nessuna: deve astenersi)")
+    return esito
 
 
 def percentile(valori: list[float], quantile: float) -> float | None:
@@ -236,6 +286,27 @@ def riepiloga(esiti: list[EsitoFoto]) -> None:
     print(f"  esecuzione completa: {m['secondi_complessivi']} s")
 
 
+@contextmanager
+def _esecuzione_registrata(agente: Agente, esecuzione: dict, args) -> Iterator[object]:
+    """Apre la run di MLflow **prima** delle foto e la tiene aperta fino alle misure.
+
+    Stessa forma di `ecoscan-valuta`, e per le stesse due ragioni: una traccia creata
+    mentre una run è in corso le resta agganciata, e `log_params` fuori da una run ne apre
+    un'altra da sé — misure e tracce finirebbero in due run diverse.
+    """
+    if args.senza_mlflow:
+        yield None
+        return
+
+    from ecoscan.osservabilita.valutazione_registrata import registrazione, traccia_dentro
+
+    with registrazione(f"foto {esecuzione['data']}") as apertura:
+        if not args.senza_tracce:
+            # con le foto: qui l'immagine è il dato che spiega la traccia
+            traccia_dentro(apertura, agente, salva_foto=True)
+        yield apertura
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(
         description="Valutazione end-to-end sulle foto: correttezza, costo della visione, tempi.")
@@ -245,7 +316,10 @@ def main() -> None:
     ap.add_argument("--immagini", type=Path, default=IMMAGINI)
     ap.add_argument("--salva", type=Path, help="scrive l'esito in JSON")
     ap.add_argument("-k", type=int, default=8)
-    ap.add_argument("--senza-mlflow", action="store_true")
+    ap.add_argument("--senza-mlflow", action="store_true",
+                    help="non registra l'esecuzione come run di MLflow")
+    ap.add_argument("--senza-tracce", action="store_true",
+                    help="registra le misure ma non una traccia per foto")
     args = ap.parse_args()
 
     foto = leggi_etichette(args.etichette)
@@ -260,28 +334,31 @@ def main() -> None:
                     ModelloOllama(), k=args.k)
     print(f"{len(foto)} foto · su CPU conta qualche minuto l'una")
 
-    esiti = []
-    for numero, una in enumerate(foto, start=1):
-        print(f"  [{numero}/{len(foto)}] {una.file}", flush=True)
-        esiti.append(valuta_foto(agente, una, con_ideale=not args.solo_reale, cartella=args.immagini))
-
-    riepiloga(esiti)
-
     esecuzione = {"data": datetime.now().isoformat(timespec="minutes"), "k": args.k,
                   "modalita": "foto", "casi": {"foto": len(foto)},
                   "configurazione": agente.configurazione()}
-    corpo = {"esecuzione": esecuzione, "misure": misure_foto(esiti),
-             "esiti": {e.foto.file: {"riconosciuto": e.riconosciuto,
-                                     "destinazioni": e.reale.destinazioni,
-                                     "corretta": e.reale.perfetta,
-                                     "colpa_della_visione": e.colpa_della_visione,
-                                     "secondi": e.secondi_totali} for e in esiti}}
-    for percorso in salva_sempre(corpo, esecuzione, args.salva):
-        print(f"Esito salvato in {percorso}")
 
-    if not args.senza_mlflow:
-        from ecoscan.osservabilita.valutazione_registrata import registra
-        registra(esecuzione, misure_foto(esiti))
+    with _esecuzione_registrata(agente, esecuzione, args) as registrazione:
+        esiti = []
+        for numero, una in enumerate(foto, start=1):
+            print(f"  [{numero}/{len(foto)}] {una.file}", flush=True)
+            esiti.append(valuta_foto(agente, una, con_ideale=not args.solo_reale,
+                                     cartella=args.immagini,
+                                     sessione=f"foto {esecuzione['data']}"))
+
+        riepiloga(esiti)
+        corpo = {"esecuzione": esecuzione, "misure": misure_foto(esiti),
+                 "esiti": {e.foto.file: {"riconosciuto": e.riconosciuto,
+                                         "destinazioni": e.reale.destinazioni,
+                                         "corretta": e.reale.perfetta,
+                                         "colpa_della_visione": e.colpa_della_visione,
+                                         "secondi": e.secondi_totali} for e in esiti}}
+        for percorso in salva_sempre(corpo, esecuzione, args.salva):
+            print(f"Esito salvato in {percorso}")
+
+        if registrazione is not None:
+            registrazione.scrivi(esecuzione, misure_foto(esiti), corpo)
+            registrazione.riferisci(tracce=0 if args.senza_tracce else len(esiti))
 
 
 if __name__ == "__main__":
