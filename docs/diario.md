@@ -29,7 +29,7 @@ Va aggiornato **a ogni cambiamento sostanziale**, non a ogni riga di codice. In 
 
 ---
 
-## Stato attuale (v0.53.0, 27/09/2026)
+## Stato attuale (v0.54.0, 29/09/2026)
 
 | Componente | Stato |
 |---|---|
@@ -42,7 +42,7 @@ Va aggiornato **a ogni cambiamento sostanziale**, non a ogni riga di codice. In 
 | Serving | Documenti su Qdrant, sola ricerca semantica, aggancio esatto dei codici materiale |
 | Agente | Fatto: riconoscimento, cascata dei livelli, scelta vincolata, risposta. Indipendente da HTTP |
 | API FastAPI | Fatto: analizza, continua, correggi, domanda, cerca, comuni, destinazioni, salute |
-| Frontend a chat | Fatto (v0.31.0): etichette leggibili, riconoscimento visibile e correggibile, chiarimenti a pulsante, fonte in nota. Messaggi asciugati e colore dei contenitori in v0.50.0 (D192–D203) |
+| Frontend a chat | Fatto (v0.31.0): etichette leggibili, riconoscimento visibile, chiarimenti a pulsante, fonte in nota. Messaggi asciugati e colore dei contenitori in v0.50.0 (D192–D203) |
 | Osservabilità | Fatto (v0.30.0): tracce MLflow per turno con foto, retrieval e sessione; versione dell'app e prompt collegati |
 | Docker | Fatto: qdrant, mlflow, backend, frontend; ollama sotto profilo |
 | Regole di categoria — Napoli | Completo per quanto la fonte pubblica: 38 ammessi, 11 esclusi (5 Vetro estratti + 6 Umido trascritti a mano), 2 assenze verificate |
@@ -100,6 +100,7 @@ Formato: decisione, motivazione, stato.
 | D215 | La run di valutazione resta **aperta fino alla scrittura delle misure**, non solo durante l'esecuzione dei casi | `log_params` fuori da una run ne apre un'altra da sé: le misure finivano in una run e le tracce che le spiegano in un'altra, e il link stampato era quello della run senza numeri. La forma è ora la stessa nei due comandi, in un contesto solo | Accettata |
 | D216 | Sotto ogni risposta stanno il **comune** a cui si riferisce e i **secondi** che ha impiegato | Il comune perché appena in chat ci sono risposte di comuni diversi — ed è proprio ciò che l'app esiste per mostrare (D7) — il selettore dice dove si è *adesso*, non dov'era la risposta di qualche riga sopra. I secondi perché su CPU sono minuti e nasconderli non li accorcia: dichiararli fa del costo dell'esecuzione locale una caratteristica misurata invece di un difetto imbarazzato, ed è lo stesso numero che la valutazione riporta come p50. Il riquadro dell'attesa lo mostrava già, ma si chiude | Accettata |
 | D217 | Davanti a un chiarimento c'è un terzo pulsante, **«non lo so»**, che mostra tutti i rami e **non chiama il backend** | Due pulsanti senza terza via lasciano a chi non sa se il cartone è unto una sola mossa: chiudere la conversazione. I rami non rispondono al posto suo — nessuno può, è un'informazione che ha solo lui — ma gli danno la regola, e guardando l'oggetto decide da sé. Non si chiama il backend perché non mancano dati: mancano all'utente. La domanda resta aperta, così dopo aver letto può ancora rispondere. Vale solo per le domande sulla **condizione**, dove i rami sono le varianti del documento scelto: per quelle sul materiale starebbero in voci diverse, e ricostruirli sarebbe indovinare quale voce risponde a quale materiale | Accettata |
+| D218 | La **correzione dell'oggetto** si rimuove: via il riquadro «Non è un/una …?», il metodo dell'agente, la rotta `/correggi` e il suo schema | Decisione di Stef. Il riquadro chiedeva all'utente di fare il correttore di bozze di un modello, che non è il suo mestiere, e occupava spazio sotto ogni risposta da foto per un caso che l'utente risolve già da sé: se il riconoscimento è sbagliato, scrive il nome dell'oggetto e riparte: è lo stesso percorso, con un gesto che già conosce. Meno superficie pubblica (una rotta, uno schema, un metodo, un turno tracciato) a parità di cose che l'utente può fare | Accettata |
 | D204 | Nel frontend non restano **espressioni nude**: un'espressione lasciata da sola dev'essere una chiamata di funzione o una stringa di documentazione, e un test lo verifica sull'albero sintattico | Streamlit stampa il valore di ogni espressione lasciata da sola ("magia"). `riquadro(testo) if riquadro else st.markdown(testo)` è un'espressione: nella chat finiva il `DeltaGenerator` restituito, con accanto la documentazione della classe. Non dà errore, non lo vede nessun test sul testo, e il codice sembra giusto a leggerlo: è esattamente il tipo di difetto che vale la pena affidare a un controllo automatico invece che all'occhio | Accettata |
 | D203 | Durante l'attesa si mostrano il **cronometro** e i passaggi che il sistema farà, **senza fingere** di sapere a che punto è | Su CPU una foto sono minuti, e uno spinner con una scritta ferma non distingue "sta lavorando" da "si è piantato". Il backend però risponde una volta sola: inventare un avanzamento a tempo sarebbe una barra di caricamento finta, che è una bugia piccola ma della stessa famiglia di quelle che questo progetto evita altrove. Si dice cosa farà — tre passaggi, che spiegano da soli perché ci mette tanto — e si mostra il tempo, che è l'unica cosa vera che si sappia | Accettata |
 | D198 | La domanda **non** elenca prima i contenitori fra cui cambia la risposta: è una riga e i pulsanti. Le due strade si scrivono dopo, sotto la risposta | Decisione di Stef, dopo aver provato "scarpe vecchie". Sembrava che la posta in gioco spiegasse la domanda; in realtà la anticipava, e davanti a due pulsanti che portano le stesse parole della domanda non c'era niente da spiegare. Sotto la risposta le stesse due strade valgono di più, perché una è quella giusta per l'oggetto che si ha in mano: per questo cade anche la parte di D196 che le nascondeva al secondo turno | Accettata |
@@ -165,7 +166,7 @@ Formato: decisione, motivazione, stato.
 | D128 | Le destinazioni hanno un'**etichetta** leggibile, curata a mano in `destinazioni.csv`; le risposte continuano a portare il nome interno | I nomi di Torino sono chiavi (`carta_e_cartone`) e l'utente non deve leggerle. Tradurre nell'interfaccia e non nei dati lascia il nome interno come chiave stabile di tutto il resto | Accettata |
 | D129 | Ogni **voce** porta fonte e riferimento (URL della pagina a Napoli, pagina del PDF a Torino), come già facevano le regole | Senza, una risposta di livello 1 non poteva dire da dove veniva: la provenienza c'era nel grezzo e si perdeva nel Transform | Accettata |
 | D130 | Il **riconoscimento** della foto si mostra sempre all'utente, prima della risposta | È il passaggio più fragile della catena e l'unico che l'utente può smentire con certezza, perché ha l'oggetto in mano | Accettata |
-| D131 | Nuova rotta `/correggi`: l'utente dichiara l'oggetto e si rifanno solo ricerca e scelta, con confidenza 1.0 | La foto non si rilegge (è il passaggio lento) e non si fa riguardare a un modello che ha già sbagliato. È il motivo per cui `analizza` e `rispondi` erano separati (D72) | Accettata |
+| D131 | Nuova rotta `/correggi`: l'utente dichiara l'oggetto e si rifanno solo ricerca e scelta, con confidenza 1.0 | Superata da D218, per decisione di Stef: la funzione si rimuove del tutto. La ragione tecnica resta valida — non si rilegge la foto e non si fa riguardare a un modello che ha gia' sbagliato — ma quella strada resta aperta senza il riquadro, perche' scrivere il nome dell'oggetto e' gia' un ingresso dell'app | Superata da D218 |
 | D132 | Il chiarimento porta con sé le **opzioni**, e l'interfaccia ne fa pulsanti | Le condizioni vengono dalle varianti del documento: farle scrivere a mano aggiungeva solo modi di sbagliare | Accettata |
 | D133 | "Come ci sono arrivato" mostra la **citazione** del documento scelto, il motivo e le voci scartate; la tabella dei punteggi passa in secondo piano | Superata da D197, per decisione di Stef: il pannello si rimuove del tutto. L'osservazione che l'ha motivata resta vera — i punteggi spiegano il sistema a chi lo sviluppa, non la risposta a chi la riceve — ma vale per il pannello intero, non solo per la tabella | Superata da D197 |
 | D134 | *(ritirata)* Un oggetto composto riceve una risposta per ogni parte separabile | Provata in v0.32.0 e rimossa in v0.32.1: la prima foto vera (piatto con forchetta appoggiata sopra) ha mostrato che il caso frequente non è l'oggetto con parti separabili ma la foto con **più oggetti distinti**, che è un problema diverso. La funzione costava una ricerca e una chiamata al modello per parte senza risolverlo | Superata da D136, ritirata in v0.32.1 |
@@ -372,6 +373,21 @@ Cose imparate che non sono decisioni, ma che conviene ricordare.
 ---
 
 ## Cronologia
+
+### v0.54.0 — 29/09/2026
+
+**Via la correzione dell'oggetto** (D218, che supera D131). Sparisce il riquadro «Non è
+un/una …?» sotto le risposte da fotografia, e con lui tutto ciò che lo serviva: il metodo
+`Agente.correggi`, la rotta `/correggi` con il suo schema `Correzione`, il metodo del
+client e il turno tracciato omonimo. Un test verifica che la rotta risponda 404, così la
+rimozione resta tale.
+
+Il percorso non si perde: chi vede un riconoscimento sbagliato scrive il nome dell'oggetto
+nella chat e riparte da lì, che è la stessa cascata con un gesto che già conosce. Il
+riconoscimento resta **visibile** — è il passaggio più fragile e l'utente deve poterlo
+leggere — ma non gli si chiede più di correggerlo.
+
+Il resto del sistema non cambia: 576 test verdi.
 
 ### v0.53.0 — 28/09/2026
 

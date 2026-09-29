@@ -25,7 +25,7 @@ from fastapi import Depends, FastAPI, File, Form, HTTPException, UploadFile
 from ecoscan import procedure as procedure_
 from ecoscan.api.risorse import Risorse
 from ecoscan.api.schemi import (
-    CandidatoUscita, Comune, Continuazione, Correzione, Destinazione, Domanda,
+    CandidatoUscita, Comune, Continuazione, Destinazione, Domanda,
     ProceduraUscita, Ricerca, RispostaUscita, Salute,
 )
 
@@ -134,18 +134,6 @@ def rotte_agente(app: FastAPI, dip: Dipendenze) -> None:
         dip.controlla_comune(r, dati.comune)
         return con_procedure(r, r.agente.domanda(dati.comune, dati.oggetto, dati.testo),
                              dati.comune)
-
-    @app.post(f"{PREFISSO}/correggi", response_model=RispostaUscita, tags=["agente"])
-    def correggi(dati: Correzione, r: Risorse = Depends(dip.correnti)) -> RispostaUscita:
-        """L'oggetto riconosciuto era sbagliato e l'utente dice qual è.
-
-        Si rifanno solo ricerca e scelta: la foto non viene riletta, e il riconoscimento
-        dell'utente vale più di quello del modello.
-        """
-        dip.contesto_valido(dati.contesto, "comune")
-        dip.controlla_comune(r, dati.contesto["comune"])
-        return con_procedure(r, r.agente.correggi(dati.contesto, dati.oggetto),
-                             dati.contesto["comune"])
 
 
 def rotte_ricerca(app: FastAPI, dip: Dipendenze) -> None:

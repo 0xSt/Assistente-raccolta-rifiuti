@@ -64,15 +64,6 @@ def test_le_destinazioni_si_chiedono_per_comune(cliente, monkeypatch):
     assert visti["url"].endswith("/destinazioni") and visti["params"] == {"comune": "Torino"}
 
 
-def test_la_correzione_manda_contesto_e_oggetto(cliente, monkeypatch):
-    visti = {}
-    monkeypatch.setattr("requests.request",
-                        lambda m, u, **a: visti.update({"url": u, **a}) or RispostaFinta(corpo={}))
-    cliente.correggi({"comune": "Torino"}, "cartone della pizza")
-    assert visti["url"].endswith("/correggi")
-    assert visti["json"] == {"contesto": {"comune": "Torino"}, "oggetto": "cartone della pizza"}
-
-
 def test_backend_spento_dice_come_avviarlo(cliente, monkeypatch):
     import requests
 

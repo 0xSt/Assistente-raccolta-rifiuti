@@ -312,28 +312,6 @@ def test_la_risposta_dice_da_quale_documento_viene(ambiente):
     assert scelto.destinazioni == risposta.destinazioni
 
 
-def test_correggere_l_oggetto_non_rilegge_la_foto(ambiente):
-    """Il modello di visione ha già sbagliato: non lo si fa riguardare."""
-    modello = SceglieIlDocumento("giornali", Riconoscimento(oggetto="foglio", confidenza=0.9))
-    agente = crea_agente(ambiente, modello)
-    prima = agente.analizza(b"foto", "Torino")
-    letture = modello.chiamate_riconoscimento
-
-    dopo = agente.correggi(prima.contesto, "giornali e riviste")
-    assert modello.chiamate_riconoscimento == letture, "la foto non va riletta"
-    assert dopo.riconoscimento.oggetto == "giornali e riviste"
-    assert dopo.riconoscimento.confidenza == 1.0
-    assert dopo.destinazioni == ["carta_e_cartone"]
-
-
-def test_la_correzione_resta_nella_stessa_conversazione(ambiente):
-    modello = SceglieIlDocumento("giornali", Riconoscimento(oggetto="foglio", confidenza=0.9))
-    agente = crea_agente(ambiente, modello)
-    prima = agente.analizza(b"foto", "Torino")
-    dopo = agente.correggi(prima.contesto, "giornali")
-    assert dopo.contesto["id_conversazione"] == prima.contesto["id_conversazione"]
-
-
 def test_il_chiarimento_sulle_quantita_chiede_quanto_ne_hai(ambiente):
     """Il pulsante "Grandi quantità" in risposta a "com'è il tuo oggetto?" non ha senso."""
     candidato = Candidato(

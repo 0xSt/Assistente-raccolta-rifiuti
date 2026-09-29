@@ -306,31 +306,12 @@ def esempi(cliente: ClienteAPI, etichette: dict[str, dict]) -> None:
             st.rerun()
 
 
-def correzione(cliente: ClienteAPI, etichette: dict[str, dict]) -> None:
-    """Se il modello ha visto l'oggetto sbagliato, l'utente lo dice e si rifà solo la
-    ricerca: la foto non viene riletta, e chi ha l'oggetto in mano ha ragione."""
-    ultima = st.session_state.get("ultima")
-    if not ultima or not st.session_state.contesto or st.session_state.attende_risposta:
-        return
-    visto = (ultima.get("riconoscimento") or {}).get("oggetto")
-    if not visto:
-        return
-    with st.expander(f"Non è un/una {visto}?"):
-        oggetto = st.text_input("Dimmi tu cos'è", key="correzione",
-                                placeholder="per esempio: cartone della pizza")
-        if st.button("Rifai la ricerca", disabled=not oggetto.strip()):
-            st.session_state.messaggi.append({"ruolo": "utente", "testo": f"È un {oggetto}."})
-            chiedi(etichette, cliente.correggi, st.session_state.contesto, oggetto.strip())
-            st.rerun()
-
-
 def mostra_conversazione(cliente: ClienteAPI, etichette: dict[str, dict]) -> None:
     """I messaggi e i comandi che accompagnano l'ultima risposta."""
     for messaggio in st.session_state.messaggi:
         mostra_messaggio(messaggio)
     pulsanti_chiarimento(cliente, etichette)
     esempi(cliente, etichette)
-    correzione(cliente, etichette)
 
 
 def gestisci_invio(cliente: ClienteAPI, inserito, comune: str,

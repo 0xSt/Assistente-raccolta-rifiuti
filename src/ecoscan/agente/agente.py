@@ -395,27 +395,6 @@ class Agente:
             campi["stato"] = risposta_utente or None
         return Riconoscimento(**campi)
 
-    def correggi(self, contesto: dict, oggetto: str) -> Risposta:
-        """L'utente dice che l'oggetto riconosciuto è sbagliato: si riparte dal suo.
-
-        Non si rilegge la foto, che è il passaggio lento, e soprattutto non la si fa
-        riguardare a un modello che ha già sbagliato: la parola dell'utente vale più di
-        quella del modello di visione, quindi la confidenza è massima.
-        """
-        conversazione = contesto.get("id_conversazione") or nuova_conversazione()
-        precedente = contesto.get("riconoscimento") or {}
-        corretto = Riconoscimento(oggetto=oggetto.strip(), confidenza=1.0,
-                                  stato=precedente.get("stato"),
-                                  note="corretto dall'utente")
-        ingressi = {"comune": contesto["comune"], "oggetto_corretto": oggetto,
-                    "riconoscimento_precedente": precedente}
-
-        with self.tracciatore.turno("correggi", conversazione, ingressi) as radice:
-            risposta = self.rispondi(corretto, contesto["comune"], contesto.get("testo_utente"),
-                                     conversazione=conversazione)
-            self.tracciatore.chiudi_turno(radice, risposta)
-        return risposta
-
     def domanda(self, comune: str, oggetto: str, testo: str | None = None) -> Risposta:
         """L'utente scrive il nome dell'oggetto invece di fotografarlo.
 
@@ -423,7 +402,7 @@ class Agente:
         dall'utente come se l'avesse riconosciuto lui: stessa cascata, stessa scelta, stesse
         tracce. Serve a chi sa già come si chiama la cosa, e a chi non ha la foto sottomano.
 
-        La confidenza è massima per lo stesso motivo di `correggi`: qui non c'è un'ipotesi
+        La confidenza è massima perché qui non c'è un'ipotesi
         di un modello da soppesare, c'è quello che l'utente ha scritto.
         """
         conversazione = nuova_conversazione()

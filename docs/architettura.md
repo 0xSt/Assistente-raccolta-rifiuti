@@ -4,7 +4,7 @@ Come è fatto il sistema, come sono legati i file, e perché. È il documento da
 orientarsi; il **[diario](diario.md)** racconta *quando* e *perché* le cose sono cambiate,
 questo dice *com'è adesso*.
 
-Aggiornato alla **v0.53.0**.
+Aggiornato alla **v0.54.0**.
 
 ---
 
@@ -141,8 +141,6 @@ all'interfaccia:
 - `analizza` — dalla foto alla risposta;
 - `continua` — dopo un chiarimento, riparte dal riconoscimento già fatto (la foto non si
   rilegge: è il passaggio lento);
-- `correggi` — l'utente dichiara qual è l'oggetto, con confidenza massima; si rifanno solo
-  recupero e scelta.
 
 ---
 
@@ -190,14 +188,14 @@ all'interfaccia:
 | `api/schemi.py` | La forma pubblica di ingressi e uscite (Pydantic), separata dai tipi interni |
 | `api/risorse.py` | Connessioni e agente costruiti una volta all'avvio; database in sola lettura |
 
-Le rotte: `/salute`, `/comuni`, `/destinazioni`, `/analizza`, `/continua`, `/correggi`,
-`/domanda`, `/cerca`.
+Le rotte: `/salute`, `/comuni`, `/destinazioni`, `/analizza`, `/continua`, `/domanda`,
+`/cerca`.
 
 ### Interfaccia
 
 | File | Responsabilità |
 |---|---|
-| `frontend/app.py` | La chat in Streamlit: allegato o nome scritto, chiarimenti a pulsante, correzione, legenda dei contenitori |
+| `frontend/app.py` | La chat in Streamlit: allegato o nome scritto, chiarimenti a pulsante, legenda dei contenitori |
 | `frontend/cliente.py` | L'unico punto di contatto col backend |
 | `frontend/presentazione.py` | Da risposta dell'API a messaggio leggibile: titolo, corpo, domanda, fonte |
 
@@ -259,7 +257,7 @@ Dove il sistema è pensato per cambiare senza riscritture:
 
 ## 8. Osservabilità
 
-Ogni turno — `analizza`, `continua`, `correggi` — è **una traccia MLflow**:
+Ogni turno — `analizza`, `domanda`, `continua` — è **una traccia MLflow**:
 
 ```
 traccia "analizza"                       ← input, output, foto allegata, tag

@@ -303,9 +303,6 @@ su quello scelto. Nei dati sta ancora fra le condizioni.
 cartone"), distinta dal nome interno con cui è scritto nei dati ("carta_e_cartone"), che
 resta la chiave.
 
-**Correzione** — Quando l'utente dichiara che l'oggetto riconosciuto è sbagliato: si
-rifanno ricerca e scelta a partire dalla sua parola, senza rileggere la foto.
-
 **Traccia (MLflow Tracing)** — La registrazione di un turno di conversazione: un albero di
 span con ingressi, uscite e durate. Ha sostituito le run per richiesta.
 

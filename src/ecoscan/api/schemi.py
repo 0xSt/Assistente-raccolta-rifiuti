@@ -126,13 +126,6 @@ class Continuazione(BaseModel):
     risposta: str = Field(description="ciò che l'utente ha risposto alla domanda")
 
 
-class Correzione(BaseModel):
-    """L'oggetto riconosciuto è sbagliato e l'utente dice qual è: si rifà solo la ricerca."""
-
-    contesto: dict
-    oggetto: str = Field(min_length=1, description="l'oggetto secondo l'utente")
-
-
 class Destinazione(BaseModel):
     """Un contenitore del comune, come va mostrato all'utente."""
 

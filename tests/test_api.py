@@ -135,30 +135,6 @@ def test_la_risposta_dice_quale_documento_ha_scelto(client):
         assert corpo["scelto_id"] in [c["id"] for c in corpo["candidati"]]
 
 
-def test_correggi_riparte_dall_oggetto_dell_utente(client):
-    """La foto non si rilegge: chi ha l'oggetto in mano vale più del modello di visione."""
-    prima = client.post(f"{PREFISSO}/analizza", data={"comune": "Torino"},
-                        files={"foto": ("f.jpg", b"contenuto", "image/jpeg")}).json()
-    dopo = client.post(f"{PREFISSO}/correggi",
-                       json={"contesto": prima["contesto"], "oggetto": "giornali e riviste"})
-    assert dopo.status_code == 200
-    corpo = dopo.json()
-    assert corpo["riconoscimento"]["oggetto"] == "giornali e riviste"
-    assert corpo["riconoscimento"]["confidenza"] == 1.0
-    assert corpo["contesto"]["id_conversazione"] == prima["contesto"]["id_conversazione"]
-
-
-def test_correggi_rifiuta_un_contesto_inventato(client):
-    assert client.post(f"{PREFISSO}/correggi",
-                       json={"contesto": {}, "oggetto": "x"}).status_code == 400
-
-
-def test_correggi_rifiuta_un_oggetto_vuoto(client):
-    risposta = client.post(f"{PREFISSO}/correggi",
-                           json={"contesto": {"comune": "Torino"}, "oggetto": ""})
-    assert risposta.status_code == 422
-
-
 # ------------------------------------------------------------------ domanda scritta
 
 def test_la_domanda_scritta_salta_il_modello_di_visione(client, risorse):
@@ -232,3 +208,10 @@ def test_i_canali_traducono_le_destinazioni(risorse):
     canali = risorse.canali("Torino")
     assert canali["carta_e_cartone"] == "raccolta_ordinaria"
     assert set(canali) == {d["nome"] for d in risorse.destinazioni("Torino")}
+
+
+def test_la_rotta_della_correzione_non_esiste_piu(client):
+    """La correzione dell'oggetto è stata tolta (D218): la rotta deve sparire con lei, non
+    restare esposta e non raggiungibile dall'interfaccia."""
+    assert client.post(f"{PREFISSO}/correggi",
+                       json={"contesto": {"comune": "Torino"}, "oggetto": "x"}).status_code == 404

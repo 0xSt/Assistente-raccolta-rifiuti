@@ -75,11 +75,6 @@ class ClienteAPI:
         return self._chiedi("POST", "/continua", ATTESA_LUNGA,
                             json={"contesto": contesto, "risposta": risposta})
 
-    def correggi(self, contesto: dict, oggetto: str) -> dict:
-        """L'oggetto riconosciuto era sbagliato: si rifà la ricerca con quello dell'utente."""
-        return self._chiedi("POST", "/correggi", ATTESA_LUNGA,
-                            json={"contesto": contesto, "oggetto": oggetto})
-
     def domanda(self, comune: str, oggetto: str, testo: str | None = None) -> dict:
         """L'utente scrive il nome dell'oggetto invece di fotografarlo: niente visione, ma
         il modello viene interrogato una volta per livello, quindi l'attesa resta lunga."""
