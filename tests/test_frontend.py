@@ -484,11 +484,20 @@ def test_la_domanda_e_una_riga_sola():
     assert "dipende" not in presentazione.messaggio(DOMANDA, ETICHETTE)
 
 
-def test_le_due_strade_si_imparano_dopo_la_risposta():
-    """È lì che servono: una delle due è la risposta per l'oggetto che si ha in mano."""
+def test_dopo_una_domanda_la_risposta_e_solo_la_destinazione():
+    """Chi ha appena risposto «unto» ha già deciso: l'altro ramo è quello che ha escluso, e
+    rimetterglielo sotto lo obbliga a rileggere due destinazioni per trovare la sua (D219)."""
     risposto = dict(DOMANDA, chiarimento=None)
+    testo = presentazione.messaggio(risposto, ETICHETTE, risposto="unto")
+    assert testo.startswith("Ok, unto: va in **Organico**.")
+    assert "Se invece" not in testo and "Carta e cartone" not in testo
+
+
+def test_senza_domanda_le_due_strade_restano():
+    """Lì nessuno ha chiesto niente, e le varianti sono l'unico posto in cui la regola si
+    impara per la volta dopo."""
     assert "Se invece è pulito: **Carta e cartone**." in \
-        presentazione.messaggio(risposto, ETICHETTE, risposto="unto")
+        presentazione.messaggio(dict(DOMANDA, chiarimento=None), ETICHETTE)
 
 
 # --------------------------------------------- il comune e il tempo, sotto la risposta

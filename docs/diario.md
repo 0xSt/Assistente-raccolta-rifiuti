@@ -29,7 +29,7 @@ Va aggiornato **a ogni cambiamento sostanziale**, non a ogni riga di codice. In 
 
 ---
 
-## Stato attuale (v0.54.0, 29/09/2026)
+## Stato attuale (v0.55.0, 30/09/2026)
 
 | Componente | Stato |
 |---|---|
@@ -101,6 +101,7 @@ Formato: decisione, motivazione, stato.
 | D216 | Sotto ogni risposta stanno il **comune** a cui si riferisce e i **secondi** che ha impiegato | Il comune perché appena in chat ci sono risposte di comuni diversi — ed è proprio ciò che l'app esiste per mostrare (D7) — il selettore dice dove si è *adesso*, non dov'era la risposta di qualche riga sopra. I secondi perché su CPU sono minuti e nasconderli non li accorcia: dichiararli fa del costo dell'esecuzione locale una caratteristica misurata invece di un difetto imbarazzato, ed è lo stesso numero che la valutazione riporta come p50. Il riquadro dell'attesa lo mostrava già, ma si chiude | Accettata |
 | D217 | Davanti a un chiarimento c'è un terzo pulsante, **«non lo so»**, che mostra tutti i rami e **non chiama il backend** | Due pulsanti senza terza via lasciano a chi non sa se il cartone è unto una sola mossa: chiudere la conversazione. I rami non rispondono al posto suo — nessuno può, è un'informazione che ha solo lui — ma gli danno la regola, e guardando l'oggetto decide da sé. Non si chiama il backend perché non mancano dati: mancano all'utente. La domanda resta aperta, così dopo aver letto può ancora rispondere. Vale solo per le domande sulla **condizione**, dove i rami sono le varianti del documento scelto: per quelle sul materiale starebbero in voci diverse, e ricostruirli sarebbe indovinare quale voce risponde a quale materiale | Accettata |
 | D218 | La **correzione dell'oggetto** si rimuove: via il riquadro «Non è un/una …?», il metodo dell'agente, la rotta `/correggi` e il suo schema | Decisione di Stef. Il riquadro chiedeva all'utente di fare il correttore di bozze di un modello, che non è il suo mestiere, e occupava spazio sotto ogni risposta da foto per un caso che l'utente risolve già da sé: se il riconoscimento è sbagliato, scrive il nome dell'oggetto e riparte: è lo stesso percorso, con un gesto che già conosce. Meno superficie pubblica (una rotta, uno schema, un metodo, un turno tracciato) a parità di cose che l'utente può fare | Accettata |
+| D219 | **Dopo una domanda la risposta è solo la destinazione**: le altre varianti non si elencano. Restano nelle risposte date senza domanda | Decisione di Stef, che riduce D198. Chi ha appena risposto «pulito» ha già deciso: ha l'oggetto in mano, e l'altro ramo è esattamente quello che ha escluso. Rimetterglielo sotto la risposta lo obbliga a rileggere due destinazioni per trovare la sua — il lavoro che la domanda gli aveva tolto. D198 sosteneva che le due strade si imparano dopo la risposta: vale dove nessuno ha chiesto niente, non dove l'utente ha appena scelto un ramo | Accettata |
 | D204 | Nel frontend non restano **espressioni nude**: un'espressione lasciata da sola dev'essere una chiamata di funzione o una stringa di documentazione, e un test lo verifica sull'albero sintattico | Streamlit stampa il valore di ogni espressione lasciata da sola ("magia"). `riquadro(testo) if riquadro else st.markdown(testo)` è un'espressione: nella chat finiva il `DeltaGenerator` restituito, con accanto la documentazione della classe. Non dà errore, non lo vede nessun test sul testo, e il codice sembra giusto a leggerlo: è esattamente il tipo di difetto che vale la pena affidare a un controllo automatico invece che all'occhio | Accettata |
 | D203 | Durante l'attesa si mostrano il **cronometro** e i passaggi che il sistema farà, **senza fingere** di sapere a che punto è | Su CPU una foto sono minuti, e uno spinner con una scritta ferma non distingue "sta lavorando" da "si è piantato". Il backend però risponde una volta sola: inventare un avanzamento a tempo sarebbe una barra di caricamento finta, che è una bugia piccola ma della stessa famiglia di quelle che questo progetto evita altrove. Si dice cosa farà — tre passaggi, che spiegano da soli perché ci mette tanto — e si mostra il tempo, che è l'unica cosa vera che si sappia | Accettata |
 | D198 | La domanda **non** elenca prima i contenitori fra cui cambia la risposta: è una riga e i pulsanti. Le due strade si scrivono dopo, sotto la risposta | Decisione di Stef, dopo aver provato "scarpe vecchie". Sembrava che la posta in gioco spiegasse la domanda; in realtà la anticipava, e davanti a due pulsanti che portano le stesse parole della domanda non c'era niente da spiegare. Sotto la risposta le stesse due strade valgono di più, perché una è quella giusta per l'oggetto che si ha in mano: per questo cade anche la parte di D196 che le nascondeva al secondo turno | Accettata |
@@ -373,6 +374,16 @@ Cose imparate che non sono decisioni, ma che conviene ricordare.
 ---
 
 ## Cronologia
+
+### v0.55.0 — 30/09/2026
+
+**Dopo una domanda, la risposta è solo la destinazione** (D219, che riduce D198). A
+«pulito» il sistema rispondeva «Ok, pulito: va in Carta e Cartoncino. Se invece è unto:
+Organico»; ora si ferma alla prima frase. Le altre varianti restano dove servono ancora,
+cioè nelle risposte date senza che sia stata posta una domanda.
+
+Cambia un punto solo — `corpo()` riceve `risposto` e salta le varianti quando c'è — e
+l'istantanea del comportamento lo conferma: due sole righe diverse, entrambe volute.
 
 ### v0.54.0 — 29/09/2026
 

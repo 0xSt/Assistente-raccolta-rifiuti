@@ -201,16 +201,22 @@ def titolo(risposta: dict, etichette: dict[str, str] | None = None,
     return f"{oggetto}: {verbo} **{nomi}**{coda}."
 
 
-def corpo(risposta: dict, etichette: dict[str, str] | None = None) -> str:
+def corpo(risposta: dict, etichette: dict[str, str] | None = None,
+          risposto: str | None = None) -> str:
     """Il resto del messaggio: l'altra strada, l'avvertenza, il come, il livello.
 
-    L'altra strada si scrive **anche** dopo una domanda (D198): è lì che si impara la regola,
-    perché una delle due è la risposta per l'oggetto che si ha in mano. La domanda, che ora è
-    solo una domanda, non l'ha anticipata.
+    **Dopo una domanda l'altra strada non si scrive** (D219, che riduce D198). Chi ha appena
+    risposto «pulito» ha già deciso: l'oggetto ce l'ha in mano, e l'altro ramo è quello che
+    ha appena escluso. Rimetterglielo sotto la risposta lo obbliga a rileggere due
+    destinazioni per capire quale delle due lo riguarda, che è esattamente il lavoro che la
+    domanda gli aveva tolto.
+
+    Resta invece quando la risposta arriva **senza** che sia stata fatta una domanda: lì le
+    varianti sono l'unico posto in cui la regola si impara, perché nessuno ha chiesto niente.
     """
     righe: list[str] = []
 
-    if alternative := altre_varianti(risposta, etichette):
+    if risposto is None and (alternative := altre_varianti(risposta, etichette)):
         righe.append(alternative)
     if avvertenza := risposta.get("avvertenza"):
         righe.append(f"⚠️ {avvertenza}")
@@ -459,4 +465,4 @@ def messaggio(risposta: dict, etichette: dict[str, str] | None = None,
     if chiede := domanda(risposta):
         return chiede
     return "\n\n".join(p for p in (titolo(risposta, etichette, risposto),
-                                   corpo(risposta, etichette)) if p)
+                                   corpo(risposta, etichette, risposto)) if p)
