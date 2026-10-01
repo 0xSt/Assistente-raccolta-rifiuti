@@ -1,0 +1,3 @@
+{"file": "bottiglia-plastica.jpg", "comune": "Napoli", "oggetto": "bottiglia di plastica", "destinazioni_attese": ["Plastica e Metalli"], "nota": "controllo facile: se fallisce questo e' rotto qualcosa di grosso"}
+{"file": "lattina.jpg", "comune": "Napoli", "oggetto": "lattina in alluminio", "destinazioni_attese": ["Plastica e Metalli"], "nota": "oggetto piccolo e lucido: il riflesso e' una difficolta' vera per la visione"}
+{"file": "cartone-pizza.jpg", "comune": "Napoli", "oggetto": "cartone della pizza", "testo_utente": "e' unto", "destinazioni_attese": ["Organico"], "nota": "il caso che ha guidato il progetto: la condizione la dichiara l'utente, non la foto"}

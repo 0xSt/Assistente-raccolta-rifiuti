@@ -58,7 +58,7 @@ def spiegazione_livello(risposta: dict) -> str:
     if (risposta.get("tipo_corrispondenza") or "") != "categoria":
         return ""
     voce = (documento_scelto(risposta) or {}).get("nome") or ""
-    return f"{CATEGORIA}: la regola è quella di «{voce}»." if voce else f"{CATEGORIA}."
+    return f"{CATEGORIA}: la voce è quella di «{voce}»." if voce else f"{CATEGORIA}."
 
 
 # Quanto fidarsi, come lo vede l'interfaccia: il livello di evidenza smette di essere una
