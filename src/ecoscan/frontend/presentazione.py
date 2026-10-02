@@ -28,7 +28,7 @@ from __future__ import annotations
 from ecoscan import condizioni as condizioni_
 from ecoscan.procedure import ORDINARIO
 
-VERBO = {"escluso": "**non** va in", "ammesso": "va in"}
+VERBO = {"escluso": "**non** va in", "ammesso": " "}
 
 # Al livello 1 non si scrive niente: la voce nomina l'oggetto, che è ciò che l'utente si
 # aspetta già. Restano i casi in cui la risposta vale **meno** di così, e lì si dichiara.
@@ -191,7 +191,7 @@ def titolo(risposta: dict, etichette: dict[str, str] | None = None,
     destinazioni = risposta.get("destinazioni") or []
     if not destinazioni:
         return "Non so dove va questo oggetto."
-    verbo = VERBO.get(risposta.get("polarita") or "", "va in")
+    verbo = VERBO.get(risposta.get("polarita") or "", " ")
     nomi = " oppure ".join(etichette_di(destinazioni, etichette))
     condizioni = risposta.get("condizioni") or []
     if apertura := ripresa_di(condizioni, risposto, nomi):

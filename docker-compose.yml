@@ -62,9 +62,12 @@ services:
     environment:
       ECOSCAN_QDRANT: http://qdrant:6333
       ECOSCAN_MLFLOW: http://mlflow:5000
-      # Ollama gira sull'host: i container lo raggiungono così
-      ECOSCAN_OLLAMA: http://host.docker.internal:11434/api/embed
-      ECOSCAN_OLLAMA_CHAT: http://host.docker.internal:11434/api/chat
+      # Ollama gira sull'host: i container lo raggiungono così. Con il profilo
+      # "completo" si punta al container cambiando le due righe nel .env:
+      #   ECOSCAN_OLLAMA=http://ollama:11434/api/embed
+      #   ECOSCAN_OLLAMA_CHAT=http://ollama:11434/api/chat
+      ECOSCAN_OLLAMA: ${ECOSCAN_OLLAMA:-http://host.docker.internal:11434/api/embed}
+      ECOSCAN_OLLAMA_CHAT: ${ECOSCAN_OLLAMA_CHAT:-http://host.docker.internal:11434/api/chat}
     volumes:
       # Il database è un artefatto dell'ETL, che resta un lavoro da riga di comando:
       # il backend lo legge e basta (lo apre comunque in sola lettura).
@@ -103,13 +106,28 @@ services:
   ollama:
     # Solo per la consegna: in sviluppo Ollama sta sull'host, dove il modello è già
     # scaricato e resta caricato in memoria fra un riavvio e l'altro dei container.
+    #
+    # La versione è la stessa dell'host su cui sono state prese le misure: gemma3
+    # richiede almeno la 0.6.0 ed embeddinggemma è più recente ancora, quindi un tag
+    # vecchio fa partire il container e fallire il primo `pull` del modello.
+    #
+    # Il container nasce senza modelli; dopo l'avvio, una volta sola:
+    #   docker compose exec ollama ollama pull gemma3:4b
+    #   docker compose exec ollama ollama pull embeddinggemma
     profiles: ["completo"]
-    image: ollama/ollama:0.5.4
+    image: ollama/ollama:0.34.3
     container_name: ecoscan_ollama
     ports:
-      - "11434:11434"
+      # porta host diversa dalla 11434: senza, il container non parte quando Ollama
+      # è già in esecuzione sull'host. Dentro la rete di compose resta la 11434.
+      - "11435:11434"
     volumes:
       - ollama_modelli:/root/.ollama
+    healthcheck:
+      test: ["CMD-SHELL", "ollama list >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
 
 volumes:
   qdrant_dati:
