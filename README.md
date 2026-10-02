@@ -1,20 +1,16 @@
 # EcoScan Local
 
-Assistente per la raccolta differenziata che gira **interamente in locale**: nessuna
-fotografia lascia la macchina dell'utente.
+Assistente per la raccolta differenziata che gira **interamente in locale**.
 
 Si fotografa un oggetto (o se ne scrive il nome), si indica il comune, e l'app risponde in
 quale contenitore conferirlo citando la fonte ufficiale da cui proviene la regola. Quando
-la destinazione dipende da una condizione dell'oggetto che non è stata dichiarata — il
-cartone della pizza va nella carta se pulito e nell'organico se unto — il sistema la chiede
-invece di indovinarla; quando nessuna regola del comune copre l'oggetto, dichiara di non
-saperlo invece di proporre un contenitore a caso.
+la destinazione dipende da una condizione dell'oggetto che non è stata dichiarata, il sistema la chiede
+invece di indovinarla.
 
-Le regole sono estratte dai dizionari pubblicati dai gestori del servizio e indicizzate
+Le regole sono estratte da fonti pubblicate dai gestori del servizio e indicizzate
 come documenti ricercabili: il modello sceglie fra documenti reali, non scrive la risposta.
 
-Progetto universitario, versione **v0.55.0**. Comuni del prototipo: **Napoli** (ASIA) e
-**Torino** (AMIAT).
+Comuni del prototipo: **Napoli** e **Torino**.
 
 ---
 
@@ -41,7 +37,7 @@ docker compose up -d qdrant mlflow
                                 # Qdrant: http://localhost:6333/dashboard
                                 # MLflow: http://localhost:5000
 
-# 4. dati: normalizza, carica nel relazionale, indicizza su Qdrant
+# 4. Extraction-Transform-Load pipeline: normalizza, carica nel relazionale, indicizza su Qdrant
 uv run ecoscan-etl
 
 # 5. applicazione
@@ -50,8 +46,7 @@ uv run ecoscan-frontend         # interfaccia: http://localhost:8501
 ```
 
 Il passo 4 parte dai dati grezzi già versionati nel repository e dura pochi secondi. Per
-riscaricare le fonti dai siti dei gestori serve `uv run ecoscan-etl --da estrazione`, che
-richiede circa quindici minuti.
+riscaricare le fonti dai siti dei gestori serve `uv run ecoscan-etl --da estrazione`.
 
 ### Tutto in container
 
@@ -72,7 +67,6 @@ funzionano da qualsiasi cartella.
 | `ecoscan-valuta-foto` | Valutazione end-to-end dalle fotografie: costo della visione e tempi |
 | `ecoscan-campiona` | Estrae voci dal database da cui scrivere nuovi casi di valutazione |
 | `ecoscan-prompt` | Elenca i prompt con versione e impronta, e li pubblica su MLflow |
-| `ecoscan-ispeziona` | Ispezione di grezzo, nomi e documenti; non scrive nulla |
 | `ecoscan-vettorizza` | Indicizza i documenti su Qdrant (incluso in `ecoscan-etl`) |
 
 Le singole fasi della catena dati, se serve eseguirne una sola: `ecoscan-napoli` e
