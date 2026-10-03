@@ -15,6 +15,7 @@ __pycache__/
 *.db
 data/qdrant/
 
+docs 
 # Impostazioni locali: il modello versionato è .env.example
 .env
 
