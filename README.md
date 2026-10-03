@@ -78,10 +78,3 @@ uv run pytest                   # i test di Torino si saltano se il PDF non è p
 uv run ruff check src tests
 ```
 
-## Documentazione
-
-- [docs/architettura.md](docs/architettura.md) — come è fatto il sistema e perché
-- [docs/diario.md](docs/diario.md) — stato del progetto, decisioni prese, questioni aperte
-- [docs/valutazione.md](docs/valutazione.md) — cosa si misura e con quali metriche
-- [docs/fonti.md](docs/fonti.md) · [docs/qualita_dati.md](docs/qualita_dati.md) ·
-  [docs/glossario.md](docs/glossario.md)
