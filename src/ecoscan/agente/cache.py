@@ -1,25 +1,5 @@
 """La stessa foto non si guarda due volte.
 
-Su CPU il riconoscimento è il passaggio lento: minuti, contro i secondi di tutto il resto.
-Ed è anche il più ripetuto, perché chi prova il sistema rifotografa lo stesso oggetto
-decine di volte per confrontare una modifica, e chi lo usa spesso riprova dopo un errore.
-
-La chiave è l'**impronta della foto**, già calcolata a ogni richiesta per le tracce, più il
-testo dell'utente: le stesse parole sulla stessa immagine devono dare lo stesso
-riconoscimento, perché il prompt riceve entrambi.
-
-Sta dietro l'interfaccia `ModelloVisione`, come decoratore: l'agente non sa che esiste, e
-toglierla è cambiare una riga in `Risorse`. Vale per qualunque modello, presente o futuro.
-
-**Cosa non fa, di proposito.** Non si conserva su disco e non sopravvive al riavvio del
-backend: un riconoscimento è il giudizio di un modello su una versione di un prompt, e
-tenerlo oltre la vita del processo rischierebbe di servire risposte prodotte da una
-configurazione che non esiste più. La memoria è limitata (`ECOSCAN_CACHE_RICONOSCIMENTI`,
-0 la spegne) e si svuota dalla voce più vecchia.
-
-La **scelta** non si mette in cache: dipende dai candidati, che cambiano con l'indice e con
-le politiche del codice, e metterla in cache renderebbe invisibile proprio ciò che stiamo
-misurando.
 """
 from __future__ import annotations
 

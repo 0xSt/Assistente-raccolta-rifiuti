@@ -1,11 +1,5 @@
 """Interfaccia a chat: si allega una foto e si riceve una risposta.
 
-Il funzionamento ricalca quello dei comuni assistenti: un campo unico in basso dove si
-scrive e si allega. La conversazione serve a qualcosa di preciso: quando l'agente non è
-sicuro fa una domanda, e la risposta dell'utente arriva come messaggio successivo.
-
-Il frontend non sa nulla di Qdrant, Ollama o del database: parla solo con il backend
-(`frontend/cliente.py`). Un test verifica che resti così.
 """
 from __future__ import annotations
 

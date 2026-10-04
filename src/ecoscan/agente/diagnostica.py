@@ -1,11 +1,6 @@
 """Diagnostica del canale immagine verso Ollama.
 
-Una descrizione sbagliata non dice se il modello vede male o non vede affatto. Qui si
-costruisce un'immagine il cui contenuto è noto con certezza — un rettangolo di un colore
-pieno — e si chiede al modello di dire quale colore è. Se sbaglia, il canale è rotto:
-nessun modello che riceve un'immagine tutta rossa risponde "griglia di blocchi".
 
-Il PNG è generato a mano, senza librerie: servono una ventina di righe e nessuna dipendenza.
 """
 from __future__ import annotations
 

@@ -1,28 +1,5 @@
 """Tracciamento delle conversazioni su MLflow Tracing.
 
-**Cosa si registra.** Tre cose, e basta:
-
-1. **input e output di ogni turno** di conversazione. Ogni chiamata ad `analizza` o a
-   `continua` produce una traccia; dentro ci sono gli span delle chiamate al modello
-   (riconoscimento e scelta) con i loro ingressi e le loro uscite. La foto viene salvata
-   come allegato della traccia. I turni della stessa conversazione condividono la sessione
-   (`mlflow.trace.session`), così si leggono insieme;
-2. **i risultati del retrieval**: uno span RETRIEVER per livello di evidenza, con le
-   formulazioni poste all'indice e i documenti restituiti;
-3. **la versione dell'applicazione**: i parametri significativi (modelli, `k`, soglie,
-   prompt) formano un LoggedModel a cui ogni traccia è collegata, e le versioni dei prompt
-   pubblicate nel registro sono collegate a ogni traccia.
-
-L'evaluation non è qui: si imposterà in seguito, sopra queste tracce.
-
-**Non bloccante, per scelta.** Se MLflow è spento, lento o rifiuta la scrittura, l'utente
-riceve comunque la sua risposta. Ogni errore di MLflow viene inghiottito e segnalato una
-volta sola; gli errori dell'agente invece passano sempre, perché nasconderli sarebbe peggio.
-Se il server non risponde, si riprova dopo `ECOSCAN_MLFLOW_RIPROVA` secondi: MLflow può
-partire dopo il backend senza costringere a riavviarlo.
-
-**L'agente non importa `mlflow`.** Usa questo modulo attraverso `Tracciatore` oppure
-`TracciatoreNullo`, che non fa nulla: i test dell'agente girano senza MLflow.
 """
 from __future__ import annotations
 

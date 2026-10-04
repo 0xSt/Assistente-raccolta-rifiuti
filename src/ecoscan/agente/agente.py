@@ -9,12 +9,6 @@ Quattro passaggi:
 4. **variante e risposta** — se l'oggetto ha più varianti, quella giusta la determina la
    condizione dichiarata dall'utente; se non è dichiarata, si chiede.
 
-La divisione dei compiti è il punto: il modello riconosce e sceglie l'**oggetto**, il codice
-decide la **variante**, perché è lì che si gioca la differenza fra organico e carta.
-
-Il tracciamento passa per un oggetto sostituibile (`tracciatore`): ogni turno è una traccia,
-ogni recupero uno span RETRIEVER, ogni chiamata al modello uno span LLM. Senza tracciatore
-l'agente funziona uguale e non importa MLflow.
 """
 from __future__ import annotations
 
@@ -59,8 +53,7 @@ class Richiesta:
     """Cosa si sta cercando, in un oggetto solo.
 
     Riconoscimento, comune, parole dell'utente e "ho già chiesto" viaggiano insieme in ogni
-    passaggio: passarli uno per uno faceva firme da sei e sette parametri, in cui l'ordine
-    contava più del significato.
+    passaggio.
     """
 
     riconoscimento: Riconoscimento
@@ -109,14 +102,6 @@ class Agente:
                                   richiesta: Richiesta) -> tuple[list[Candidato], list[str]]:
         """Toglie i documenti che dichiarano un materiale diverso da quello dell'oggetto.
 
-        Davanti a una forchetta d'acciaio il modello ha scelto "Forchetta in plastica", pur
-        avendo riconosciuto l'acciaio: il nome somigliava, e nessuno gli impediva di
-        ignorare il materiale. Togliere quei documenti prima della scelta è più sicuro che
-        sperare che il prompt basti, e vale per qualunque modello.
-
-        Se lo scarto svuoterebbe l'elenco non si scarta nulla: un riconoscimento sbagliato
-        sul materiale renderebbe muto il sistema, e una risposta imperfetta è più utile di
-        nessuna risposta.
         """
         materiali = richiesta.riconoscimento.materiali
         # si guarda il NOME del documento, non tutto il testo: il testo dice anche dove va
@@ -132,9 +117,6 @@ class Agente:
     def recupera(self, richiesta: Richiesta, livello: int) -> list[Candidato]:
         """La ricerca a un livello di evidenza, tracciata come span RETRIEVER.
 
-        È pubblico perché la valutazione lo chiama per misurare il tetto senza eseguire la
-        scelta: un metodo privato usato da fuori è una dipendenza che nessuno dichiara, e
-        al primo refactoring si rompe in silenzio.
         """
         poste = richiesta.domande
         with self.tracciatore.span(f"recupero_livello{livello}", RETRIEVER,
@@ -152,8 +134,7 @@ class Agente:
         """La scelta vincolata del modello fra i documenti trovati.
 
         Se il modello indica un documento ma dichiara che non corrisponde davvero
-        (`solo_materiale`, `nessuna`), la politica lo scarta: vale per qualunque modello,
-        quindi sta qui e non nel prompt.
+        (`solo_materiale`, `nessuna`), la politica lo scarta.
         """
         with self.tracciatore.span(f"scelta_livello{livello}", LLM, {
                 "prompt": prompt_.carica("scelta").etichetta, "modello": self.modello.nome,
@@ -182,9 +163,6 @@ class Agente:
                        richiesta: Richiesta) -> tuple[Candidato, str]:
         """Il documento che nomina proprio l'oggetto batte quello generico.
 
-        Il modello preferisce il generico: davanti a un cartone della pizza ha scelto
-        "Cartone da imballaggio" mentre "Cartone per pizze" era il primo risultato.
-        Restituisce il documento e la nota da aggiungere al motivo.
         """
         nomina = partial(nomina_l_oggetto, riconoscimento=richiesta.riconoscimento,
                          testo_utente=richiesta.testo_utente)
@@ -198,24 +176,6 @@ class Agente:
                                    richiesta: Richiesta) -> str:
         """Che tipo di corrispondenza è, secondo il codice e non secondo il modello.
 
-        Il modello dichiara il tipo (D83) ma lo sbaglia in entrambe le direzioni, e da
-        quando la presentazione lo mostra all'utente (D163) un'etichetta sbagliata è una
-        frase falsa:
-
-        - per un **divano** a Napoli il documento scelto era proprio "Divano", e il modello
-          ha dichiarato "categoria" motivandolo con "il divano rientra nella categoria
-          mobile". Il messaggio diceva "il comune non elenca proprio questo oggetto" mentre
-          il comune lo elencava, con tanto di pagina dedicata nella fonte citata;
-        - per un **microonde** il documento era un fratello e il tipo dichiarato era ancora
-          "categoria", stavolta troppo generoso.
-
-        Il primo caso il codice lo può decidere da solo: se il nome del documento nomina
-        l'oggetto, è quell'oggetto, comunque il modello abbia voluto chiamare la relazione.
-        Il secondo no — stabilire se una voce *contiene* l'oggetto richiede il senso delle
-        parole — e resta affidato al prompt.
-
-        È lo stesso principio di D83, applicato all'etichetta invece che alla scelta: ciò
-        che il codice può verificare, il codice lo verifica.
         """
         if dichiarato == STESSO_OGGETTO:
             return dichiarato
@@ -227,20 +187,8 @@ class Agente:
                                richiesta: Richiesta) -> list[str]:
         """I materiali che distinguono documenti omonimi, quando non sappiamo quale sia.
 
-        È il difetto che restava scoperto: il chiarimento nasceva solo dalle **condizioni**
-        di una voce (D73), quindi "bicchiere" — che a Napoli può essere di vetro (Non
-        Riciclabile) o di plastica (Plastica e Metalli) — non produceva nessuna domanda. Il
-        modello ne sceglieva uno e basta, e l'utente non aveva modo di sapere che la
-        risposta dipendeva da un'informazione che non aveva dato.
-
-        Si chiede solo quando la domanda **cambierebbe la risposta**: due materiali almeno,
-        che portano in contenitori diversi, fra documenti che nominano davvero l'oggetto. Se
-        il riconoscimento il materiale l'ha già dichiarato, non c'è niente da chiedere: a
-        quel punto tocca al filtro dei materiali togliere i documenti incompatibili.
         """
-        # il materiale può essere noto anche senza essere fra i `materiali`: chi scrive
-        # "capsule di plastica del caffè" l'ha già detto, e chiederglielo è farglielo
-        # ripetere. Osservato il 25/09
+        
         detto = f"{richiesta.riconoscimento.oggetto or ''} {richiesta.testo_utente or ''}"
         if richiesta.riconoscimento.materiali or materiali_.famiglie_nel_testo(detto):
             return []
@@ -254,12 +202,6 @@ class Agente:
     def _chiarimento(da_chiarire: list[str], materiali: list[str], scelta: Scelta,
                      gia_chiesto: bool) -> tuple[str | None, list[str]]:
         """La domanda da fare e le risposte possibili.
-
-        Le condizioni diventano i pulsanti dell'interfaccia, e la domanda cambia con la loro
-        natura: "com'è" per lo stato, "quanto ne hai" per le quantità, "chi lo conferisce"
-        per le utenze, "di che materiale è" per le voci omonime. Dopo una domanda già fatta
-        non se ne fa un'altra: l'utente ha risposto, e ripetergliela lo lascerebbe in un giro
-        senza uscita.
 
         L'ordine è una precedenza: la condizione della voce scelta è più specifica del
         materiale, perché riguarda proprio quel documento; il chiarimento suggerito dal
@@ -354,9 +296,6 @@ class Agente:
 
     def _cascata(self, richiesta: Richiesta) -> tuple[Risposta | None, list[Candidato]]:
         """Prima il dizionario degli oggetti, poi le regole di categoria.
-
-        L'ordine è la garanzia del livello di evidenza: una voce che nomina l'oggetto vale
-        più di una regola generale, e si scende al livello 2 solo se il livello 1 tace.
         """
         tutti: list[Candidato] = []
         for livello in (1, 2):
@@ -381,12 +320,6 @@ class Agente:
     def _con_la_risposta(riconoscimento: dict, risposta_utente: str) -> Riconoscimento:
         """Il riconoscimento aggiornato con ciò che l'utente ha appena detto.
 
-        Dove finisce la risposta dipende da cosa è: una condizione va nello **stato**, un
-        materiale nei **materiali**. Metterlo sempre nello stato era giusto finché si
-        chiedevano solo le condizioni; da quando si chiede anche il materiale, lo stato
-        "vetro" non servirebbe a niente — il filtro dei materiali guarda `materiali`, e le
-        formulazioni cercano "oggetto + materiale" (D164). La domanda cambierebbe la
-        risposta solo per caso.
         """
         campi = dict(riconoscimento)
         if materiali_.dichiarato(risposta_utente or ""):
@@ -397,10 +330,6 @@ class Agente:
 
     def domanda(self, comune: str, oggetto: str, testo: str | None = None) -> Risposta:
         """L'utente scrive il nome dell'oggetto invece di fotografarlo.
-
-        Salta il modello di visione, che è il passaggio lento, e parte dall'oggetto detto
-        dall'utente come se l'avesse riconosciuto lui: stessa cascata, stessa scelta, stesse
-        tracce. Serve a chi sa già come si chiama la cosa, e a chi non ha la foto sottomano.
 
         La confidenza è massima perché qui non c'è un'ipotesi
         di un modello da soppesare, c'è quello che l'utente ha scritto.

@@ -46,10 +46,6 @@ PAROLE_DI_SERVIZIO = {"dell", "della", "del", "dei", "degli", "delle", "dal", "d
 def radice(parola: str, minimo: int = 5) -> str:
     """Toglie la vocale finale alle parole lunghe: l'utente scrive al plurale e la fonte
     al singolare ("non utilizzabili" contro "non utilizzabile").
-
-    `minimo` è 5 di norma, perché troncare parole corte fa collidere cose diverse. Le
-    **condizioni** usano 4: sono aggettivi, e l'accordo di genere le manda a vuoto — la
-    fonte scrive "unto" e l'utente "è tutta unta", che è la stessa cosa detta al femminile.
     """
     return parola[:-1] if len(parola) >= minimo and parola[-1] in "aeio" else parola
 
@@ -62,8 +58,6 @@ def _radicalizza(testo: str, minimo: int = 5) -> str:
 def menzionata(condizione: str, noto: str) -> bool:
     """La condizione compare nel testo, tenendo conto della negazione.
 
-    "unto" NON è menzionata in "non unto": senza questo controllo le due varianti di un
-    oggetto sarebbero indistinguibili proprio quando l'utente è stato più preciso.
     """
     # minimo 4: gli aggettivi cambiano genere e numero, e "unta" deve valere "unto"
     testo = _radicalizza(noto, minimo=4)
@@ -144,8 +138,7 @@ def nomina_l_oggetto(candidato: Candidato, riconoscimento: Riconoscimento,
     """Il documento nomina proprio l'oggetto riconosciuto?
 
     "Cartone della pizza" e "Cartone per pizze" condividono le parole che contano; "Cartone
-    da imballaggio" no. Serve a preferire il documento specifico a quello generico, che è
-    l'errore che il modello continua a fare.
+    da imballaggio" no.
     """
     nome = _radicalizza(candidato.nome or candidato.testo.split(".")[0])
     for testo in (riconoscimento.oggetto, testo_utente):
@@ -160,10 +153,7 @@ def nucleo(nome: str) -> tuple[str, ...]:
     """Le parole di un nome che dicono *cosa* è l'oggetto: né materiali né parole di servizio.
 
     "Bicchiere di vetro" e "Bicchiere in plastica" hanno lo stesso nucleo — `bicchier` — e
-    differiscono solo per il materiale. È il modo di riconoscere gli omonimi guardando i
-    **documenti** invece della domanda: `nomina_l_oggetto` chiede che la domanda contenga
-    tutte le parole del nome, che è giusto per preferire il documento specifico e troppo
-    stretto per accorgersi che due candidati parlano della stessa cosa.
+    differiscono solo per il materiale.
     """
     parole = re.findall(r"[a-zà-ù0-9]+", (nome or "").lower())
     return tuple(radice(p) for p in parole
@@ -173,17 +163,7 @@ def nucleo(nome: str) -> tuple[str, ...]:
 
 def stessa_cosa(uno: str, altro: str) -> bool:
     """Due nomi parlano dello stesso oggetto, a meno del materiale e delle qualificazioni.
-
-    Servono **due** condizioni, e la prima è quella che conta:
-
-    - la **testa** dev'essere la stessa. In italiano il nome dell'oggetto viene per primo e
-      le qualificazioni seguono: "Vaschette alimentari" è una vaschetta, "Cartone da
-      imballaggio" è un cartone. Senza questo vincolo bastava una parola in comune in coda,
-      e "Polistirolo espanso: gusci e barre **da imballaggio**" diventava parente di
-      "Cartone **da imballaggio**" — da cui la domanda "carta oppure plastica?" su un
-      polistirolo, osservata il 25/09;
-    - il resto per **inclusione**, così "Vaschette in alluminio" e "Vaschette alimentari in
-      plastica" restano la stessa cosa detta con una parola in più.
+    - la testa dev'essere la stessa
     """
     primo, secondo = nucleo(uno), nucleo(altro)
     if not (primo and secondo) or primo[0] != secondo[0]:
@@ -195,8 +175,7 @@ def scegli_variante(candidato: Candidato, testi: list[str | None]) -> tuple[Vari
     """La variante che corrisponde a ciò che sappiamo, e le condizioni ancora in gioco.
 
     Se l'oggetto ha una variante sola, non c'è nulla da decidere. Se ne ha più d'una e
-    l'utente ha dichiarato la condizione, si prende quella: "è unto" manda il cartone
-    nell'organico e quello pulito nella carta, ed è la differenza che dà senso all'app.
+    l'utente ha dichiarato la condizione, si prende quella.
     Se nessuna corrisponde, le condizioni tornano indietro per farne una domanda.
     """
     varianti = candidato.varianti

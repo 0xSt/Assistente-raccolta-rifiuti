@@ -1,17 +1,5 @@
 """Le API del backend.
 
-Il backend è **senza stato**: dopo un chiarimento il client rimanda il `contesto` ricevuto,
-e non esistono sessioni da creare, far scadere o perdere (decisione presa per il prototipo).
-
-È anche di **sola lettura** sui dati: l'ETL resta una serie di comandi separati, così il
-servizio che risponde alle richieste non può corrompere ciò che serve a rispondere.
-
-Le rotte sono raggruppate per area (stato, agente, ricerca) in funzioni separate:
-`crea_app` costruisce le dipendenze e le monta, invece di essere un blocco unico in cui
-ogni rotta nuova allunga la stessa funzione.
-
-Uso:
-  uv run ecoscan-api                    # http://localhost:8000/docs
 """
 from __future__ import annotations
 

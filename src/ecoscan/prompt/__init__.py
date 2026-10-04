@@ -5,10 +5,6 @@ Ogni file comincia con righe di commento che ne dichiarano versione e scopo:
     # versione: 1
     # scopo: ...
 
-Questo permette di registrare in ogni traccia *quale* prompt ha prodotto un risultato.
-Quando una risposta peggiora, la domanda "cosa era cambiato nel prompt" ha una risposta,
-e il confronto fra due versioni è un diff.
-
 L'impronta è calcolata sul contenuto: se qualcuno modifica un prompt senza alzare la
 versione, l'impronta cambia lo stesso e la differenza resta visibile.
 """

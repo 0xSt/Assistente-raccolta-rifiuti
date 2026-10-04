@@ -27,11 +27,6 @@ class Riconoscimento:
     def formulazione_estesa(self) -> str:
         """Formulazione estesa: oggetto, materiali e stato insieme.
 
-        I materiali si fermano a due. Il modello di visione ne elenca volentieri quattro
-        ("acciaio inossidabile, vetro, plastica, metallo" per un microonde) e una domanda
-        così lunga parla più di *di cosa è fatto* che di *cos'è*: l'oggetto diventa una
-        parola su cinque e la ricerca si sposta sui materiali. Due bastano a dare il
-        contesto senza annegarlo.
         """
         materiali = self.materiali[:self.MATERIALI_NELLA_FORMULAZIONE]
         return " ".join(filter(None, [self.oggetto, *materiali, self.stato])).strip()
@@ -39,48 +34,21 @@ class Riconoscimento:
     @property
     def formulazione_base(self) -> str:
         """Solo l'oggetto e il suo stato.
-
-        Serve perché i materiali, messi nella stessa domanda, trascinano la ricerca verso
-        ciò che è *fatto di* quel materiale: cercando "sandalo gomma plastica tessuto" si
-        ottengono gomme da masticare e righelli di plastica, e il sandalo sparisce.
         """
         return " ".join(filter(None, [self.oggetto, self.stato])).strip()
 
     def formulazioni(self, massimo: int = 7) -> list[str]:
         """Le domande da porre all'indice.
 
-        Sono divise in due gruppi, e la divisione è il punto: le **essenziali** entrano
-        sempre, le **aggiuntive** riempiono i posti che restano. Un elenco unico ordinato
-        per specificità sembrava ragionevole e si è rotto due volte allo stesso modo — una
-        domanda che serviva stava in fondo e il tetto la tagliava proprio nei casi in cui
-        serviva:
-
-        - la **forchetta d'acciaio** (v0.37.0): la domanda con il materiale era in coda,
-          e "Stoviglie in metallo" non veniva mai raggiunta da "forchetta" da sola;
-        - il **microonde** (v0.40.2): la domanda con la sola categoria era in coda dopo i
-          sinonimi, e "Elettrodomestici" non usciva mai.
-
-        Le quattro essenziali coprono i quattro modi in cui il dizionario nomina le cose:
-        per oggetto, per oggetto con contesto, per materiale, per categoria. I dizionari
-        comunali contengono voci generiche ("Elettrodomestici", "Stoviglie in metallo") che
-        solo la domanda astratta raggiunge: senza, restano invisibili alla ricerca.
-
-        I sinonimi restano aggiuntivi ma abbondanti: sono il ponte fra il vocabolario del
-        modello e quello della fonte — il modello dice "sandalo", ASIA scrive "Scarpe" — e
-        senza di loro la ricerca su una parola sola restituisce parole che le somigliano
-        soltanto nella forma ("Salse", "Sdraio", "Scaldabagno").
         """
         essenziali = [self.formulazione_base]
         if self.categoria:
-            # "sandalo" da solo è ambiguo e recupera rumore ("Salse", "Sdraio"); "sandalo
-            # calzatura" dà al modello di embedding il contesto che gli manca
+
             essenziali.append(f"{self.oggetto} {self.categoria}")
-            # la categoria DA SOLA: è l'unica domanda che raggiunge le voci generiche del
-            # dizionario, quelle che non nominano nessun oggetto in particolare
             essenziali.append(self.categoria)
+            
         if self.materiali:
-            # un materiale solo: nel dizionario le voci sono scritte "Stoviglie in metallo",
-            # e "forchetta" da sola non le raggiunge
+
             essenziali.append(f"{self.oggetto} {self.materiali[0]}")
 
         aggiuntive = [*self.sinonimi]
@@ -128,8 +96,6 @@ class Variante:
 class Candidato:
     """Un documento proposto dalla ricerca: un oggetto con le sue varianti, o una regola.
 
-    Tutto ciò che serve a rispondere è qui, perché viene dal payload del documento: non si
-    legge più nulla dal relazionale a tempo di risposta.
     """
 
     id: str

@@ -1,59 +1,5 @@
 """Misurare il recupero e la scelta, separatamente.
 
-**Perché separarli.** In un sistema come questo il recupero è un filtro che nessuno può
-aggirare: se il documento giusto non è fra i candidati, nessun modello, nessun prompt e
-nessuna riformulazione potranno sceglierlo. Il recupero fissa quindi un **tetto** alla
-correttezza finale, e la scelta può solo restare sotto quel tetto.
-
-Da qui la struttura della misura. Per ogni caso si guardano due cose:
-
-1. **recupero** — fra i candidati c'è almeno un documento che porta alla destinazione
-   attesa? È il classico *recall@k*: non interessa dove sta in classifica, interessa che ci
-   sia, perché il modello legge tutto l'elenco. Se manca, il caso è perso in partenza;
-2. **risposta** — la destinazione finale è quella attesa?
-
-**Due errori diversi, due numeri diversi.** La risposta non è "giusta o sbagliata": può
-sbagliare in due modi che si riparano in punti diversi e che pesano diversamente per chi
-usa l'app.
-
-- **contenitore sbagliato** — fra le destinazioni proposte ce n'è una che non è fra le
-  attese. È il danno vero: manda una persona al cassonetto sbagliato;
-- **canale perso** — le destinazioni proposte sono tutte giuste, ma ne manca una. È
-  l'errore di microonde e divano: la risposta diceva "isola ecologica" ed era vera, ma
-  taceva il ritiro a domicilio, che era l'alternativa comoda.
-
-L'uguaglianza esatta degli insiemi, usata fino alla v0.42.0, li confondeva in un numero
-solo. Oggi sono `contenitore_corretto` (non mandare nessuno nel posto sbagliato) e
-`copertura` (non perdere un'alternativa).
-
-Il confronto fra recupero e risposta dice **dove** intervenire, e lo dice da solo:
-
-| recupero | risposta | diagnosi | dove si lavora |
-|---|---|---|---|
-| ✓ | ✓ | corretto | — |
-| ✓ | tutte giuste, ne manca una | canale perso | politiche del codice, presentazione |
-| ✓ | ✗ | il documento c'era e non è stato scelto | prompt di scelta, politiche del codice |
-| ✗ | ✗ | il documento non è mai arrivato | formulazioni, indice, ricerca |
-| ✗ | ✓ | corretto per un'altra strada | da guardare: spesso è il livello 2 |
-
-**I casi negativi** (quelli senza attesa, livello 3) non entrano in questa tabella: lì la
-risposta giusta è *non rispondere*, e si misurano con le due astensioni.
-
-**Due modalità, perché costano diversamente.** Il recupero non usa modelli generativi: gira
-in secondi e si può lanciare a ogni modifica. La scelta chiama il modello una volta per
-livello, quindi è lenta ma molto meno della visione. Con `--senza-modello` si misura solo il
-tetto; senza, si misura tutto.
-
-**Il confronto fra due esecuzioni** è ciò che rende la misura utile a decidere: un numero
-assoluto dice poco, "due casi guadagnati e uno perso" dice cosa ha fatto la modifica. Ogni
-esecuzione salvata porta con sé la configurazione che l'ha prodotta, e il confronto avvisa
-se le due non sono confrontabili.
-
-Uso:
-  uv run ecoscan-valuta                          # recupero e scelta
-  uv run ecoscan-valuta --senza-modello          # solo recupero, in secondi
-  uv run ecoscan-valuta --salva esiti/v0.43.json
-  uv run ecoscan-valuta --confronta esiti/v0.42.json
 """
 from __future__ import annotations
 

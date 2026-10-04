@@ -1,26 +1,6 @@
 """Come si smaltisce, non solo dove.
 
-Per un terzo del dizionario di Napoli la risposta "va in X" è vera e insufficiente. 195
-voci su 578 finiscono in un'isola ecologica, 86 a un ecopunto itinerante, 57 chiedono una
-prenotazione telefonica: dire il nome del contenitore, lì, non basta a far compiere il
-gesto. Manca il *come*.
 
-**Il dato che serve c'è già**: `destinazione.canale` distingue `raccolta_ordinaria`,
-`ritiro_domicilio`, `contenitore_dedicato`, `raccolta_itinerante`, `centro_raccolta`. Non
-sono cinque etichette, sono **cinque gesti diversi**. La procedura si attacca al canale, non
-alla singola destinazione: nove coppie (comune, canale) invece di 902 voci, scritte a mano
-una volta e versionate in git.
-
-**Lo sforzo ordina le alternative.** 115 voci di Napoli hanno destinazioni su più canali, e
-non sono equivalenti per chi deve muoversi: buttare nel sacco è diverso dal caricare un
-microonde in macchina. Il campo `sforzo` le ordina, dalla più comoda alla più faticosa,
-così l'utente legge prima ciò che può fare da casa.
-
-**Cosa NON c'è qui, di proposito.** Nessun indirizzo, nessun orario, nessun numero di
-telefono. Sono dati che invecchiano e che il progetto non ha ancora estratto dalla fonte:
-inventarli sarebbe peggio che ometterli, perché una procedura sbagliata manda una persona a
-un cancello chiuso. La colonna `da_verificare` dichiara cosa manca, voce per voce, ed è la
-lista di lavoro per quando i luoghi entreranno nei dati.
 """
 from __future__ import annotations
 

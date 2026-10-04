@@ -1,27 +1,5 @@
 """Come una risposta dell'API diventa un messaggio leggibile.
 
-Sta separato dall'interfaccia perché è la parte che si sbaglia più facilmente e che vale la
-pena verificare: una regola di esclusione presentata male dice l'opposto del vero, e il
-livello di evidenza dev'essere visibile senza che l'utente debba conoscere il progetto.
-
-Quattro principi guidano cosa si mostra:
-
-- **i nomi interni non si mostrano.** Le risposte portano il nome con cui la destinazione è
-  scritta nei dati (a Torino `carta_e_cartone`); qui si traduce con le etichette che il
-  backend espone su `/destinazioni`. Il nome interno resta la chiave, l'etichetta è ciò che
-  l'utente legge;
-- **ciò che dice il comune resta distinto da ciò che ha capito l'assistente.** Il
-  riconoscimento della foto è dell'assistente e può essere sbagliato: si mostra a parte,
-  perché l'utente possa correggerlo. La destinazione viene dai dati del comune, e si cita la
-  fonte da cui arriva;
-- **una cosa si dice una volta sola** (D192). La condizione che ha deciso la risposta stava
-  in tre punti — nel riconoscimento, in un "Vale se è unto." tutto suo, e nella riga delle
-  varianti: ora sta nel titolo, dove decide qualcosa, e l'altra strada diventa una frase;
-- **si parla quando c'è un'eccezione** (D193). Una frase che compare in ogni risposta non
-  informa: diventa arredamento che l'occhio salta, e porta con sé quelle che invece
-  contavano. "Il comune elenca proprio questo oggetto" era vera nella grande maggioranza dei
-  casi, quindi taceva proprio dove serviva. Ora il livello di evidenza si scrive solo quando
-  **non** è il caso normale: categoria, livello 2, livello 3.
 """
 from __future__ import annotations
 

@@ -1,24 +1,5 @@
 """Famiglie di materiali, e quando due si escludono.
 
-Nasce da un errore osservato: una forchetta d'acciaio a cui il sistema ha risposto "Non
-Riciclabile" citando la voce "Forchetta in plastica". Il modello aveva riconosciuto
-l'acciaio e l'aveva perfino scritto nel motivo della scelta; nessuno gli ha impedito di
-scegliere un documento che dichiarava un materiale diverso.
-
-La regola è una sola: **se il documento dichiara un materiale e l'oggetto ne dichiara un
-altro di un'altra famiglia, quel documento non può essere la risposta.** Vale per qualunque
-modello, quindi sta nel codice e non nel prompt, come già la politica che scarta le
-corrispondenze `solo_materiale`.
-
-Due cautele, perché il riconoscimento può sbagliare:
-
-- si decide solo quando **entrambe** le parti nominano un materiale. Un documento che non
-  dice di che materiale è ("Scatolette per tonno") non viene mai escluso;
-- un documento che ne nomina più d'uno ("Barattolo in metallo o plastica") è compatibile con
-  ciascuno: basta una famiglia in comune.
-
-Le famiglie sono poche e verificate sui dati dei due comuni: contengono le parole che
-compaiono davvero nei dizionari di ASIA e AMIAT, non un'ontologia dei materiali.
 """
 from __future__ import annotations
 
@@ -55,8 +36,6 @@ def famiglia(parola: str) -> str | None:
 def famiglie_nel_testo(testo: str) -> set[str]:
     """Le famiglie di materiale nominate in un testo libero.
 
-    Il confronto è per parola intera: "cartaceo" non deve nascere da "carta" dentro un'altra
-    parola, e "gommone" non deve diventare "gomma".
     """
     piatto = (testo or "").lower()
     trovate = {f for p in re.findall(r"[a-zàèéìòù]+", piatto) if (f := famiglia(p))}
@@ -72,8 +51,6 @@ def famiglie_dichiarate(materiali: list[str]) -> set[str]:
 
 def incompatibili(testo: str, materiali: list[str]) -> bool:
     """Il documento nomina un materiale, l'oggetto un altro, e non hanno nulla in comune.
-
-    Falso quando una delle due parti tace: non sapere non è una ragione per escludere.
     """
     dell_oggetto = famiglie_dichiarate(materiali)
     if not dell_oggetto:
@@ -96,12 +73,6 @@ def dichiarato(testo: str) -> str | None:
 
 def distinzione(documenti: list[tuple[str, tuple[str, ...]]]) -> list[str]:
     """I materiali che distinguono documenti omonimi, quando portano in posti diversi.
-
-    È il rovescio di `incompatibili`: quella toglie i documenti di un materiale che
-    l'oggetto non ha, questa si accorge che **il materiale non lo sappiamo** e che sapere
-    cambierebbe la risposta. Nei due dizionari le famiglie di omonimi distinte dal materiale
-    sono 37: bicchiere di vetro contro bicchiere in plastica, posate in acciaio contro
-    posate in plastica, tagliere in legno contro tagliere in plastica.
 
     Restituisce l'elenco vuoto quando la domanda non servirebbe: un materiale solo, oppure
     più materiali che portano tutti nello stesso contenitore.

@@ -1,32 +1,5 @@
 """Ogni esecuzione della valutazione diventa una run di MLflow. **Sempre.**
 
-**Perché, visto che c'è già `--salva` e `--confronta`.** Quei due bastano mentre si lavora:
-due file, un confronto, si vede cosa ha fatto la modifica. Non bastano per guardare la
-**serie storica**: dieci esecuzioni fra la v0.40 e la v0.45 sono dieci file JSON da aprire
-uno per uno, e la domanda "il recupero è salito o è tornato indietro tre versioni fa?" non
-ha una risposta che si possa mostrare a qualcuno. MLflow quella tabella la fa da sé, con i
-parametri di ciascuna esecuzione accanto ai numeri.
-
-**Una misura non è osservabilità.** Il resto del tracciamento del progetto è non bloccante
-per scelta (D116): se MLflow è spento, l'utente riceve comunque la sua risposta e la traccia
-si perde senza danno. Una **misura** no: si prende una volta, spesso dopo minuti di CPU, e
-se non viene registrata è persa. Da qui tre regole che valgono solo qui:
-
-1. `ECOSCAN_MLFLOW_ATTIVO` **non si guarda**: governa le tracce delle conversazioni, non le
-   misure. L'unico modo di non registrare è chiederlo, con `--senza-mlflow`;
-2. se il server non risponde, la run si scrive comunque in un **archivio locale**
-   (`data/valutazione/mlflow-locale.db`), che è un archivio MLflow vero e si apre con
-   `mlflow ui`. È SQLite e non una cartella di file perché dalla 3.x MLflow rifiuta il
-   vecchio *file store*, e un ripiego che non funziona è peggio di nessun ripiego;
-3. se fallisce anche quello, il comando **si ferma con errore**, invece di lasciar credere
-   che la misura sia al sicuro da qualche parte.
-
-**Esperimento separato** (`ecoscan-valutazione`, contro `ecoscan-chat` delle
-conversazioni). Le tracce delle conversazioni sono osservazioni di ciò che è successo a un
-utente; le run di valutazione sono misure ripetibili su un dataset fermo. Mescolarle
-renderebbe illeggibili entrambe le liste — ed è anche il motivo per cui l'uscita stampa il
-**link diretto** alla run: cercarla nella lista sbagliata è l'errore più facile da fare.
-
 Cosa finisce nella run:
 
 - **parametri**: la configurazione dell'agente (modello, `k`, versioni dei prompt con
@@ -37,8 +10,6 @@ Cosa finisce nella run:
   perché non sono state misurate;
 - **allegato**: l'esito completo in JSON, così da una run si risale al singolo caso.
 
-I tre passaggi sono protetti **uno per uno**: se l'allegato non passa, le metriche restano
-comunque scritte e l'uscita dice cosa è andato e cosa no.
 """
 from __future__ import annotations
 

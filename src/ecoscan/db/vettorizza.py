@@ -1,21 +1,5 @@
 """Indicizzazione dei documenti su Qdrant e ricerca semantica.
 
-**Una sola strategia.** La ricerca è semantica e basta: le sonde avevano mostrato che
-affiancarle la ricerca lessicale non cambiava il risultato (14 su 16 in entrambi i casi,
-con un caso migliorato e uno peggiorato). Restano quindi un solo indice, una sola query e
-nessuna fusione da tarare.
-
-L'unico punto in cui il lessicale era imbattibile sono i **codici materiale** ("PAP 21"):
-ma un codice non è un testo da cercare, è un identificatore, e si aggancia in modo esatto.
-
-**Divisione dei ruoli.** Qdrant contiene i documenti con il loro payload e risponde alla
-domanda "quali oggetti somigliano a questo?". SQLite resta il punto di arrivo dell'ETL, da
-cui i documenti si costruiscono, con i suoi vincoli di integrità.
-
-Uso:
-  uv run ecoscan-vettorizza                    # indicizza i documenti
-  uv run ecoscan-vettorizza --verifica
-  uv run ecoscan-vettorizza --cerca "cartone della pizza unto" --comune Napoli
 """
 from __future__ import annotations
 

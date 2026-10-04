@@ -5,9 +5,6 @@ Due chiamate distinte, con ruoli diversi:
 - `riconosci` guarda la foto e descrive l'oggetto. Non sa dove va buttato;
 - `scegli` riceve candidati REALI presi dal dizionario comunale e ne indica uno, o nessuno.
 
-La seconda chiamata è ciò che contiene le allucinazioni: il modello non produce un nome
-libero, sceglie fra opzioni esistenti (D9). Entrambe usano l'output strutturato di Ollama
-(`format` con uno schema JSON), così il backend non deve interpretare della prosa.
 
 `ModelloVisione` è un protocollo: i test usano un modello finto, la valutazione può
 confrontare modelli diversi senza toccare il resto dell'agente.
@@ -96,9 +93,7 @@ def _elenco(candidati: Sequence[Candidato]) -> str:
 def _descrizione_oggetto(r: Riconoscimento, testo_utente: str | None) -> str:
     """Come l'oggetto viene presentato al modello nella scelta.
 
-    Sinonimi e categoria non sono un di più: senza di essi un nome ambiguo può essere
-    reinterpretato. Davanti a "ciabatta" il modello ha risposto "è un tipo di pane" e ha
-    scelto una busta per alimenti; con "categoria: calzatura" quella strada è chiusa.
+    
     """
     righe = [f"Oggetto: {r.oggetto}"]
     if r.categoria:

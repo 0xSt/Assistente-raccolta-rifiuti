@@ -1,13 +1,5 @@
 """Risorse condivise dalle rotte: database, Qdrant, modelli, agente.
 
-Sono costruite una volta all'avvio e riusate: aprire una connessione per richiesta
-sprecherebbe tempo, e soprattutto il modello verrebbe ricaricato di continuo.
-
-Il database si apre in **sola lettura**: il backend non scrive mai nei dati, che si
-rigenerano con i comandi dell'ETL. È un vincolo dichiarato nel codice, non una promessa.
-
-`Risorse` è sostituibile: i test ne costruiscono una versione con un database in memoria e
-un modello finto, senza alzare nulla.
 """
 from __future__ import annotations
 

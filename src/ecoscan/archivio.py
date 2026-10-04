@@ -1,21 +1,6 @@
 """Leggere e scrivere i file del progetto: JSONL, JSON, e l'apertura del database.
 
-Erano quattro implementazioni della stessa riga di `json.loads` — in `db/carica.py`, in
-`ispeziona.py`, in `valutazione/casi.py` e in `valutazione/foto.py`, le ultime due identiche
-campo per campo — e tre copie parola per parola dello stesso messaggio d'errore sul
-database mancante. Il nucleo è condiviso; quello che **non** si condivide è la politica sul
-file assente, perché è diversa di proposito:
 
-- chi **costruisce** (il caricamento) tratta un file mancante come un insieme vuoto: un
-  comune di cui non si sono ancora estratti i dati non deve far fallire il caricamento
-  degli altri;
-- chi **ispeziona o misura** si ferma e dice quale comando produce il file che manca: lì un
-  insieme vuoto sarebbe un riepilogo di zero righe, cioè una risposta sbagliata travestita
-  da risposta.
-
-Sta al primo livello del pacchetto, e non sotto `db/`, perché lo usano anche la valutazione
-e gli ispettori, e perché il frontend non deve poter importare `ecoscan.db` (c'è un test che
-lo verifica).
 """
 from __future__ import annotations
 

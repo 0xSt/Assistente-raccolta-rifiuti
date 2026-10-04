@@ -4,17 +4,6 @@ I prompt restano **file versionati in git**: quella è la verità, e il diff fra
 è leggibile. Il registro di MLflow serve a un'altra cosa: collegare una versione di prompt
 alle tracce che l'hanno usata, così quando un risultato peggiora si sa quale testo c'era.
 
-Perciò qui non si genera nulla: si pubblica ciò che già esiste su disco. Il backend continua
-a leggere i prompt da disco, e cerca nel registro la versione con la **stessa impronta** per
-collegarla a ogni traccia.
-
-La pubblicazione è idempotente: un prompt già registrato con la stessa impronta non crea una
-nuova versione. Senza questo controllo ogni lancio aggiungerebbe una versione identica, e i
-numeri del registro smetterebbero di voler dire qualcosa.
-
-Uso:
-  uv run ecoscan-prompt --pubblica      # manda al registro i prompt nuovi o modificati
-  uv run ecoscan-prompt                 # elenca quelli su disco con versione e impronta
 """
 from __future__ import annotations
 

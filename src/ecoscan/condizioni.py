@@ -14,15 +14,6 @@ nella stessa lista. Tre tipi, contati sul database vero:
   domanda giusta è "di che materiale è?", e va dichiarata perché le parole dei materiali
   non contengono nessun segnale che le distingua da uno stato.
 
-Trattarle tutte come stati produceva frasi come "Vale se è: piccole quantità" e pulsanti
-tipo "Utenza domestica" in risposta a "com'è il tuo oggetto?".
-
-Sta qui, e non nel frontend, perché serve in due punti: la domanda la compone l'agente e la
-frase la scrive la presentazione. La classificazione è la stessa, e duplicarla significa
-vederla divergere.
-
-Non tocca i dati: `condizione` resta un testo solo nel database. Se un giorno le condizioni
-avranno un tipo proprio nel livello normalizzato, questo modulo diventa la sua lettura.
 """
 from __future__ import annotations
 

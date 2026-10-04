@@ -1,19 +1,6 @@
 """Gli strumenti di ispezione: guardare i dati a ogni livello, senza modificarli.
 
-Stanno insieme e fuori da `etl/` e da `db/` per due motivi. Il primo e' che attraversano i
-livelli — il grezzo, il normalizzato e i documenti costruiti dal relazionale — e mettere
-un ispettore dentro il livello che ispeziona ha gia' fatto danni: `esegui_transform`
-importava la lettura del JSONL da `ispeziona_napoli`, cioe' la produzione dipendeva da uno
-strumento diagnostico per tre righe di `json.loads`. Il secondo e' che sono strumenti di
-chi sviluppa, non passaggi della pipeline, e si distinguono a colpo d'occhio da quelli.
 
-Nessuno di questi comandi scrive niente.
-
-Uso:
-  uv run ecoscan-ispeziona grezzo              # il livello grezzo di Napoli
-  uv run ecoscan-ispeziona grezzo --campione 15
-  uv run ecoscan-ispeziona nomi                # i nomi sgrammaticati dopo la normalizzazione
-  uv run ecoscan-ispeziona documenti --cerca pizza --payload
 """
 from __future__ import annotations
 

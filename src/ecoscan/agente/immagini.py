@@ -1,19 +1,8 @@
 """Preparazione delle immagini prima di mandarle al modello.
-
-Una foto di uno smartphone è tipicamente un JPEG di diversi megapixel e qualche megabyte.
-Il modello la rimpicciolisce comunque prima di guardarla, quindi mandarla intera non aggiunge
-dettaglio: aggiunge solo byte da trasferire e da codificare in base64, che cresce di un terzo.
-
-Qui si fa quello che il modello farebbe comunque, ma sotto il nostro controllo e in modo
-verificabile:
-
 - si converte in **RGB**, perché una PNG con canale alfa o in scala di grigi può essere
   interpretata male;
 - si ridimensiona il lato lungo a una misura nota;
 - si ricodifica in JPEG, che a parità di contenuto pesa molto meno di una PNG fotografica.
-
-`informazioni()` serve alla diagnostica: sapere formato, dimensioni e peso di ciò che si sta
-mandando è il primo dato utile quando un riconoscimento va storto.
 """
 from __future__ import annotations
 
