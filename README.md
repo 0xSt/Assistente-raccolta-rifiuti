@@ -73,9 +73,10 @@ Le singole fasi della catena dati, se serve eseguirne una sola: `ecoscan-napoli`
 voci), `ecoscan-regole` (regole di categoria), `ecoscan-carica` (database relazionale).
 
 
-## Dashboard valutazione in MLflow
+## MLflow Dashboard
 
 <img width="1572" height="792" alt="image" src="https://github.com/user-attachments/assets/c8a1b757-4c15-4e08-b605-e8d3944a2b9d" />
+<img width="1487" height="770" alt="image" src="https://github.com/user-attachments/assets/23bf837a-403d-404d-95b2-047a994cbdc0" />
 
 
 ```
