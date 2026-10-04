@@ -4,8 +4,7 @@ Assistente per la raccolta differenziata che gira **interamente in locale**.
 
 Si fotografa un oggetto (o se ne scrive il nome), si indica il comune, e l'app risponde in
 quale contenitore conferirlo citando la fonte ufficiale da cui proviene la regola. Quando
-la destinazione dipende da una condizione dell'oggetto che non è stata dichiarata, il sistema la chiede
-invece di indovinarla.
+la destinazione dipende da una condizione dell'oggetto che non è stata dichiarata, il sistema la chiede.
 
 Le regole sono estratte da fonti pubblicate dai gestori del servizio e indicizzate
 come documenti ricercabili: il modello sceglie fra documenti reali, non scrive la risposta.
