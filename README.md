@@ -72,6 +72,12 @@ Le singole fasi della catena dati, se serve eseguirne una sola: `ecoscan-napoli`
 `ecoscan-torino` (estrazione dalle fonti), `ecoscan-transform` (normalizzazione delle
 voci), `ecoscan-regole` (regole di categoria), `ecoscan-carica` (database relazionale).
 
+
+## MLflow traces
+
+<img width="1572" height="792" alt="image" src="https://github.com/user-attachments/assets/c8a1b757-4c15-4e08-b605-e8d3944a2b9d" />
+
+
 ```bash
 uv run pytest                   # i test di Torino si saltano se il PDF non è presente
 uv run ruff check src tests
